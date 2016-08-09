@@ -4,7 +4,7 @@ import logging
 import argparse
 import os
 
-import mtrain
+from mtrain.constants import *
 
 LOGGING_LEVELS = {
     "DEBUG": logging.DEBUG,
@@ -27,18 +27,16 @@ def get_argument_parser():
         "src_lang",
         type=str,
         help="source language code: valid choices are `" +
-            "`, `".join([lang for lang in mtrain.MOSES_TOKENIZER_LANG_CODES.keys()]) +
+            "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
             "`",
-        choices=mtrain.MOSES_TOKENIZER_LANG_CODES.keys(),
+        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
         metavar='src_lang' #overrides ugnly double-listing of available choices in --help
     )
     parser.add_argument(
         "trg_lang",
         type=str,
-        help="target language code: valid choices are `" +
-            "`, `".join([lang for lang in mtrain.MOSES_TOKENIZER_LANG_CODES.keys()]) +
-            "`",
-        choices=mtrain.MOSES_TOKENIZER_LANG_CODES.keys(),
+        help="target language code: same valid choices as in src_lang",
+        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
         metavar='trg_lang' #overrides ugnly double-listing of available choices in --help
     )
     parser.add_argument(
@@ -52,8 +50,8 @@ def get_argument_parser():
         "-c", "--caser",
         type=str,
         help="casing strategy: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in mtrain.CASING_STRATEGIES.items()]),
-        choices=mtrain.CASING_STRATEGIES.keys(),
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in CASING_STRATEGIES.items()]),
+        choices=CASING_STRATEGIES.keys(),
         default="recasing"
     )
     parser.add_argument(
