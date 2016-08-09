@@ -3,6 +3,7 @@
 import logging
 import os
 
+import assertions
 from preprocessing import cleaner, lowercaser, tokenizer
 
 class Training(object):
@@ -24,8 +25,11 @@ class Training(object):
         Creates a new project structure at @param basepath.
         '''
         self.basepath = basepath
-        assert os.path.exists(self.basepath)
-        if os.listdir(self.basepath):
+        assertions.dir_exists(
+            self.basepath,
+            raise_exception="%s does not exist" % self.basepath
+        )
+        if not assertions.dir_is_empty(self.basepath):
             logging.warning("Base path %s is not empty. Existing files will be overwritten.", self.basepath)
         # create sub-directories
         for component in self.PATHS:
