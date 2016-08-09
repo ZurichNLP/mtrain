@@ -1,3 +1,92 @@
 #!/usr/bin/env python3
 
+import logging
+import argparse
+import os
+
 import mtrain
+
+LOGGING_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
+
+def get_argument_parser():
+    parser = argparse.ArgumentParser()
+    parser.description = "Trains a Moses-based machine translation system."
+    parser.add_argument(
+        "basepath",
+        type=str,
+        help="common path/file prefix of the training corpus' source and " +
+        "target side, e.g., `/foo/bar/training_corpus`"
+    )
+    parser.add_argument(
+        "src_lang",
+        type=str,
+        help="source language code: valid choices are `" +
+            "`, `".join([lang for lang in mtrain.MOSES_TOKENIZER_LANG_CODES.keys()]) +
+            "`",
+        choices=mtrain.MOSES_TOKENIZER_LANG_CODES.keys(),
+        metavar='src_lang' #overrides ugnly double-listing of available choices in --help
+    )
+    parser.add_argument(
+        "trg_lang",
+        type=str,
+        help="target language code: valid choices are `" +
+            "`, `".join([lang for lang in mtrain.MOSES_TOKENIZER_LANG_CODES.keys()]) +
+            "`",
+        choices=mtrain.MOSES_TOKENIZER_LANG_CODES.keys(),
+        metavar='trg_lang' #overrides ugnly double-listing of available choices in --help
+    )
+    parser.add_argument(
+        "-o", "--output-dir",
+        type=str,
+        help="target directory for all output. The curent working directory " +
+            "($PWD) is used by default.",
+        default=os.getcwd()
+    )
+    parser.add_argument(
+        "-c", "--caser",
+        type=str,
+        help="casing strategy: " +
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in mtrain.CASING_STRATEGIES.items()]),
+        choices=mtrain.CASING_STRATEGIES.keys(),
+        default="recasing"
+    )
+    parser.add_argument(
+        "-t", "--tune",
+        help="enable tuning. If an integer is provided, the given number of " +
+            "segments will be randomly taken from the training corpus " +
+            "(basepath). Alternatively, the basepath to a separate tuning " +
+            "corpus can be provided. Examples: `2000`, `/foo/bar/tuning_corpus`"
+    )
+    parser.add_argument(
+        "-e", "--eval",
+        help="enable evaluation. If an integer is provided, the given number " +
+            "of segments will be randomly taken from the training corpus " +
+            "(basepath). Alternatively, the basepath to a separate evaluation " +
+            "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
+    )
+    parser.add_argument(
+        "--logging",
+        help="logging level. The default is `WARNING`",
+        choices=LOGGING_LEVELS.keys(),
+        default="WARNING"
+    )
+    parser.add_argument(
+        "--stderr",
+        help="write logs to standard error rather than the default log file.",
+        action='store_true'
+    )
+    return parser
+
+def main():
+    parser = get_argument_parser()
+    args = parser.parse_args()
+    #todo: set logging file to /logs/...
+
+if __name__ == '__main__':
+    main()

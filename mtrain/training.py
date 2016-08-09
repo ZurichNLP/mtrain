@@ -41,22 +41,22 @@ class Training(object):
         assert component in self.PATHS, "Unknown component %s" % component
         return os.path.sep.join([self.basepath, component])
 
-    def preprocess(self, corpus_base_path, src_lng, trg_lng, tuning=None, evaluation=None):
+    def preprocess(self, corpus_base_path, src_lang, trg_lang, tuning=None, evaluation=None):
         '''
         Preprocesses the given parallel corpus.
 
-        Note: @param src_lng, @param trg_lng must be language codes recognised
+        Note: @param src_lang, @param trg_lang must be language codes recognised
             by the built-in Moses tokenizer.
 
         Note: The source and target side files of the parallel corpus are
             induced from concatenating @param corpus_base_path with @param
-            src_lng and @param trg_lang, respectively. Example: `/foo/corpus`,
+            src_lang and @param trg_lang, respectively. Example: `/foo/corpus`,
             `en` and `fr` result in `/foo/corpus.en` and `/foo/corpus.fr`.
 
-        @param corpus_base_path the common file prefix of the corpus' source and
-            target side
-        @param src_lng the language code of the source language, e.g., `en`
-        @param trg_lng the language code of the target language, e.g., `fr`
+        @param corpus_base_path the common file prefix of the training corpus'
+            source and target side
+        @param src_lang the language code of the source language, e.g., `en`
+        @param trg_lang the language code of the target language, e.g., `fr`
         @param tuning the tuning set to be used. The options are
             NONE:   do not tune (not recommended)
             INT:    select INT random lines from the base corpus for tuning
