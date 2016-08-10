@@ -18,13 +18,16 @@ class ParallelCorpus(object):
             the `self.insert` method will remove and return a random segment
             that is already stored in this corpus.
         '''
-        self._file_source = open(filepath_source, 'w')
-        self._file_target = open(filepath_target, 'w')
+        self._filepath_source = filepath_source
+        self._filepath_target = filepath_target
         self._bisegments = []
         self._num_bisegments = 0
         self._max_size = max_size
         self._flush_immediately = False if self._max_size else True
         self._closed = False # closed corpora have been flushed to disk and can't be manipulated anymore.
+        file_buffer = 1 if self._flush_immediately else -1 # 1: line buffered, -1: use system default
+        self._file_source = open(self._filepath_source, 'w', file_buffer)
+        self._file_target = open(self._filepath_target, 'w', file_buffer)
 
     def insert(self, segment_source, segment_target):
         '''
@@ -54,6 +57,13 @@ class ParallelCorpus(object):
         self._file_target.close()
         self._closed = True
 
+    def get_filepaths(self):
+        '''
+        Returns the filepaths for the source and target side of the parallel
+        corpus as tuple.
+        '''
+        return (self._filepath_source, self._filepath_target)
+
     def _write_bisegment(self, bisegment):
         '''
         Writes a bi-segment to file.
@@ -69,6 +79,7 @@ class ParallelCorpus(object):
         '''
         Removes and returns a random bi-segment from this corpus.
         '''
+        self._num_bisegments -= 1
         #todo: this is slow (O(n)) and needs improvement
         i = random.randrange(len(self._bisegments))
         return self._bisegments.pop(i)
