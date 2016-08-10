@@ -20,9 +20,7 @@ class TestParallelCorpus(TestCase):
 
     @staticmethod
     def _remove_test_corpus(corpus):
-        filepath_source, filepath_target = corpus.get_filepaths()
-        os.remove(filepath_source)
-        os.remove(filepath_target)
+        corpus.delete()
 
     def test_corpus_creation(self):
         corpus = self._create_test_corpus()

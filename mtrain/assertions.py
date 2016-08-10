@@ -24,7 +24,7 @@ def dir_exists(path, raise_exception=None):
     Returns False if @param path isn't an existing directory, or raises @param
     exception if provided.
     '''
-    if not os.path.isdir(path):
+    if os.path.isdir(path):
         return True
     else:
         if raise_exception:

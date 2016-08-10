@@ -10,6 +10,11 @@ import os
 MOSES_HOME = str(os.environ.get('MOSES_HOME')) # Moses base directory
 FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the fast_align binaries (fast_align, atools)
 
+# Default file suffixes
+FILE_SUFFIX_TRAINING_CORPUS = 'train'
+FILE_SUFFIX_TUNING_CORPUS = 'tune'
+FILE_SUFFIX_EVALUATION_CORPUS = 'test'
+
 # Valid language codes
 MOSES_TOKENIZER_LANG_CODES = {
     "ca": "Catalan",

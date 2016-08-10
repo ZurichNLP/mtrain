@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-import logging
-import os
+#from mtrain.preprocessing import cleaner, lowercaser, tokenizer
+from mtrain.corpus import ParallelCorpus
+from mtrain.constants import *
+from mtrain import assertions
 
-import assertions
-from preprocessing import cleaner, lowercaser, tokenizer
+import logging
+import random
+import os
 
 class Training(object):
     '''
@@ -24,13 +27,13 @@ class Training(object):
         '''
         Creates a new project structure at @param basepath.
         '''
-        self.basepath = basepath
+        self._basepath = basepath.rstrip(os.sep)
         assertions.dir_exists(
-            self.basepath,
-            raise_exception="%s does not exist" % self.basepath
+            self._basepath,
+            raise_exception="%s does not exist" % self._basepath
         )
-        if not assertions.dir_is_empty(self.basepath):
-            logging.warning("Base path %s is not empty. Existing files will be overwritten.", self.basepath)
+        if not assertions.dir_is_empty(self._basepath):
+            logging.warning("Base path %s is not empty. Existing files will be overwritten.", self._basepath)
         # create sub-directories
         for component in self.PATHS:
             subdir = self._get_path(component)
@@ -43,7 +46,7 @@ class Training(object):
         @param component.
         '''
         assert component in self.PATHS, "Unknown component %s" % component
-        return os.path.sep.join([self.basepath, component])
+        return os.path.sep.join([self._basepath, component])
 
     def preprocess(self, corpus_base_path, src_lang, trg_lang, tuning=None, evaluation=None):
         '''
@@ -69,6 +72,65 @@ class Training(object):
         @param evaluation the evaluation set to be used. The same options as in
             @param tuning apply.
         '''
+        num_tuning = 0 if not isinstance(tuning, int) else tuning
+        num_eval = 0 if not isinstance(evaluation, int) else evaluation
+        self._split_corpus(corpus_base_path, src_lang, trg_lang, num_tuning, num_eval)
+
+    def _split_corpus(self, corpus_base_path, src_lang, trg_lang, num_tuning=0, num_eval=0):
+        '''
+        Selects @num_tuning and @num_eval random segments from the parallel
+        corpus located at @source_filepath/@target_filepath for tuning and
+        evaluation, respectively. Outputs are stored at /corpus.
+        '''
+        corpus_base_name = os.path.basename(corpus_base_path)
+        def get_corpus_filename(corpus_type, lang):
+            return self._basepath + os.sep + self.PATHS['corpus'] + os.sep + corpus_base_name + "." + corpus_type + "." + lang
+        # open parallel input corpus for reading
+        corpus_source = open(corpus_base_path + "." + src_lang, 'r')
+        corpus_target = open(corpus_base_path + "." + trg_lang, 'r')
+        # create parallel output corpora
+        corpus_train = ParallelCorpus(
+            get_corpus_filename(FILE_SUFFIX_TRAINING_CORPUS, src_lang),
+            get_corpus_filename(FILE_SUFFIX_TRAINING_CORPUS, trg_lang),
+            max_size=None
+        )
+        corpus_tune = ParallelCorpus(
+            get_corpus_filename(FILE_SUFFIX_TUNING_CORPUS, src_lang),
+            get_corpus_filename(FILE_SUFFIX_TUNING_CORPUS, trg_lang),
+            max_size=num_tuning
+        )
+        corpus_eval = ParallelCorpus(
+            get_corpus_filename(FILE_SUFFIX_EVALUATION_CORPUS, src_lang),
+            get_corpus_filename(FILE_SUFFIX_EVALUATION_CORPUS, trg_lang),
+            max_size=num_eval
+        )
+        # distribute segments from input corpus to output corpora
+        for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
+            # clean segments (most importantly, remove trailing \n)
+            segment_source = segment_source.strip()
+            segment_target = segment_target.strip()
+            # reservoir sampling (Algorithm R)
+            if corpus_tune.get_size() < num_tuning:
+                corpus_tune.insert(segment_source, segment_target)
+            elif corpus_eval.get_size() < num_eval:
+                corpus_eval.insert(segment_source, segment_target)
+            else:
+                if num_tuning > 0 and random.randint(0, i) < (num_tuning + num_eval):
+                    segment_source, segment_target = corpus_tune.insert(segment_source, segment_target)
+                elif num_eval > 0 and random.randint(0, i) < (num_tuning + num_eval):
+                    segment_source, segment_target = corpus_eval.insert(segment_source, segment_target)
+                corpus_train.insert(segment_source, segment_target)
+        # close file handles
+        corpus_source.close()
+        corpus_target.close()
+        corpus_train.close()
+        corpus_tune.close()
+        corpus_eval.close()
+        # delete empty corpora, if any
+        if num_tuning == 0:
+            corpus_tune.delete()
+        if num_eval == 0:
+            corpus_eval.delete()
 
     def _tokenize(self, origin, dest):
         '''

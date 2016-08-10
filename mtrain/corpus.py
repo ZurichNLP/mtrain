@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import random
 
 class ParallelCorpus(object):
@@ -57,12 +58,26 @@ class ParallelCorpus(object):
         self._file_target.close()
         self._closed = True
 
+    def delete(self):
+        '''
+        Deletes this corpus on disk.
+        '''
+        filepath_source, filepath_target = self.get_filepaths()
+        os.remove(filepath_source)
+        os.remove(filepath_target)
+
     def get_filepaths(self):
         '''
         Returns the filepaths for the source and target side of the parallel
         corpus as tuple.
         '''
         return (self._filepath_source, self._filepath_target)
+
+    def get_size(self):
+        '''
+        Returns the number of bi-segments in this corpus.
+        '''
+        return self._num_bisegments
 
     def _write_bisegment(self, bisegment):
         '''
