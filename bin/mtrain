@@ -69,6 +69,20 @@ def get_argument_parser():
             "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
     )
     parser.add_argument(
+        "--min-tokens",
+        help="the minimum number of tokens per segments; segments with less " +
+            "tokens will be discarded",
+        type=int,
+        default=1
+    )
+    parser.add_argument(
+        "--max-tokens",
+        help="the maximum number of tokens per segments; segments with more " +
+            "tokens will be discarded",
+        type=int,
+        default=80
+    )
+    parser.add_argument(
         "--logging",
         help="logging level. The default is `WARNING`",
         choices=LOGGING_LEVELS.keys(),

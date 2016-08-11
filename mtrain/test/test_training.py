@@ -3,6 +3,7 @@
 from unittest import TestCase
 
 from mtrain.training import Training
+from mtrain.constants import *
 from mtrain import assertions
 
 import random
@@ -35,27 +36,21 @@ class TestTraining(TestCase):
     def test_corpus_splitting_file_creation_train_only(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, 1, 80)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(
-            corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]),
-            src_lang="en",
-            trg_lang="fr",
-            tuning=50,
-            evaluation=20
-        )
+        t.preprocess(corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]))
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
-            "sample-corpus.train.en" in files_created,
+            BASENAME_TRAINING_CORPUS + ".en" in files_created,
             "Training corpus for source language must be created"
         )
         self.assertTrue(
-            "sample-corpus.train.fr" in files_created,
+            BASENAME_TRAINING_CORPUS + ".fr" in files_created,
             "Training corpus for target language must be created"
         )
         shutil.rmtree(random_basedir_name)
@@ -63,43 +58,37 @@ class TestTraining(TestCase):
     def test_corpus_splitting_file_creation_train_tune_eval(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, 1, 80)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(
-            corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]),
-            src_lang="en",
-            trg_lang="fr",
-            tuning=50,
-            evaluation=20
-        )
+        t.preprocess(corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]))
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
-            "sample-corpus.train.en" in files_created,
+            BASENAME_TRAINING_CORPUS + ".en" in files_created,
             "Training corpus for source language must be created"
         )
         self.assertTrue(
-            "sample-corpus.train.fr" in files_created,
+            BASENAME_TRAINING_CORPUS + ".fr" in files_created,
             "Training corpus for target language must be created"
         )
         self.assertTrue(
-            "sample-corpus.tune.en" in files_created,
+            BASENAME_TUNING_CORPUS + ".en" in files_created,
             "Tuning corpus for source language must be created"
         )
         self.assertTrue(
-            "sample-corpus.tune.fr" in files_created,
+            BASENAME_TUNING_CORPUS + ".fr" in files_created,
             "Tuning corpus for target language must be created"
         )
         self.assertTrue(
-            "sample-corpus.test.en" in files_created,
+            BASENAME_EVALUATION_CORPUS + ".en" in files_created,
             "Evaluation corpus for source language must be created"
         )
         self.assertTrue(
-            "sample-corpus.test.fr" in files_created,
+            BASENAME_EVALUATION_CORPUS + ".fr" in files_created,
             "Evaluation corpus for target language must be created"
         )
         shutil.rmtree(random_basedir_name)
@@ -107,24 +96,20 @@ class TestTraining(TestCase):
     def test_corpus_splitting_correct_number_of_lines_train_only(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, 1, 80)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(
-            corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]),
-            src_lang="en",
-            trg_lang="fr"
-        )
+        t.preprocess(corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]))
         self.assertTrue(
-            200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.train.en"])),
+            200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
             "Number of segments in source side of training corpus must be correct"
         )
         self.assertTrue(
-            200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.train.fr"])),
+            200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".fr"])),
             "Number of segments in target side of training corpus must be correct"
         )
         shutil.rmtree(random_basedir_name)
@@ -132,42 +117,36 @@ class TestTraining(TestCase):
     def test_corpus_splitting_correct_number_of_lines_train_tune_eval(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, 1, 80)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(
-            corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]),
-            src_lang="en",
-            trg_lang="fr",
-            tuning=50,
-            evaluation=20
-        )
+        t.preprocess(corpus_base_path=os.sep.join([random_basedir_name, "sample-corpus"]))
         self.assertTrue(
-            130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.train.en"])),
+            130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
             "Number of segments in source side of training corpus must be correct"
         )
         self.assertTrue(
-            130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.train.fr"])),
+            130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".fr"])),
             "Number of segments in target side of training corpus must be correct"
         )
         self.assertTrue(
-            50 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.tune.en"])),
+            50 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TUNING_CORPUS + ".en"])),
             "Number of segments in source side of tuning corpus must be correct"
         )
         self.assertTrue(
-            50 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.tune.fr"])),
+            50 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TUNING_CORPUS + ".fr"])),
             "Number of segments in target side of tuning corpus must be correct"
         )
         self.assertTrue(
-            20 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.test.en"])),
+            20 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_EVALUATION_CORPUS + ".en"])),
             "Number of segments in source side of evaluation corpus must be correct"
         )
         self.assertTrue(
-            20 == self.count_lines(os.sep.join([random_basedir_name, "corpus", "sample-corpus.test.fr"])),
+            20 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_EVALUATION_CORPUS + ".fr"])),
             "Number of segments in target side of evaluation corpus must be correct"
         )
         shutil.rmtree(random_basedir_name)

@@ -10,10 +10,17 @@ import os
 MOSES_HOME = str(os.environ.get('MOSES_HOME')) # Moses base directory
 FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the fast_align binaries (fast_align, atools)
 
-# Default file suffixes
-FILE_SUFFIX_TRAINING_CORPUS = 'train'
-FILE_SUFFIX_TUNING_CORPUS = 'tune'
-FILE_SUFFIX_EVALUATION_CORPUS = 'test'
+# Paths to moses files
+MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
+
+# Default file names and affixes
+BASENAME_TRAINING_CORPUS = 'train'
+BASENAME_TUNING_CORPUS = 'tune'
+BASENAME_EVALUATION_CORPUS = 'test'
+SUFFIX_TOKENIZED = 'tokenized'
+SUFFIX_CLEANED = 'cleaned'
+SUFFIX_LOWERCASED = 'lowercased'
+SUFFIX_TRUECASED = 'truecased'
 
 # Valid language codes
 MOSES_TOKENIZER_LANG_CODES = {
@@ -42,10 +49,13 @@ MOSES_TOKENIZER_LANG_CODES = {
 }
 
 # Valid casing strategies
+SELFCASING = "selfcasing"
+TRUECASING = "truecasing"
+RECASING = "recasing"
 CASING_STRATEGIES = {
-    "selfcasing": "the decoder is trained on lowercased input and cased output",
-    "truecasing": "the decoder is trained on truecased input and output " +
+    SELFCASING: "the decoder is trained on lowercased input and cased output",
+    TRUECASING: "the decoder is trained on truecased input and output " +
         "(trains a separate truecasing model)",
-    "recasing": "the decoder is trained on lowercased input and output " +
+    RECASING: "the decoder is trained on lowercased input and output " +
         "(trains a separate recasing model)",
 }
