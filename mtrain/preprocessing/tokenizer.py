@@ -16,7 +16,7 @@ class Tokenizer(object):
 
     def __init__(self, lang_code):
         self._processor = ExternalProcessor(
-            command=MOSES_TOKENIZER + "-b -X -a -l %s" % lang_code
+            command=MOSES_TOKENIZER + " -b -X -a -l %s" % lang_code
         )
 
     def __del__(self):

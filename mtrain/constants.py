@@ -13,6 +13,18 @@ FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the f
 # Paths to moses files
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
 
+# Characters with special meanings in Moses (need replacement)
+MOSES_SPECIAL_CHARS = {
+    "|": "&#124;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&apos;",
+    "[": "&#91;",
+    "]": "&#93;",
+    "&": "&amp;"
+}
+
 # Default file names and affixes
 BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
