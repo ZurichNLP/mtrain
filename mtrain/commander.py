@@ -20,7 +20,11 @@ def run(command, description=None):
     '''
     if description:
         logging.info(description)
-    result = subprocess.run(command, shell=True, check=True)
+    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.stdout:
+        logging.debug(result.stdout)
+    if result.stderr:
+        logging.error(result.stderr)
     return True if result == 0 else False
 
 def run_parallel(commands, description=None, num_threads=None):
