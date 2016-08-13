@@ -13,6 +13,8 @@ FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the f
 
 # Paths to Moses files/scripts
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
+MOSES_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/truecase.perl'
+MOSES_TRAIN_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-truecaser.perl'
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.

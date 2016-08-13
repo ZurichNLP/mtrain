@@ -8,7 +8,7 @@ from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
-from mtrain import assertions
+from mtrain import assertions, commander
 
 class Training(object):
     '''
@@ -243,3 +243,48 @@ class Training(object):
             filepath_origin = self._get_path_corpus(basename, lang)
             filepath_dest = self._get_path_corpus(basename + "." + SUFFIX_LOWERCASED, lang)
             lowercaser.lowercase_file(filepath_origin, filepath_dest)
+
+    def train_truecaser(self):
+        '''
+        Trains a truecasing model.
+        '''
+        # create folder
+        basepath = os.sep.join([self._get_path('engine'), 'truecaser'])
+        if not assertions.dir_exists(basepath):
+            os.mkdir(basepath)
+        # train truecaser
+        def command(lang):
+            return '{script} --model {basepath}/truecaser.{lang} --corpus {corpus}'.format(
+                script=MOSES_TRAIN_TRUECASER,
+                basepath=basepath,
+                lang=lang,
+                corpus=self._get_path_corpus(BASENAME_TRAINING_CORPUS, lang)
+            )
+        commands = [command(self._src_lang), command(self._trg_lang)]
+        commander.run_parallel(commands, "Training truecasing models")
+
+    def truecase(self):
+        '''
+        Truecases the training, tuning, and evaluation corpus.
+        '''
+        def command(corpus, lang):
+            return '{script} --model {model} < {corpus_in} > {corpus_out}'.format(
+                script=MOSES_TRUECASER,
+                model=os.sep.join([self._get_path('engine'), 'truecaser', 'truecaser.%s' % lang]),
+                corpus_in=self._get_path_corpus(corpus, lang),
+                corpus_out=self._get_path_corpus(corpus + "." + SUFFIX_TRUECASED, lang)
+            )
+        commands = [
+            command(BASENAME_TRAINING_CORPUS, self._src_lang),
+            command(BASENAME_TRAINING_CORPUS, self._trg_lang),
+        ]
+        if self._tuning:
+            commands.append(command(BASENAME_TUNING_CORPUS, self._src_lang))
+            commands.append(command(BASENAME_TUNING_CORPUS, self._trg_lang))
+        if self._evaluation:
+            commands.append(command(BASENAME_EVALUATION_CORPUS, self._src_lang))
+            commands.append(command(BASENAME_EVALUATION_CORPUS, self._trg_lang))
+        commander.run_parallel(commands, "Truecasing corpora")
+
+    def _train_recaser(self):
+        pass
