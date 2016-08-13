@@ -7,7 +7,7 @@ Replaces characters with special meaning in Moses.
 from mtrain.constants import *
 
 def clean(segment):
-    pass
+    return segment # no additional cleaning by now
 
 def escape_special_chars(segment):
     for char, replacement in MOSES_SPECIAL_CHARS.items():
@@ -15,6 +15,6 @@ def escape_special_chars(segment):
     return segment
 
 def deescape_special_chars(segment):
-    for char, replacement in MOSES_SPECIAL_CHARS.items():
+    for char, replacement in reversed(MOSES_SPECIAL_CHARS.items()):
         segment = segment.replace(replacement, char)
     return segment

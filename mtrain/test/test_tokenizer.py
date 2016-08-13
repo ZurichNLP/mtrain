@@ -13,7 +13,7 @@ class TestTokenizer(TestCase):
             t.tokenize("alpha beta gamma") == ["alpha", "beta", "gamma"],
             "Tokenizer must split segment into a list of tokens"
         )
-        del t
+        t.close()
 
     def test_nonascii(self):
         t = Tokenizer('en')
@@ -21,12 +21,13 @@ class TestTokenizer(TestCase):
             t.tokenize("Äbé üâbeñA ∑ €") == ["Äbé", "üâbeñA", "∑" , "€"],
             "Tokenizer must handle non-ascii chars correctly"
         )
-        del t
+        t.close()
 
     def test_escape_special_chars(self):
         t = Tokenizer('en')
         for char, replacement in MOSES_SPECIAL_CHARS.items():
             self.assertTrue(
-                t.tokenize(char) == replacement,
+                t.tokenize(char) == [replacement],
                 "Tokenizer must replace special char `%s` with `%s`" % (char, replacement)
             )
+        t.close()

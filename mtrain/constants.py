@@ -5,24 +5,34 @@ Stores the constants needed to execute commands.
 '''
 
 import os
+from collections import OrderedDict
 
-# Base paths
+# Paths to 3rd party packages
 MOSES_HOME = str(os.environ.get('MOSES_HOME')) # Moses base directory
 FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the fast_align binaries (fast_align, atools)
 
-# Paths to moses files
+# Paths to Moses files/scripts
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
 
-# Characters with special meanings in Moses (need replacement)
-MOSES_SPECIAL_CHARS = {
-    "|": "&#124;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&apos;",
-    "[": "&#91;",
-    "]": "&#93;",
-    "&": "&amp;"
+# Characters with special meanings in Moses
+# Replacement is ordered: First char listed here is replaced first, etc.
+MOSES_SPECIAL_CHARS = OrderedDict()
+MOSES_SPECIAL_CHARS["&"] = "&amp;"
+MOSES_SPECIAL_CHARS["|"] = "&#124;"
+MOSES_SPECIAL_CHARS["<"] = "&lt;"
+MOSES_SPECIAL_CHARS[">"] = "&gt;"
+MOSES_SPECIAL_CHARS['"'] = "&quot;"
+MOSES_SPECIAL_CHARS["'"] = "&apos;"
+MOSES_SPECIAL_CHARS["["] = "&#91;"
+MOSES_SPECIAL_CHARS["]"] = "&#93;"
+
+# Relative paths to components inside working directory
+PATH_COMPONENT = {
+    # Maps components to their base directory name
+    "corpus": "corpus",
+    "engine": "engine",
+    "evaluation": "evaluation",
+    "logs": "logs",
 }
 
 # Default file names and affixes

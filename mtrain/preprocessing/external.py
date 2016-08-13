@@ -20,7 +20,7 @@ class ExternalProcessor(object):
         self._process = Popen(self.command, shell=True, stdin=PIPE, stdout=PIPE)
         self._lock = threading.Lock()
 
-    def __del__(self):
+    def close(self):
         '''
         Closes the underlying shell script (process).
         '''
