@@ -19,8 +19,14 @@ MOSES_TRAIN_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-truecaser.p
 MOSES_RECASER = ''
 MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
+
+# Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
 KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
+
+# Paths to fast_align files/scripts
+FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'
+ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.

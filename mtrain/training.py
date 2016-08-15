@@ -17,7 +17,7 @@ class Training(object):
     '''
 
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy,
-        tuning, evaluation, min_tokens, max_tokens):
+                 tuning, evaluation, min_tokens, max_tokens):
         '''
         Creates a new project structure at @param basepath.
 
@@ -115,6 +115,26 @@ class Training(object):
         self._tokenizer_source.close()
         self._tokenizer_target.close()
 
+    def train(self, n=5, alignment='grow-diag-final-and',
+              max_phrase_length=7, reordering='msd-bidirectional-fe',
+              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
+        '''
+        Trains the language, translation, and reordering models.
+
+        @param n the order of the n-gram language model
+        @param alignment the word alignment symmetrisation heuristic
+        @param max_phrase_length the maximum numbers of tokens per phrase
+        @param reordering the reordering paradigm
+        @param num_threads the number of threads available for training
+        @param path_temp_files the directory where temporary training files can
+            be stored
+        @param keep_uncompressed whether or not uncompressed model files should
+            be kept after binarization
+        '''
+        self._train_language_model(n, path_temp_files, keep_uncompressed)
+        self._word_alignment(alignment, num_threads)
+        self._train_moses_engine(max_phrase_length, reordering, num_threads, path_temp_files, keep_uncompressed)
+
     def _preprocess_segment(self, segment, tokenizer):
         '''
         Tokenizes a bisegment and removes special charcters for use in Moses.
@@ -203,8 +223,8 @@ class Training(object):
             self._get_path_corpus(basename, self._trg_lang)
         )
         # pre-process segments
-        corpus_source = basepath_external_corpus + "." + self._src_lang
-        corpus_target = basepath_external_corpus + "." + self._trg_lang
+        corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
+        corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
         for segment_source, segment_target in zip(corpus_source, corpus_target):
             # clean segments (most importantly, remove trailing \n)
             segment_source = self._preprocess_segment(segment_source, self._tokenizer_source)
@@ -214,6 +234,8 @@ class Training(object):
             else:
                 corpus.insert(corpus_source, corpus_target)
         corpus.close()
+        corpus_source.close()
+        corpus_target.close()
 
     def _lowercase(self):
         '''
@@ -467,3 +489,53 @@ class Training(object):
                     trg_lang=self._trg_lang
                 )
             )
+
+    def _word_alignment(self, symmetrization_heuristic):
+        '''
+        Performs word alignment using fast_align
+        '''
+        # create target directory
+        base_dir_tm = self._get_path('engine') + os.sep + 'tm'
+        if not assertions.dir_exists(base_dir_tm):
+            os.mkdir(base_dir_tm)
+        base_dir_model = base_dir_tm + os.sep + 'model'
+        if not assertions.dir_exists(base_dir_model):
+            os.mkdir(base_dir_model)
+        # join source and target corpus for use with fast_align
+        corpus_source = open(self._get_path_corpus_final(BASENAME_TRAINING_CORPUS, self._src_lang), 'r')
+        corpus_target = open(self._get_path_corpus_final(BASENAME_TRAINING_CORPUS, self._trg_lang), 'r')
+        path_joined_corpus = base_dir_model + os.sep + BASENAME_TRAINING_CORPUS + '.%s-%s' % (self._src_lang, self._trg_lang)
+        with open(path_joined_corpus, 'w') as joined_corpus:
+            for segment_source, segment_target in zip(corpus_source, corpus_target):
+                segment_source = segment_source.strip()
+                segment_target = segment_target.strip()
+                joined_corpus.write(" ||| ".join([segment_source, segment_target]) + '\n')
+        # create source-target and target-source alignments in parallel
+        command_forward = '{script} -i {corpus} -d -o -v > {corpus}.forward'.format(
+            script=FAST_ALIGN,
+            corpus=path_joined_corpus
+        )
+        command_backward = '{script} -i {corpus} -d -o -v > {corpus}.backward'.format(
+            script=FAST_ALIGN,
+            corpus=path_joined_corpus
+        )
+        commander.run_parallel(
+            [command_forward, command_backward],
+            "Aligning {src}–{trg} and {trg}-{src} words".format(
+                src=self._src_lang,
+                trg=self._trg_lang
+            )
+        )
+        # symmetrize forward and backward alignments
+        commander.run(
+            '{script} -i {corpus}.forward -j {corpus}.backward -c {heuristic}'.format(
+                script=ATOOLS,
+                corpus=path_joined_corpus,
+                heuristic=symmetrization_heuristic
+            ),
+            "Symmetrizing word alignment"
+        )
+        # remove intermediate files
+        os.remove(path_joined_corpus)
+        os.remove(path_joined_corpus + '.forward')
+        os.remove(path_joined_corpus + '.backward')
