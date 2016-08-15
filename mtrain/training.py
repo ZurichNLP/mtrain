@@ -2,6 +2,7 @@
 
 import logging
 import random
+import shutil
 import os
 import re
 
@@ -135,6 +136,12 @@ class Training(object):
         self._train_language_model(n, path_temp_files, keep_uncompressed)
         self._word_alignment(alignment)
         self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
+
+    def tune(self, num_threads=1):
+        '''
+        Maximises the engine's performance on the tuning corpus
+        '''
+        self._MERT(num_threads)
 
     def _preprocess_segment(self, segment, tokenizer):
         '''
@@ -606,3 +613,32 @@ class Training(object):
             os.remove(base_dir_model + os.sep + 'phrase-table.gz')
             os.remove(base_dir_model + os.sep + 'reordering-table.wbe-%s.gz' % reordering)
             # todo: also remove other files related to training (word alignment, ...)
+
+    def _MERT(self, num_threads):
+        '''
+        Tunes the system through Maximum Error Rate Trainign (MERT)
+        '''
+        # create target directory
+        base_dir_tm = self._get_path('engine') + os.sep + 'tm'
+        if not assertions.dir_exists(base_dir_tm):
+            os.mkdir(base_dir_tm)
+        base_dir_mert = base_dir_tm + os.sep + 'mert'
+        if not assertions.dir_exists(base_dir_mert):
+            os.mkdir(base_dir_mert)
+        # tune
+        mert_command = '{script} "{corpus_tuning_src}" "{corpus_tuning_trg}" "{moses_bin}" "{moses_ini}" --mertdir "{moses_bin_dir}" --working-dir "{base_dir_mert}/" --decoder-flags "-threads {num_threads} -minphr-memory -minlexr-memory" --no-filter-phrase-table'.format(
+            script=MOSES_MERT,
+            corpus_tuning_src=self._get_path_corpus_final(BASENAME_TUNING_CORPUS, self._src_lang),
+            corpus_tuning_trg=self._get_path_corpus_final(BASENAME_TUNING_CORPUS, self._trg_lang),
+            moses_bin=MOSES,
+            moses_ini=base_dir_tm + os.sep + 'model' + os.sep + 'moses.compressed.ini',
+            moses_bin_dir=MOSES_BIN,
+            base_dir_mert=base_dir_mert,
+            num_threads=num_threads
+        )
+        commander.run(mert_command, "Tuning engine through Maximum Error Rate Training (MERT)")
+        # copy final moses.ini into /engine directory
+        shutil.copyfile(
+            base_dir_mert + os.sep + 'moses.ini',
+            self._get_path('engine') + os.sep + 'moses.ini'
+        )
