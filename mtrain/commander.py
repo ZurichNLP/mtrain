@@ -20,6 +20,7 @@ def run(command, description=None):
     '''
     if description:
         logging.info(description)
+    logging.debug("Executing %s", command)
     result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.stdout:
         logging.debug(result.stdout)
