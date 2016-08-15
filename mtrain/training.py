@@ -75,7 +75,15 @@ class Training(object):
         '''
         Returns the absolute path to a corpus related to this training.
         '''
+        if isinstance(corpus, list):
+            corpus = '.'.join(corpus)
         return self._get_path('corpus') + os.sep + corpus + "." + lang
+
+    def _get_path_corpus_final(self, corpus, lang):
+        '''
+        Returns the absolute path to a final corpus related to this training.
+        '''
+        return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
 
     def preprocess(self, base_corpus_path):
         '''
@@ -99,6 +107,10 @@ class Training(object):
             self._preprocess_external_corpus(self._evaluation, BASENAME_EVALUATION_CORPUS)
         # lowercase as needed
         self._lowercase()
+        # create casing models
+        #todo
+        # mark final files (.final symlinks)
+        self._mark_final_files()
         # close subprocesses
         self._tokenizer_source.close()
         self._tokenizer_target.close()
@@ -241,7 +253,7 @@ class Training(object):
             pass
         for basename, lang in files_to_be_lowercased:
             filepath_origin = self._get_path_corpus(basename, lang)
-            filepath_dest = self._get_path_corpus(basename + "." + SUFFIX_LOWERCASED, lang)
+            filepath_dest = self._get_path_corpus([basename, SUFFIX_LOWERCASED], lang)
             lowercaser.lowercase_file(filepath_origin, filepath_dest)
 
     def train_truecaser(self):
@@ -272,7 +284,7 @@ class Training(object):
                 script=MOSES_TRUECASER,
                 model=os.sep.join([self._get_path('engine'), 'truecaser', 'truecaser.%s' % lang]),
                 corpus_in=self._get_path_corpus(corpus, lang),
-                corpus_out=self._get_path_corpus(corpus + "." + SUFFIX_TRUECASED, lang)
+                corpus_out=self._get_path_corpus([corpus, SUFFIX_TRUECASED], lang)
             )
         commands = [
             command(BASENAME_TRAINING_CORPUS, self._src_lang),
@@ -301,7 +313,7 @@ class Training(object):
             os.mkdir(base_dir_recaser)
         # train model
         commander.run(
-            '{script} --corpus "{traing_corpus}" --dir "{base_dir_recaser}" --train-script "{training_script}"'.format(
+            '{script} --corpus "{training_corpus}" --dir "{base_dir_recaser}" --train-script "{training_script}"'.format(
                 script=MOSES_TRAIN_RECASER,
                 training_corpus=self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
                 base_dir_recaser=base_dir_recaser,
@@ -314,7 +326,8 @@ class Training(object):
             '{script} "{base_dir_recaser}/cased.kenlm.gz" "{base_dir_recaser}/cased.kenlm.bin"'.format(
                 script=KENLM_BUILD_BINARY,
                 base_dir_recaser=base_dir_recaser,
-            )
+            ),
+            "Binarizing the recaser's language model"
         )
         # compress phrase table
         commander.run(
@@ -323,7 +336,8 @@ class Training(object):
                 base_dir_recaser=base_dir_recaser,
                 num_threads=num_threads,
                 path_temp_files=path_temp_files
-            )
+            ),
+            "Compressing the recaser's phrase table"
         )
         # Adjust moses.ini
         moses_ini = ''
@@ -333,9 +347,123 @@ class Training(object):
         moses_ini.replace('phrase-table.gz', 'phrase-table')
         moses_ini.replace('cased.kenlm.gz', 'cased.kenlm.bin')
         moses_ini.replace('lazyken=1', 'lazyken=0')
-        with open("%s/moses.ini % base_dir_recaser") as f:
+        with open("%s/moses.ini" % base_dir_recaser) as f:
             f.write(moses_ini)
         # Remove uncompressed models
         if not keep_uncompressed:
             os.remove("%s/cased.kenlm.gz" % base_dir_recaser)
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
+
+    def _mark_final_files(self):
+        '''
+        Creates a symlink to the final training, tuning, and evaluation files.
+        '''
+        fp = {
+            'train': {
+                'src': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang)
+            },
+            'tune': {
+                'src': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang)
+            },
+            'test': {
+                'src': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang)
+            }
+        }
+        def add_suffix(corpus, lang, suffix):
+            path = fp[corpus][lang].split('.')
+            path.insert(-1, suffix)
+            fp[corpus][lang] = '.'.join(path)
+        if self._casing_strategy == SELFCASING:
+            # lowercased input side, unmodified output side
+            add_suffix('train', 'src', SUFFIX_LOWERCASED)
+            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
+            add_suffix('test', 'src', SUFFIX_LOWERCASED)
+        elif self._casing_strategy == TRUECASING:
+            # truecased input side, truecased output side
+            add_suffix('train', 'src', SUFFIX_TRUECASED)
+            add_suffix('train', 'trg', SUFFIX_TRUECASED)
+            add_suffix('tune', 'src', SUFFIX_TRUECASED)
+            add_suffix('tune', 'trg', SUFFIX_TRUECASED)
+            add_suffix('test', 'src', SUFFIX_TRUECASED)
+            add_suffix('test', 'trg', SUFFIX_TRUECASED)
+        elif self._casing_strategy == RECASING:
+            # truecased input side, truecased output side
+            add_suffix('train', 'src', SUFFIX_LOWERCASED)
+            add_suffix('train', 'trg', SUFFIX_LOWERCASED)
+            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
+            add_suffix('tune', 'trg', SUFFIX_LOWERCASED)
+            add_suffix('test', 'src', SUFFIX_LOWERCASED)
+            add_suffix('test', 'trg', SUFFIX_LOWERCASED)
+        # create symlinks
+        def symlink_path(basename, lang):
+            return self._get_path_corpus([basename, SUFFIX_FINAL], lang)
+        os.symlink(
+            fp['train']['src'],
+            symlink_path(BASENAME_TRAINING_CORPUS, self._src_lang)
+        )
+        os.symlink(
+            fp['train']['src'],
+            symlink_path(BASENAME_TRAINING_CORPUS, self._trg_lang)
+        )
+        if self._tuning:
+            os.symlink(
+                fp['tune']['src'],
+                symlink_path(BASENAME_TUNING_CORPUS, self._src_lang)
+            )
+            os.symlink(
+                fp['tune']['trg'],
+                symlink_path(BASENAME_TUNING_CORPUS, self._trg_lang)
+            )
+        if self._evaluation:
+            os.symlink(
+                fp['test']['src'],
+                symlink_path(BASENAME_EVALUATION_CORPUS, self._src_lang)
+            )
+            os.symlink(
+                fp['test']['trg'],
+                symlink_path(BASENAME_EVALUATION_CORPUS, self._trg_lang)
+            )
+
+    def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
+        '''
+        Trains an n-gram language model with modified Kneser-Ney smoothing of
+        order @param n.
+        '''
+        # create target directory
+        base_dir_lm = self._get_path('engine') + os.sep + 'lm'
+        if not assertions.dir_exists(base_dir_lm):
+            os.mkdir(base_dir_lm)
+        # train language model
+        commander.run(
+            '{script} -o {n} -S 40% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
+                script=KENLM_TRAIN_MODEL,
+                n=n,
+                path_temp_files=path_temp_files,
+                training_corpus=self._get_path_corpus_final(BASENAME_TRAINING_CORPUS, self._trg_lang),
+                base_dir_lm=base_dir_lm,
+                trg_lang=self._trg_lang
+            ),
+            "Training %s language model" % self._trg_lang
+        )
+        # binarize language model
+        commander.run(
+            '{script} "{base_dir_lm}/{n}-grams.{trg_lang}.arpa" "{base_dir_lm}/{n}-grams.{trg_lang}.bin"'.format(
+                script=KENLM_BUILD_BINARY,
+                base_dir_lm=base_dir_lm,
+                n=n,
+                trg_lang=self._trg_lang
+            ),
+            "Binarizing language model"
+        )
+        # remove uncompressed model
+        if not keep_uncompressed:
+            os.remove(
+                '{base_dir_lm}/{n}-grams.{trg_lang}.arpa'.format(
+                    base_dir_lm=base_dir_lm,
+                    n=n,
+                    trg_lang=self._trg_lang
+                )
+            )

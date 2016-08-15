@@ -18,8 +18,9 @@ MOSES_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/truecase.perl'
 MOSES_TRAIN_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-truecaser.perl'
 MOSES_RECASER = ''
 MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
-KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
+KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
+KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.
@@ -50,6 +51,7 @@ SUFFIX_TOKENIZED = 'tokenized'
 SUFFIX_CLEANED = 'cleaned'
 SUFFIX_LOWERCASED = 'lowercased'
 SUFFIX_TRUECASED = 'truecased'
+SUFFIX_FINAL = 'final'
 
 # Valid language codes
 MOSES_TOKENIZER_LANG_CODES = {
