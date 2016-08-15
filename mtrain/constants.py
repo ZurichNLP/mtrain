@@ -12,9 +12,14 @@ MOSES_HOME = str(os.environ.get('MOSES_HOME')) # Moses base directory
 FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the fast_align binaries (fast_align, atools)
 
 # Paths to Moses files/scripts
+MOSES_TRAIN_MODEL = MOSES_HOME + os.sep + 'scripts/training/train-model.perl'
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
 MOSES_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/truecase.perl'
 MOSES_TRAIN_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-truecaser.perl'
+MOSES_RECASER = ''
+MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
+KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
+MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.

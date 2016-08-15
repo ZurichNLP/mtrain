@@ -286,5 +286,56 @@ class Training(object):
             commands.append(command(BASENAME_EVALUATION_CORPUS, self._trg_lang))
         commander.run_parallel(commands, "Truecasing corpora")
 
-    def _train_recaser(self):
-        pass
+    def _train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
+        '''
+        Trains a recasing engine.
+
+        @num_threads the number of threads to be used
+        @path_temp_files the directory where temp files shall be stored
+        @keep_uncompressed whether or not the uncompressed language model and
+            phrase table should be kept
+        '''
+        # create target directory
+        base_dir_recaser = self._get_path('engine') + os.sep + 'recaser'
+        if not assertions.dir_exists(base_dir_recaser):
+            os.mkdir(base_dir_recaser)
+        # train model
+        commander.run(
+            '{script} --corpus "{traing_corpus}" --dir "{base_dir_recaser}" --train-script "{training_script}"'.format(
+                script=MOSES_TRAIN_RECASER,
+                training_corpus=self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
+                base_dir_recaser=base_dir_recaser,
+                training_script=MOSES_TRAIN_MODEL
+            ),
+            "Training recasing model"
+        )
+        # binarize language model
+        commander.run(
+            '{script} "{base_dir_recaser}/cased.kenlm.gz" "{base_dir_recaser}/cased.kenlm.bin"'.format(
+                script=KENLM_BUILD_BINARY,
+                base_dir_recaser=base_dir_recaser,
+            )
+        )
+        # compress phrase table
+        commander.run(
+            '{script} -in "{base_dir_recaser}/phrase-table.gz" -out "{base_dir_recaser}/phrase-table" -threads {num_threads} -T "{path_temp_files}"'.format(
+                script=MOSES_COMPRESS_PHRASE_TABLE,
+                base_dir_recaser=base_dir_recaser,
+                num_threads=num_threads,
+                path_temp_files=path_temp_files
+            )
+        )
+        # Adjust moses.ini
+        moses_ini = ''
+        with open("%s/moses.ini" % base_dir_recaser) as f:
+            moses_ini = f.read()
+        moses_ini.replace('PhraseDictionaryMemory', 'PhraseDictionaryCompact')
+        moses_ini.replace('phrase-table.gz', 'phrase-table')
+        moses_ini.replace('cased.kenlm.gz', 'cased.kenlm.bin')
+        moses_ini.replace('lazyken=1', 'lazyken=0')
+        with open("%s/moses.ini % base_dir_recaser") as f:
+            f.write(moses_ini)
+        # Remove uncompressed models
+        if not keep_uncompressed:
+            os.remove("%s/cased.kenlm.gz" % base_dir_recaser)
+            os.remove("%s/phrase-table.gz" % base_dir_recaser)
