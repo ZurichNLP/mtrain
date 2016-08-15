@@ -3,6 +3,7 @@
 import logging
 import random
 import os
+import re
 
 from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
@@ -132,8 +133,8 @@ class Training(object):
             be kept after binarization
         '''
         self._train_language_model(n, path_temp_files, keep_uncompressed)
-        self._word_alignment(alignment, num_threads)
-        self._train_moses_engine(max_phrase_length, reordering, num_threads, path_temp_files, keep_uncompressed)
+        self._word_alignment(alignment)
+        self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
 
     def _preprocess_segment(self, segment, tokenizer):
         '''
@@ -539,3 +540,69 @@ class Training(object):
         os.remove(path_joined_corpus)
         os.remove(path_joined_corpus + '.forward')
         os.remove(path_joined_corpus + '.backward')
+
+    def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
+                            num_threads, path_temp_files, keep_uncompressed):
+        # create target directory (normally created in self._word_alignment() already)
+        base_dir_tm = self._get_path('engine') + os.sep + 'tm'
+        if not assertions.dir_exists(base_dir_tm):
+            os.mkdir(base_dir_tm)
+        base_dir_model = base_dir_tm + os.sep + 'model'
+        if not assertions.dir_exists(base_dir_model):
+            os.mkdir(base_dir_model)
+        # train Moses engine
+        training_command = '{script} -root-dir "{base_dir}" -corpus "{basepath_training_corpus}" -f {src} -e {trg} -alignment {alignment} -reordering {reordering} -lm "0:{n}:{path_lm}.bin:8" -temp-dir "{temp_dir}" -cores {num_threads_half} -parallel -alignment-file "{base_dir_model}/aligned" -first-step 4 -write-lexical-counts -max-phrase-length {max_phrase_length}'.format(
+            script=MOSES_TRAIN_MODEL,
+            base_dir=base_dir_tm,
+            base_dir_model=base_dir_model,
+            basepath_training_corpus=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_FINAL,
+            src=self._src_lang,
+            trg=self._trg_lang,
+            alignment=alignment,
+            n=n,
+            path_lm=self._get_path('engine') + os.sep + 'lm' + os.sep + "%s-grams.%s.bin" % (n, self._trg_lang),
+            reordering=reordering,
+            max_phrase_length=max_phrase_length,
+            temp_dir=path_temp_files,
+            num_threads_half=int(num_threads/2)
+        )
+        commander.run(training_command, "Training Moses engine")
+        # compress translation and reordering models
+        base_dir_compressed = base_dir_tm + os.sep + 'compressed'
+        if not assertions.dir_exists(base_dir_compressed):
+            os.mkdir(base_dir_compressed)
+        pt_command = '{script} -in "{base_dir_model}/phrase-table.gz" -out "{base_dir_compressed}/phrase-table" -threads {num_threads} -T "{temp_dir}"'.format(
+            script=MOSES_COMPRESS_PHRASE_TABLE,
+            base_dir_model=base_dir_model,
+            base_dir_compressed=base_dir_compressed,
+            num_threads=num_threads,
+            temp_dir=path_temp_files
+        )
+        rt_command = '{script} -in "{base_dir_model}/reordering-table.wbe-{reordering}.gz" -out "{base_dir_compressed}/reordering-table" -threads {num_threads} -T "{temp_dir}"'.format(
+            script=MOSES_COMPRESS_REORDERING_TABLE,
+            base_dir_model=base_dir_model,
+            base_dir_compressed=base_dir_compressed,
+            reordering=reordering,
+            num_threads=num_threads,
+            temp_dir=path_temp_files
+        )
+        commander.run(pt_command, "Compressing phrase table")
+        commander.run(rt_command, "Compressing reordering table")
+        # create moses.ini with compressed models
+        path = re.compile(r'path=.*')
+        with open(base_dir_model + os.sep + 'moses.ini', 'r') as orig:
+            with open(base_dir_model + os.sep + 'moses.compressed.ini', 'w') as new:
+                for line in orig.readline():
+                    line = line.strip()
+                    if line.startswith("PhraseDictionaryMemory"):
+                        line = line.replace("PhraseDictionaryMemory", "PhraseDictionaryCompact")
+                        line = path.sub("path=" + base_dir_compressed + os.sep + 'phrase-table', line)
+                    if line.startswith("LexicalReordering"):
+                        line = path.sub("path=" + base_dir_compressed + os.sep + 'reordering-table', line)
+                    line = line.replace("lazyken=1", "lazyken=0")
+                    new.write(line + '\n')
+        # delete uncompressed files
+        if not keep_uncompressed:
+            os.remove(base_dir_model + os.sep + 'phrase-table.gz')
+            os.remove(base_dir_model + os.sep + 'reordering-table.wbe-%s.gz' % reordering)
+            # todo: also remove other files related to training (word alignment, ...)
