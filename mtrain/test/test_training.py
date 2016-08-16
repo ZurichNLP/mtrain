@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
+import logging
+import random
+import shutil
+import sys
+import os
+
 from unittest import TestCase
 
 from mtrain.training import Training
 from mtrain.constants import *
 from mtrain import assertions
-
-import random
-import shutil
-import os
 
 class TestTraining(TestCase):
     @staticmethod
@@ -38,14 +40,14 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_file_creation_train_only(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, 1, 80)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, logging.DEBUG, sys.stdout)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(base_corpus_path=os.sep.join([random_basedir_name, "sample-corpus"]))
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
             BASENAME_TRAINING_CORPUS + ".en" in files_created,
@@ -60,14 +62,14 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_file_creation_train_tune_eval(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, 1, 80)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, logging.DEBUG, sys.stdout)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(base_corpus_path=os.sep.join([random_basedir_name, "sample-corpus"]))
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
             BASENAME_TRAINING_CORPUS + ".en" in files_created,
@@ -98,14 +100,14 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_correct_number_of_lines_train_only(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, 1, 80)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, logging.DEBUG, sys.stdout)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(base_corpus_path=os.sep.join([random_basedir_name, "sample-corpus"]))
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
         self.assertTrue(
             200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
             "Number of segments in source side of training corpus must be correct"
@@ -119,14 +121,14 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_correct_number_of_lines_train_tune_eval(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, 1, 80)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, logging.DEBUG, sys.stdout)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(base_corpus_path=os.sep.join([random_basedir_name, "sample-corpus"]))
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
         self.assertTrue(
             130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
             "Number of segments in source side of training corpus must be correct"
@@ -160,7 +162,8 @@ class TestTraining(TestCase):
             random_basedir_name, "en", "fr", SELFCASING,
             tuning="external-sample-corpus",
             evaluation=None,
-            min_tokens=1, max_tokens=80
+            log_level=logging.DEBUG,
+            log_file=sys.stdout
         )
         # create sample base corpus
         self._create_random_parallel_corpus_files(
@@ -176,7 +179,7 @@ class TestTraining(TestCase):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        t.preprocess(base_corpus_path=os.sep.join([random_basedir_name, "sample-corpus"]))
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_TUNING_CORPUS + ".en"),
             "Source side of external tuning corpus must be created"
@@ -204,7 +207,8 @@ class TestTraining(TestCase):
             random_basedir_name, "en", "fr", SELFCASING,
             tuning=None,
             evaluation="external-sample-corpus",
-            min_tokens=1, max_tokens=80
+            log_level=logging.DEBUG,
+            log_file=sys.stdout
         )
         # create sample base corpus
         self._create_random_parallel_corpus_files(
@@ -220,7 +224,7 @@ class TestTraining(TestCase):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        t.preprocess(base_corpus_path=os.sep.join([random_basedir_name, "sample-corpus"]))
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + ".en"),
             "Source side of external evaluation corpus must be created"
@@ -244,14 +248,14 @@ class TestTraining(TestCase):
     def test_preprocess_create_lowercased_eval_trg_file(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, 1, 80)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, logging.DEBUG, sys.stdout)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(base_corpus_path=os.sep.join([random_basedir_name, "sample-corpus"]))
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + "." + SUFFIX_LOWERCASED + ".fr"),
             "A lowercased version of the evaluation corpus' target side must be created"

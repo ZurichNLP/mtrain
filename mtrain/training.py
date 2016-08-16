@@ -3,6 +3,7 @@
 import logging
 import random
 import shutil
+import sys
 import os
 import re
 
@@ -19,7 +20,7 @@ class Training(object):
     '''
 
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy,
-                 tuning, evaluation, min_tokens, max_tokens):
+                 tuning, evaluation, log_level, log_file):
         '''
         Creates a new project structure at @param basepath.
 
@@ -35,10 +36,10 @@ class Training(object):
                     without language code suffixes)
         @param evaluation the evaluation set to be used. The same options as in
             @param tuning apply.
-        @param min_tokens the minimum number of tokens in a segment. Segments
-            with less tokens will be discarded
-        @param max_tokens the maximum number of tokens in a segment. Segments
-            with more tokens will be discarded
+        @param log_level the logging level to be written to @param log_file
+        @param log_file the file where all logged events on and above @param
+            log_level will be written to. None means all events will be written
+            to stdout.
 
         Note: @param src_lang, @param trg_lang must be language codes recognised
             by the built-in Moses tokenizer.
@@ -51,8 +52,7 @@ class Training(object):
         self._casing_strategy = casing_strategy
         self._tuning = tuning
         self._evaluation = evaluation
-        self._min_tokens = min_tokens
-        self._max_tokens = max_tokens
+        # create base directory
         assertions.dir_exists(
             self._basepath,
             raise_exception="%s does not exist" % self._basepath
@@ -64,6 +64,10 @@ class Training(object):
             subdir = self._get_path(component)
             if not os.path.exists(subdir):
                 os.mkdir(subdir)
+        # initialize logging
+        if not log_file:
+            log_file=sys.stdout
+        logging.basicConfig(filename='example.log',level=log_level)
 
     def _get_path(self, component):
         '''
@@ -87,12 +91,18 @@ class Training(object):
         '''
         return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
 
-    def preprocess(self, base_corpus_path):
+    def preprocess(self, base_corpus_path, min_tokens, max_tokens, tokenize_external):
         '''
         Preprocesses the given parallel corpus.
 
         @param corpus_base_path the common file prefix of the training corpus'
             source and target side
+        @param min_tokens the minimum number of tokens in a segment. Segments
+            with less tokens will be discarded
+        @param max_tokens the maximum number of tokens in a segment. Segments
+            with more tokens will be discarded
+        @param tokenize_external whether or not external corpora (tune, eval)
+            should be tokenized
 
         Note: The source and target side files of the parallel corpus are
             induced from concatenating @param corpus_base_path with
@@ -101,12 +111,24 @@ class Training(object):
             `/foo/corpus.fr`.
         '''
         # tokenize, clean, and split base corpus
-        self._preprocess_base_corpus(base_corpus_path)
+        self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens)
         # tokenize and clean separate tuning and training corpora (if applicable)
         if isinstance(self._tuning, str):
-            self._preprocess_external_corpus(self._tuning, BASENAME_TUNING_CORPUS)
+            self._preprocess_external_corpus(
+                self._tuning,
+                BASENAME_TUNING_CORPUS,
+                min_tokens,
+                max_tokens,
+                tokenize_external
+            )
         if isinstance(self._evaluation, str):
-            self._preprocess_external_corpus(self._evaluation, BASENAME_EVALUATION_CORPUS)
+            self._preprocess_external_corpus(
+                self._evaluation,
+                BASENAME_EVALUATION_CORPUS,
+                min_tokens,
+                max_tokens,
+                tokenize_external
+            )
         # lowercase as needed
         self._lowercase()
         # create casing models
@@ -116,175 +138,6 @@ class Training(object):
         # close subprocesses
         self._tokenizer_source.close()
         self._tokenizer_target.close()
-
-    def train(self, n=5, alignment='grow-diag-final-and',
-              max_phrase_length=7, reordering='msd-bidirectional-fe',
-              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
-        '''
-        Trains the language, translation, and reordering models.
-
-        @param n the order of the n-gram language model
-        @param alignment the word alignment symmetrisation heuristic
-        @param max_phrase_length the maximum numbers of tokens per phrase
-        @param reordering the reordering paradigm
-        @param num_threads the number of threads available for training
-        @param path_temp_files the directory where temporary training files can
-            be stored
-        @param keep_uncompressed whether or not uncompressed model files should
-            be kept after binarization
-        '''
-        self._train_language_model(n, path_temp_files, keep_uncompressed)
-        self._word_alignment(alignment)
-        self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
-
-    def tune(self, num_threads=1):
-        '''
-        Maximises the engine's performance on the tuning corpus
-        '''
-        self._MERT(num_threads)
-
-    def _preprocess_segment(self, segment, tokenizer):
-        '''
-        Tokenizes a bisegment and removes special charcters for use in Moses.
-        Also checks for minimum/maximum number of tokens.
-
-        @return the preprocessed segment. None means that the segment should be
-            discarded.
-        '''
-        segment = segment.strip()
-        tokens = tokenizer.tokenize(segment)
-        if len(tokens) < self._min_tokens or len(tokens) > self._max_tokens:
-            return None # means segment should be discarded
-        else:
-            return cleaner.clean(" ".join(tokens))
-
-    def _preprocess_base_corpus(self, corpus_base_path):
-        '''
-        Splits @param corpus_base_path into training, tuning, and evaluation
-        sections (as applicable). Outputs are stored in /corpus.
-        '''
-        # determine number of segments for tuning and evaluation, if any
-        num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
-        num_eval = 0 if not isinstance(self._evaluation, int) else self._evaluation
-        # open parallel input corpus for reading
-        corpus_source = open(corpus_base_path + "." + self._src_lang, 'r')
-        corpus_target = open(corpus_base_path + "." + self._trg_lang, 'r')
-        # create parallel output corpora
-        corpus_train = ParallelCorpus(
-            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
-            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
-            max_size=None
-        )
-        corpus_tune = ParallelCorpus(
-            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
-            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
-            max_size=num_tune
-        )
-        corpus_eval = ParallelCorpus(
-            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
-            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            max_size=num_eval
-        )
-        # distribute segments from input corpus to output corpora
-        for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
-            # clean segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source)
-            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target)
-            if None in [segment_source, segment_target]:
-                continue # discard segments with too few or too many tokens
-            # reservoir sampling (Algorithm R)
-            if corpus_tune.get_size() < num_tune:
-                corpus_tune.insert(segment_source, segment_target)
-            elif corpus_eval.get_size() < num_eval:
-                corpus_eval.insert(segment_source, segment_target)
-            else:
-                if num_tune > 0 and random.randint(0, i) < (num_tune + num_eval):
-                    segment_source, segment_target = corpus_tune.insert(segment_source, segment_target)
-                elif num_eval > 0 and random.randint(0, i) < (num_tune + num_eval):
-                    segment_source, segment_target = corpus_eval.insert(segment_source, segment_target)
-                corpus_train.insert(segment_source, segment_target)
-        # close file handles
-        corpus_source.close()
-        corpus_target.close()
-        corpus_train.close()
-        corpus_tune.close()
-        corpus_eval.close()
-        # delete empty corpora, if any
-        if num_tune == 0:
-            corpus_tune.delete()
-        if num_eval == 0:
-            corpus_eval.delete()
-
-    def _preprocess_external_corpus(self, basepath_external_corpus, basename):
-        '''
-        Pre-processes an external corpus into /corpus.
-
-        @param basepath_external_corpus the basepath where the external corpus
-            is located, without language code suffixes. Example: `/foo/bar/eval`
-            will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
-            an EN to FR training
-        @param the basename of the external corpus in the context of this
-            training, e.g., `test`
-        '''
-        corpus = ParallelCorpus(
-            self._get_path_corpus(basename, self._src_lang),
-            self._get_path_corpus(basename, self._trg_lang)
-        )
-        # pre-process segments
-        corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
-        corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
-        for segment_source, segment_target in zip(corpus_source, corpus_target):
-            # clean segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source)
-            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target)
-            if None in [segment_source, segment_target]:
-                continue # discard segments with too few or too many tokens
-            else:
-                corpus.insert(corpus_source, corpus_target)
-        corpus.close()
-        corpus_source.close()
-        corpus_target.close()
-
-    def _lowercase(self):
-        '''
-        Lowercases the training, tuning, and evaluation corpus.
-        '''
-        files_to_be_lowercased = []
-        if self._evaluation:
-            # always include target-side of eval corpus for case-insensitive evaluation
-            files_to_be_lowercased.append((BASENAME_EVALUATION_CORPUS, self._trg_lang))
-        if self._casing_strategy == SELFCASING:
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._src_lang)
-            )
-            if self._tuning:
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._src_lang)
-                )
-            if self._evaluation:
-                files_to_be_lowercased.append(
-                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
-                )
-        elif self._casing_strategy == RECASING:
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._src_lang),
-                (BASENAME_TRAINING_CORPUS, self._trg_lang)
-            )
-            if self._tuning:
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._src_lang),
-                    (BASENAME_TUNING_CORPUS, self._trg_lang)
-                )
-            if self._evaluation:
-                files_to_be_lowercased.append(
-                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
-                )
-        elif self._casing_strategy == TRUECASING:
-            pass
-        for basename, lang in files_to_be_lowercased:
-            filepath_origin = self._get_path_corpus(basename, lang)
-            filepath_dest = self._get_path_corpus([basename, SUFFIX_LOWERCASED], lang)
-            lowercaser.lowercase_file(filepath_origin, filepath_dest)
 
     def train_truecaser(self):
         '''
@@ -328,7 +181,7 @@ class Training(object):
             commands.append(command(BASENAME_EVALUATION_CORPUS, self._trg_lang))
         commander.run_parallel(commands, "Truecasing corpora")
 
-    def _train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
+    def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
         '''
         Trains a recasing engine.
 
@@ -383,6 +236,179 @@ class Training(object):
         if not keep_uncompressed:
             os.remove("%s/cased.kenlm.gz" % base_dir_recaser)
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
+
+    def train_engine(self, n=5, alignment='grow-diag-final-and',
+              max_phrase_length=7, reordering='msd-bidirectional-fe',
+              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
+        '''
+        Trains the language, translation, and reordering models.
+
+        @param n the order of the n-gram language model
+        @param alignment the word alignment symmetrisation heuristic
+        @param max_phrase_length the maximum numbers of tokens per phrase
+        @param reordering the reordering paradigm
+        @param num_threads the number of threads available for training
+        @param path_temp_files the directory where temporary training files can
+            be stored
+        @param keep_uncompressed whether or not uncompressed model files should
+            be kept after binarization
+        '''
+        self._train_language_model(n, path_temp_files, keep_uncompressed)
+        self._word_alignment(alignment)
+        self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
+
+    def tune(self, num_threads=1):
+        '''
+        Maximises the engine's performance on the tuning corpus
+        '''
+        self._MERT(num_threads)
+
+    def _preprocess_segment(self, segment, tokenizer, min_tokens, max_tokens,
+                            tokenize=True):
+        '''
+        Tokenizes a bisegment and removes special charcters for use in Moses.
+        Also checks for minimum/maximum number of tokens.
+
+        @return the preprocessed segment. None means that the segment should be
+            discarded.
+        '''
+        segment = segment.strip()
+        if tokenize:
+            tokens = tokenizer.tokenize(segment)
+            if len(tokens) < min_tokens or len(tokens) > max_tokens:
+                return None # means segment should be discarded
+            else:
+                segment = " ".join(tokens)
+        return cleaner.clean(segment)
+
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
+        '''
+        Splits @param corpus_base_path into training, tuning, and evaluation
+        sections (as applicable). Outputs are stored in /corpus.
+        '''
+        # determine number of segments for tuning and evaluation, if any
+        num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
+        num_eval = 0 if not isinstance(self._evaluation, int) else self._evaluation
+        # open parallel input corpus for reading
+        corpus_source = open(corpus_base_path + "." + self._src_lang, 'r')
+        corpus_target = open(corpus_base_path + "." + self._trg_lang, 'r')
+        # create parallel output corpora
+        corpus_train = ParallelCorpus(
+            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
+            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
+            max_size=None
+        )
+        corpus_tune = ParallelCorpus(
+            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
+            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
+            max_size=num_tune
+        )
+        corpus_eval = ParallelCorpus(
+            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
+            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
+            max_size=num_eval
+        )
+        # distribute segments from input corpus to output corpora
+        for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
+            # clean segments (most importantly, remove trailing \n)
+            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens)
+            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens)
+            if None in [segment_source, segment_target]:
+                continue # discard segments with too few or too many tokens
+            # reservoir sampling (Algorithm R)
+            if corpus_tune.get_size() < num_tune:
+                corpus_tune.insert(segment_source, segment_target)
+            elif corpus_eval.get_size() < num_eval:
+                corpus_eval.insert(segment_source, segment_target)
+            else:
+                if num_tune > 0 and random.randint(0, i) < (num_tune + num_eval):
+                    segment_source, segment_target = corpus_tune.insert(segment_source, segment_target)
+                elif num_eval > 0 and random.randint(0, i) < (num_tune + num_eval):
+                    segment_source, segment_target = corpus_eval.insert(segment_source, segment_target)
+                corpus_train.insert(segment_source, segment_target)
+        # close file handles
+        corpus_source.close()
+        corpus_target.close()
+        corpus_train.close()
+        corpus_tune.close()
+        corpus_eval.close()
+        # delete empty corpora, if any
+        if num_tune == 0:
+            corpus_tune.delete()
+        if num_eval == 0:
+            corpus_eval.delete()
+
+    def _preprocess_external_corpus(self, basepath_external_corpus, basename,
+                                    min_tokens, max_tokens, tokenize_external):
+        '''
+        Pre-processes an external corpus into /corpus.
+
+        @param basepath_external_corpus the basepath where the external corpus
+            is located, without language code suffixes. Example: `/foo/bar/eval`
+            will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
+            an EN to FR training
+        @param the basename of the external corpus in the context of this
+            training, e.g., `test`
+        '''
+        corpus = ParallelCorpus(
+            self._get_path_corpus(basename, self._src_lang),
+            self._get_path_corpus(basename, self._trg_lang)
+        )
+        # pre-process segments
+        corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
+        corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
+        for segment_source, segment_target in zip(corpus_source, corpus_target):
+            # clean segments (most importantly, remove trailing \n)
+            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens, tokenize_external)
+            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens, tokenize_external)
+            if None in [segment_source, segment_target]:
+                continue # discard segments with too few or too many tokens
+            else:
+                corpus.insert(segment_source, segment_target)
+        corpus.close()
+        corpus_source.close()
+        corpus_target.close()
+
+    def _lowercase(self):
+        '''
+        Lowercases the training, tuning, and evaluation corpus.
+        '''
+        files_to_be_lowercased = []
+        if self._evaluation:
+            # always include target-side of eval corpus for case-insensitive evaluation
+            files_to_be_lowercased.append((BASENAME_EVALUATION_CORPUS, self._trg_lang))
+        if self._casing_strategy == SELFCASING:
+            files_to_be_lowercased.append(
+                (BASENAME_TRAINING_CORPUS, self._src_lang)
+            )
+            if self._tuning:
+                files_to_be_lowercased.append(
+                    (BASENAME_TUNING_CORPUS, self._src_lang)
+                )
+            if self._evaluation:
+                files_to_be_lowercased.append(
+                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
+                )
+        elif self._casing_strategy == RECASING:
+            files_to_be_lowercased.append(
+                (BASENAME_TRAINING_CORPUS, self._src_lang),
+                (BASENAME_TRAINING_CORPUS, self._trg_lang)
+            )
+            if self._tuning:
+                files_to_be_lowercased.append(
+                    (BASENAME_TUNING_CORPUS, self._src_lang),
+                    (BASENAME_TUNING_CORPUS, self._trg_lang)
+                )
+            if self._evaluation:
+                files_to_be_lowercased.append(
+                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
+                )
+        elif self._casing_strategy == TRUECASING:
+            pass
+        for basename, lang in files_to_be_lowercased:
+            filepath_origin = self._get_path_corpus(basename, lang)
+            filepath_dest = self._get_path_corpus([basename, SUFFIX_LOWERCASED], lang)
+            lowercaser.lowercase_file(filepath_origin, filepath_dest)
 
     def _mark_final_files(self):
         '''

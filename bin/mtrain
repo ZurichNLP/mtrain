@@ -4,6 +4,7 @@ import logging
 import argparse
 import os
 
+from mtrain.training import Training
 from mtrain.constants import *
 
 LOGGING_LEVELS = {
@@ -40,7 +41,7 @@ def get_argument_parser():
         metavar='trg_lang' #overrides ugnly double-listing of available choices in --help
     )
     parser.add_argument(
-        "-o", "--output-dir",
+        "-o", "--output_dir",
         type=str,
         help="target directory for all output. The curent working directory " +
             "($PWD) is used by default.",
@@ -69,18 +70,49 @@ def get_argument_parser():
             "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
     )
     parser.add_argument(
-        "--min-tokens",
+        "--tokenize_external",
+        help="tokenize external tuning and evaluation corpora. Don't use if " +
+            "the external files provided in --tune and --eval are already " +
+            "tokenized.",
+        type=bool,
+        default=False,
+        action='store_true'
+    )
+    parser.add_argument(
+        "-n", "--n_gram_order",
+        help="the language model's n-gram order",
+        type=int,
+        default=5
+    )
+    parser.add_argument(
+        "--min_tokens",
         help="the minimum number of tokens per segments; segments with less " +
             "tokens will be discarded",
         type=int,
         default=1
     )
     parser.add_argument(
-        "--max-tokens",
+        "--max_tokens",
         help="the maximum number of tokens per segments; segments with more " +
             "tokens will be discarded",
         type=int,
         default=80
+    )
+    parser.add_argument(
+        "--threads",
+        help="the number of threads to be used at most",
+        type=int,
+        default=8
+    )
+    parser.add_argument(
+        "--temp_dir",
+        help="directory for temporary files created during trainig",
+        default="/tmp"
+    )
+    parser.add_argument(
+        "--keep_uncompressed_models",
+        help="do not delete uncompressed models created during training",
+        action='store_true'
     )
     parser.add_argument(
         "--logging",
@@ -89,8 +121,13 @@ def get_argument_parser():
         default="WARNING"
     )
     parser.add_argument(
-        "--stderr",
-        help="write logs to standard error rather than the default log file.",
+        "--log_file",
+        help="file where logs are written to. By default, all events are " +
+            "written to `training.log` in the training's base directory."
+    )
+    parser.add_argument(
+        "--stdout",
+        help="write logs to standard output rather than the default log file.",
         action='store_true'
     )
     return parser
@@ -98,7 +135,55 @@ def get_argument_parser():
 def main():
     parser = get_argument_parser()
     args = parser.parse_args()
-    #todo: set logging file to /logs/...
+    # parse arguments
+    if not args.log_file:
+        args.log_file = args.basepath + os.sep + 'training.log'
+    if args.tuning:
+        try:
+            args.tuning = int(args.tuning)
+        except ValueError:
+            pass # string is fine; means path to external tuning corpus was provided
+    if args.evaluation:
+        try:
+            args.evaluation = int(args.evaluation)
+        except ValueError:
+            pass # string is fine; means path to external evalution corpus was provided
+    # training
+    training = Training(
+        basepath=args.basepath,
+        src_lang=args.src_lang,
+        trg_lang=args.trg_lang,
+        casing_strategy=args.caser,
+        tuning=args.tuning,
+        evaluation=args.evaluation,
+        log_level=LOGGING_LEVELS[args.logging],
+        log_file=args.log_file
+    )
+    training.preprocess(
+        base_corpus_path=args.basepath,
+        min_tokens=args.min_tokens,
+        max_tokens=args.max_tokens,
+        tokenize_external=args.tokenize_external
+    )
+    if args.caser == TRUECASING:
+        training.train_truecaser()
+        training.truecase()
+    elif args.training == RECASING:
+        training.train_recaser(
+            args.threads,
+            args.temp_dir,
+            args.keep_uncompressed_models
+        )
+    training.train_engine(
+        n=args.n,
+        alignment='grow-diag-final-and', # todo: make changeable
+        max_phrase_length=7, # todo: make changeable
+        reordering='msd-bidirectional-fe', # todo: make changeable
+        num_threads=args.threads,
+        path_temp_files=args.temp_dir,
+        keep_uncompressed=args.keep_uncompressed_models
+    )
+    training.tune()
 
 if __name__ == '__main__':
     main()
