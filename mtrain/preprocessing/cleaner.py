@@ -15,6 +15,6 @@ def escape_special_chars(segment):
     return segment
 
 def deescape_special_chars(segment):
-    for char, replacement in reversed(MOSES_SPECIAL_CHARS.items()):
-        segment = segment.replace(replacement, char)
+    for char in reversed(list(MOSES_SPECIAL_CHARS)): # ugly, but needed for python 3.4.2
+        segment = segment.replace(MOSES_SPECIAL_CHARS[char], char)
     return segment
