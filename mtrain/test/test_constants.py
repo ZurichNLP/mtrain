@@ -2,12 +2,12 @@
 
 from unittest import TestCase
 
-import mtrain
+from mtrain.constants import *
 
 class TestConstants(TestCase):
     def test_path_to_moses_is_string(self):
-        s = mtrain.MOSES_HOME
+        s = MOSES_HOME
         self.assertTrue(isinstance(s, str))
     def test_path_to_fastalign_is_string(self):
-        s = mtrain.FASTALIGN_HOME
+        s = FASTALIGN_HOME
         self.assertTrue(isinstance(s, str))
