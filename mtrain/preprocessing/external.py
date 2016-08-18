@@ -16,7 +16,7 @@ class ExternalProcessor(object):
 
     def __init__(self, command):
         self.command = command
-        logging.info("Executing %s", self.command)
+        logging.debug("Executing %s", self.command)
         self._process = Popen(self.command, shell=True, stdin=PIPE, stdout=PIPE)
         self._lock = threading.Lock()
 

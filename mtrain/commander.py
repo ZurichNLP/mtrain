@@ -23,10 +23,10 @@ def run(command, description=None):
     logging.debug("Executing %s", command)
     result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.stdout:
-        logging.debug(result.stdout)
+        _log(result.stdout)
     if result.stderr:
-        logging.error(result.stderr)
-    return True if result == 0 else False
+        _log(result.stderr)
+    return True if result.returncode == 0 else False
 
 def run_parallel(commands, description=None, num_threads=None):
     '''
@@ -46,3 +46,14 @@ def run_parallel(commands, description=None, num_threads=None):
         logging.info(description)
     with Pool(num_threads) as p:
         p.map(run, commands)
+
+def _log(output):
+    '''
+    Logs every line in @param output as a separate DEBUG event, except for lines
+    that consist of a single integer.
+    '''
+    for line in output:
+        try:
+            line = int(line) # don't log lines that consists of a single integer (Moses training outputs a lot of those to visualize training progress)
+        except ValueError:
+            logging.debug(line)

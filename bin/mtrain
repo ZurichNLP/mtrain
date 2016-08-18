@@ -2,6 +2,7 @@
 
 import logging
 import argparse
+import sys
 import os
 
 from mtrain.training import Training
@@ -74,7 +75,6 @@ def get_argument_parser():
         help="tokenize external tuning and evaluation corpora. Don't use if " +
             "the external files provided in --tune and --eval are already " +
             "tokenized.",
-        type=bool,
         default=False,
         action='store_true'
     )
@@ -116,14 +116,9 @@ def get_argument_parser():
     )
     parser.add_argument(
         "--logging",
-        help="logging level. The default is `WARNING`",
+        help="logging level in stdout",
         choices=LOGGING_LEVELS.keys(),
-        default="WARNING"
-    )
-    parser.add_argument(
-        "--log_file",
-        help="file where logs are written to. By default, all events are " +
-            "written to `training.log` in the training's base directory."
+        default="INFO"
     )
     parser.add_argument(
         "--stdout",
@@ -136,28 +131,37 @@ def main():
     parser = get_argument_parser()
     args = parser.parse_args()
     # parse arguments
-    if not args.log_file:
-        args.log_file = args.basepath + os.sep + 'training.log'
-    if args.tuning:
+    if args.tune:
         try:
-            args.tuning = int(args.tuning)
+            args.tune = int(args.tune)
         except ValueError:
             pass # string is fine; means path to external tuning corpus was provided
-    if args.evaluation:
+    if args.eval:
         try:
-            args.evaluation = int(args.evaluation)
+            args.eval = int(args.eval)
         except ValueError:
             pass # string is fine; means path to external evalution corpus was provided
+    # initialize logging
+    # log all events to file
+    logging.basicConfig(
+        filename=args.output_dir + os.sep + 'training.log',
+        level=logging.DEBUG,
+        format='%(asctime)s - mtrain - %(levelname)s - %(message)s'
+    )
+    # log WARNING and above (or as specified by user) to stdout
+    console = logging.StreamHandler()
+    console.setLevel(LOGGING_LEVELS[args.logging])
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger("").addHandler(console)
     # training
     training = Training(
-        basepath=args.basepath,
+        basepath=args.output_dir,
         src_lang=args.src_lang,
         trg_lang=args.trg_lang,
         casing_strategy=args.caser,
-        tuning=args.tuning,
-        evaluation=args.evaluation,
-        log_level=LOGGING_LEVELS[args.logging],
-        log_file=args.log_file
+        tuning=args.tune,
+        evaluation=args.eval
     )
     training.preprocess(
         base_corpus_path=args.basepath,
@@ -168,14 +172,14 @@ def main():
     if args.caser == TRUECASING:
         training.train_truecaser()
         training.truecase()
-    elif args.training == RECASING:
+    elif args.caser == RECASING:
         training.train_recaser(
             args.threads,
             args.temp_dir,
             args.keep_uncompressed_models
         )
     training.train_engine(
-        n=args.n,
+        n=args.n_gram_order,
         alignment='grow-diag-final-and', # todo: make changeable
         max_phrase_length=7, # todo: make changeable
         reordering='msd-bidirectional-fe', # todo: make changeable
@@ -183,7 +187,7 @@ def main():
         path_temp_files=args.temp_dir,
         keep_uncompressed=args.keep_uncompressed_models
     )
-    training.tune()
+    training.tune(args.threads)
 
 if __name__ == '__main__':
     main()

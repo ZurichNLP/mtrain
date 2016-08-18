@@ -40,7 +40,7 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_file_creation_train_only(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, logging.DEBUG, sys.stdout)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
@@ -62,7 +62,7 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_file_creation_train_tune_eval(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, logging.DEBUG, sys.stdout)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
@@ -100,7 +100,7 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_correct_number_of_lines_train_only(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, logging.DEBUG, sys.stdout)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
@@ -121,7 +121,7 @@ class TestTraining(TestCase):
     def test_preprocess_base_corpus_correct_number_of_lines_train_tune_eval(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, logging.DEBUG, sys.stdout)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
@@ -161,9 +161,7 @@ class TestTraining(TestCase):
         t = Training(
             random_basedir_name, "en", "fr", SELFCASING,
             tuning="external-sample-corpus",
-            evaluation=None,
-            log_level=logging.DEBUG,
-            log_file=sys.stdout
+            evaluation=None
         )
         # create sample base corpus
         self._create_random_parallel_corpus_files(
@@ -206,9 +204,7 @@ class TestTraining(TestCase):
         t = Training(
             random_basedir_name, "en", "fr", SELFCASING,
             tuning=None,
-            evaluation="external-sample-corpus",
-            log_level=logging.DEBUG,
-            log_file=sys.stdout
+            evaluation="external-sample-corpus"
         )
         # create sample base corpus
         self._create_random_parallel_corpus_files(
@@ -248,7 +244,7 @@ class TestTraining(TestCase):
     def test_preprocess_create_lowercased_eval_trg_file(self):
         random_basedir_name = self.get_random_name()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20, logging.DEBUG, sys.stdout)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",

@@ -20,7 +20,7 @@ class Training(object):
     '''
 
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy,
-                 tuning, evaluation, log_level, log_file):
+                 tuning, evaluation):
         '''
         Creates a new project structure at @param basepath.
 
@@ -64,10 +64,6 @@ class Training(object):
             subdir = self._get_path(component)
             if not os.path.exists(subdir):
                 os.mkdir(subdir)
-        # initialize logging
-        if not log_file:
-            log_file=sys.stdout
-        logging.basicConfig(filename='example.log',level=log_level)
 
     def _get_path(self, component):
         '''
@@ -110,6 +106,7 @@ class Training(object):
             `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
             `/foo/corpus.fr`.
         '''
+        logging.info("Processing parallel corpus")
         # tokenize, clean, and split base corpus
         self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens)
         # tokenize and clean separate tuning and training corpora (if applicable)
@@ -226,11 +223,11 @@ class Training(object):
         moses_ini = ''
         with open("%s/moses.ini" % base_dir_recaser) as f:
             moses_ini = f.read()
-        moses_ini.replace('PhraseDictionaryMemory', 'PhraseDictionaryCompact')
-        moses_ini.replace('phrase-table.gz', 'phrase-table')
-        moses_ini.replace('cased.kenlm.gz', 'cased.kenlm.bin')
-        moses_ini.replace('lazyken=1', 'lazyken=0')
-        with open("%s/moses.ini" % base_dir_recaser) as f:
+        moses_ini = moses_ini.replace('PhraseDictionaryMemory', 'PhraseDictionaryCompact')
+        moses_ini = moses_ini.replace('phrase-table.gz', 'phrase-table')
+        moses_ini = moses_ini.replace('cased.kenlm.gz', 'cased.kenlm.bin')
+        moses_ini = moses_ini.replace('lazyken=1', 'lazyken=0')
+        with open("%s/moses.ini" % base_dir_recaser, 'w') as f:
             f.write(moses_ini)
         # Remove uncompressed models
         if not keep_uncompressed:
@@ -332,11 +329,17 @@ class Training(object):
         corpus_train.close()
         corpus_tune.close()
         corpus_eval.close()
+        # logging
+        logging.info("Training corpus: %s segments", corpus_train.get_size())
         # delete empty corpora, if any
         if num_tune == 0:
             corpus_tune.delete()
+        else:
+            logging.info("Tuning corpus: %s segments", corpus_tune.get_size())
         if num_eval == 0:
             corpus_eval.delete()
+        else:
+            logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
                                     min_tokens, max_tokens, tokenize_external):
@@ -368,6 +371,11 @@ class Training(object):
         corpus.close()
         corpus_source.close()
         corpus_target.close()
+        # logging
+        if basename == BASENAME_TUNING_CORPUS:
+            logging.info("Tuning corpus: %s segments", corpus.get_size())
+        elif basename == BASENAME_EVALUATION_CORPUS:
+            logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
     def _lowercase(self):
         '''
@@ -391,12 +399,16 @@ class Training(object):
                 )
         elif self._casing_strategy == RECASING:
             files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._src_lang),
+                (BASENAME_TRAINING_CORPUS, self._src_lang)
+            )
+            files_to_be_lowercased.append(
                 (BASENAME_TRAINING_CORPUS, self._trg_lang)
             )
             if self._tuning:
                 files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._src_lang),
+                    (BASENAME_TUNING_CORPUS, self._src_lang)
+                )
+                files_to_be_lowercased.append(
                     (BASENAME_TUNING_CORPUS, self._trg_lang)
                 )
             if self._evaluation:
@@ -461,7 +473,7 @@ class Training(object):
             symlink_path(BASENAME_TRAINING_CORPUS, self._src_lang)
         )
         os.symlink(
-            fp['train']['src'],
+            fp['train']['trg'],
             symlink_path(BASENAME_TRAINING_CORPUS, self._trg_lang)
         )
         if self._tuning:
@@ -562,8 +574,9 @@ class Training(object):
         )
         # symmetrize forward and backward alignments
         commander.run(
-            '{script} -i {corpus}.forward -j {corpus}.backward -c {heuristic}'.format(
+            '{script} -i {corpus}.forward -j {corpus}.backward -c {heuristic} > {base_dir_model}/aligned.{heuristic}'.format(
                 script=ATOOLS,
+                base_dir_model=base_dir_model,
                 corpus=path_joined_corpus,
                 heuristic=symmetrization_heuristic
             ),
@@ -584,7 +597,7 @@ class Training(object):
         if not assertions.dir_exists(base_dir_model):
             os.mkdir(base_dir_model)
         # train Moses engine
-        training_command = '{script} -root-dir "{base_dir}" -corpus "{basepath_training_corpus}" -f {src} -e {trg} -alignment {alignment} -reordering {reordering} -lm "0:{n}:{path_lm}.bin:8" -temp-dir "{temp_dir}" -cores {num_threads_half} -parallel -alignment-file "{base_dir_model}/aligned" -first-step 4 -write-lexical-counts -max-phrase-length {max_phrase_length}'.format(
+        training_command = '{script} -root-dir "{base_dir}" -corpus "{basepath_training_corpus}" -f {src} -e {trg} -alignment {alignment} -reordering {reordering} -lm "0:{n}:{path_lm}:8" -temp-dir "{temp_dir}" -cores {num_threads_half} -parallel -alignment-file "{base_dir_model}/aligned" -first-step 4 -write-lexical-counts -max-phrase-length {max_phrase_length}'.format(
             script=MOSES_TRAIN_MODEL,
             base_dir=base_dir_tm,
             base_dir_model=base_dir_model,
@@ -624,8 +637,8 @@ class Training(object):
         # create moses.ini with compressed models
         path = re.compile(r'path=.*')
         with open(base_dir_model + os.sep + 'moses.ini', 'r') as orig:
-            with open(base_dir_model + os.sep + 'moses.compressed.ini', 'w') as new:
-                for line in orig.readline():
+            with open(base_dir_compressed + os.sep + 'moses.ini', 'w') as new:
+                for line in orig.readlines():
                     line = line.strip()
                     if line.startswith("PhraseDictionaryMemory"):
                         line = line.replace("PhraseDictionaryMemory", "PhraseDictionaryCompact")
@@ -657,7 +670,7 @@ class Training(object):
             corpus_tuning_src=self._get_path_corpus_final(BASENAME_TUNING_CORPUS, self._src_lang),
             corpus_tuning_trg=self._get_path_corpus_final(BASENAME_TUNING_CORPUS, self._trg_lang),
             moses_bin=MOSES,
-            moses_ini=base_dir_tm + os.sep + 'model' + os.sep + 'moses.compressed.ini',
+            moses_ini=base_dir_tm + os.sep + 'compressed' + os.sep + 'moses.ini',
             moses_bin_dir=MOSES_BIN,
             base_dir_mert=base_dir_mert,
             num_threads=num_threads
