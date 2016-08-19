@@ -188,6 +188,7 @@ def main():
         keep_uncompressed=args.keep_uncompressed_models
     )
     training.tune(args.threads)
+    training.write_final_ini()
 
 if __name__ == '__main__':
     main()

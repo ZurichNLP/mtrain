@@ -52,7 +52,7 @@ def _log(output):
     Logs every line in @param output as a separate DEBUG event, except for lines
     that consist of a single integer.
     '''
-    for line in output:
+    for line in output.decode().split('\n'):
         try:
             line = int(line) # don't log lines that consists of a single integer (Moses training outputs a lot of those to visualize training progress)
         except ValueError:

@@ -32,15 +32,19 @@ def dir_exists(path, raise_exception=None):
         else:
             return False
 
-def dir_is_empty(path, raise_exception=None):
+def dir_is_empty(path, raise_exception=None, exceptions=[]):
     '''
     Returns False if @param path isn't an existing empty directory, or raises
     @param exception if provided.
+
+    @param exceptions file or folder names in this list will be ignored, that
+        is, @param path will still be regarded as empty if it only contains
+        files or folders listed in @param exceptions.
     '''
-    if not os.listdir(path):
-        return True # since empty list means empty folder
-    else:
-        if raise_exception:
-            raise IOError(raise_exception)
-        else:
-            return False
+    for subpath in os.listdir(path):
+        if subpath not in exceptions:
+            if raise_exception:
+                raise IOError(raise_exception)
+            else:
+                return False
+    return True

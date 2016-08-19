@@ -57,7 +57,7 @@ class Training(object):
             self._basepath,
             raise_exception="%s does not exist" % self._basepath
         )
-        if not assertions.dir_is_empty(self._basepath):
+        if not assertions.dir_is_empty(self._basepath, exceptions=['training.log']):
             logging.warning("Base path %s is not empty. Existing files will be overwritten.", self._basepath)
         # create sub-directories
         for component in PATH_COMPONENT:
@@ -676,8 +676,22 @@ class Training(object):
             num_threads=num_threads
         )
         commander.run(mert_command, "Tuning engine through Maximum Error Rate Training (MERT)")
+
+    def write_final_ini(self):
+        '''
+        Copies the final moses.ini file to the /engine base directory
+        '''
+        if self._tuning:
+            final_moses_ini = os.sep.join(
+                [self._get_path('engine'), 'tm', 'mert', 'moses.ini']
+            )
+        else:
+            final_moses_ini = os.sep.join(
+                [self._get_path('engine'), 'tm', 'compressed', 'moses.ini']
+            )
         # copy final moses.ini into /engine directory
+        logging.info("Copying final moses.ini file to %s", final_moses_ini)
         shutil.copyfile(
-            base_dir_mert + os.sep + 'moses.ini',
+            final_moses_ini,
             self._get_path('engine') + os.sep + 'moses.ini'
         )

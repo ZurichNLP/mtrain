@@ -50,6 +50,7 @@ PATH_COMPONENT = {
     "corpus": "corpus",
     "engine": "engine",
     "evaluation": "evaluation",
+    "logs": "logs"
 }
 
 # Default file names and affixes
