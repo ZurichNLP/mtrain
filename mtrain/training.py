@@ -597,7 +597,7 @@ class Training(object):
         if not assertions.dir_exists(base_dir_model):
             os.mkdir(base_dir_model)
         # train Moses engine
-        training_command = '{script} -root-dir "{base_dir}" -corpus "{basepath_training_corpus}" -f {src} -e {trg} -alignment {alignment} -reordering {reordering} -lm "0:{n}:{path_lm}:8" -temp-dir "{temp_dir}" -cores {num_threads_half} -parallel -alignment-file "{base_dir_model}/aligned" -first-step 4 -write-lexical-counts -max-phrase-length {max_phrase_length}'.format(
+        training_command = '{script} -root-dir "{base_dir}" -corpus "{basepath_training_corpus}" -f {src} -e {trg} -alignment {alignment} -reordering {reordering} -lm "0:{n}:{path_lm}:8" -temp-dir "{temp_dir}" -cores {num_threads_half} -parallel -alignment-file "{base_dir_model}/aligned" -first-step 4 -max-phrase-length {max_phrase_length}'.format(
             script=MOSES_TRAIN_MODEL,
             base_dir=base_dir_tm,
             base_dir_model=base_dir_model,
@@ -635,7 +635,7 @@ class Training(object):
         commander.run(pt_command, "Compressing phrase table")
         commander.run(rt_command, "Compressing reordering table")
         # create moses.ini with compressed models
-        path = re.compile(r'path=.*')
+        path = re.compile(r'path=[^\s]+')
         with open(base_dir_model + os.sep + 'moses.ini', 'r') as orig:
             with open(base_dir_compressed + os.sep + 'moses.ini', 'w') as new:
                 for line in orig.readlines():
