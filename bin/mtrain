@@ -187,7 +187,8 @@ def main():
         path_temp_files=args.temp_dir,
         keep_uncompressed=args.keep_uncompressed_models
     )
-    training.tune(args.threads)
+    if args.tune:
+        training.tune(args.threads)
     training.write_final_ini()
 
 if __name__ == '__main__':

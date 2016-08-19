@@ -3,6 +3,7 @@
 import logging
 import random
 import shutil
+import errno
 import sys
 import os
 import re
@@ -86,6 +87,15 @@ class Training(object):
         Returns the absolute path to a final corpus related to this training.
         '''
         return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
+
+
+    def _symlink(self, orig, link_name):
+        try:
+            os.symlink(orig, link_name)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                os.remove(link_name)
+                os.symlink(orig, link_name)
 
     def preprocess(self, base_corpus_path, min_tokens, max_tokens, tokenize_external):
         '''
@@ -468,29 +478,29 @@ class Training(object):
         # create symlinks
         def symlink_path(basename, lang):
             return self._get_path_corpus([basename, SUFFIX_FINAL], lang)
-        os.symlink(
+        self._symlink(
             fp['train']['src'],
             symlink_path(BASENAME_TRAINING_CORPUS, self._src_lang)
         )
-        os.symlink(
+        self._symlink(
             fp['train']['trg'],
             symlink_path(BASENAME_TRAINING_CORPUS, self._trg_lang)
         )
         if self._tuning:
-            os.symlink(
+            self._symlink(
                 fp['tune']['src'],
                 symlink_path(BASENAME_TUNING_CORPUS, self._src_lang)
             )
-            os.symlink(
+            self._symlink(
                 fp['tune']['trg'],
                 symlink_path(BASENAME_TUNING_CORPUS, self._trg_lang)
             )
         if self._evaluation:
-            os.symlink(
+            self._symlink(
                 fp['test']['src'],
                 symlink_path(BASENAME_EVALUATION_CORPUS, self._src_lang)
             )
-            os.symlink(
+            self._symlink(
                 fp['test']['trg'],
                 symlink_path(BASENAME_EVALUATION_CORPUS, self._trg_lang)
             )
@@ -690,8 +700,9 @@ class Training(object):
                 [self._get_path('engine'), 'tm', 'compressed', 'moses.ini']
             )
         # copy final moses.ini into /engine directory
-        logging.info("Copying final moses.ini file to %s", final_moses_ini)
+        final_destination = self._get_path('engine') + os.sep + 'moses.ini'
+        logging.info("Copying final moses.ini file to %s", final_destination)
         shutil.copyfile(
             final_moses_ini,
-            self._get_path('engine') + os.sep + 'moses.ini'
+            final_destination
         )
