@@ -36,6 +36,10 @@ class TestTraining(TestCase):
                 for i in range(0, num_bisegments):
                     f.write("line %s: %s\n" % (i, self.get_random_sentence()))
 
+    @classmethod
+    def _count_lines(filepath):
+        return sum(1 for line in open(filepath))
+
     # preprocessing
     def test_preprocess_base_corpus_file_creation_train_only(self):
         random_basedir_name = self.get_random_name()
@@ -255,5 +259,89 @@ class TestTraining(TestCase):
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + "." + SUFFIX_LOWERCASED + ".fr"),
             "A lowercased version of the evaluation corpus' target side must be created"
+        )
+        shutil.rmtree(random_basedir_name)
+
+    def test_preprocess_min_tokens(self):
+        random_basedir_name = self.get_random_name()
+        os.mkdir(random_basedir_name)
+        with open(os.sep.join([random_basedir_name, 'sample-corpus.en']), 'w') as f:
+            f.write('one' + '\n')
+            f.write('one two' + '\n')
+            f.write('one two three' + '\n')
+        with open(os.sep.join([random_basedir_name, 'sample-corpus.fr']), 'w') as f:
+            f.write('one two three' + '\n')
+            f.write('one two' + '\n')
+            f.write('one' + '\n')
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
+            min_tokens=2, max_tokens=80, tokenize_external=False)
+        self.assertIs(
+            self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
+            1, # only one line satisfies min_tokens for both en and fr
+            "There must be no segment with less than min_tokens"
+        )
+        self.assertIs(
+            self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.fr'])),
+            1, # only one line satisfies min_tokens for both en and fr
+            "There must be no segment with less than min_tokens"
+        )
+        shutil.rmtree(random_basedir_name)
+
+    def test_preprocess_max_tokens(self):
+        random_basedir_name = self.get_random_name()
+        os.mkdir(random_basedir_name)
+        with open(os.sep.join([random_basedir_name, 'sample-corpus.en']), 'w') as f:
+            f.write('one' + '\n')
+            f.write('one two' + '\n')
+            f.write('one two three' + '\n')
+        with open(os.sep.join([random_basedir_name, 'sample-corpus.fr']), 'w') as f:
+            f.write('one two three' + '\n')
+            f.write('one two' + '\n')
+            f.write('one' + '\n')
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
+            min_tokens=1, max_tokens=2, tokenize_external=False)
+        self.assertIs(
+            self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
+            1, # only one line satisfies max_tokens for both en and fr
+            "There must be no segment with less than min_tokens"
+        )
+        self.assertIs(
+            self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.fr'])),
+            1, # only one line satisfies max_tokens for both en and fr
+            "There must be no segment with less than min_tokens"
+        )
+        shutil.rmtree(random_basedir_name)
+
+    def test_preprocess_remove_empty_lines(self):
+        random_basedir_name = self.get_random_name()
+        os.mkdir(random_basedir_name)
+        with open(os.sep.join([random_basedir_name, 'sample-corpus.en']), 'w') as f:
+            f.write('one' + '\n')
+            f.write('\n') # must be removed
+            f.write('one two three' + '\n')
+            f.write('one two' + '\n')
+            f.write('one' + '\n') # must be removed (because .fr is empty)
+            f.write('one two' + '\n')
+        with open(os.sep.join([random_basedir_name, 'sample-corpus.fr']), 'w') as f:
+            f.write('one' + '\n')
+            f.write('\n') # must be removed
+            f.write('one two three' + '\n')
+            f.write('one two' + '\n')
+            f.write('\n') # must be removed
+            f.write('one two' + '\n')
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
+            min_tokens=1, max_tokens=80, tokenize_external=False)
+        self.assertIs(
+            self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
+            4, # only one line satisfies max_tokens for both en and fr
+            "Bi-segments where src and/or trg are empty lines must be removed"
+        )
+        self.assertIs(
+            self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.fr'])),
+            4, # only one line satisfies max_tokens for both en and fr
+            "Bi-segments where src and/or trg are empty lines must be removed"
         )
         shutil.rmtree(random_basedir_name)

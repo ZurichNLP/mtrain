@@ -281,7 +281,7 @@ class Training(object):
         '''
         segment = segment.strip()
         if tokenize:
-            tokens = tokenizer.tokenize(segment)
+            tokens = [t for t in tokenizer.tokenize(segment) if t != '']
             if len(tokens) < min_tokens or len(tokens) > max_tokens:
                 return None # means segment should be discarded
             else:
@@ -323,7 +323,7 @@ class Training(object):
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             # reservoir sampling (Algorithm R)
-            if corpus_tune.get_size() < num_tune:
+            elif corpus_tune.get_size() < num_tune:
                 corpus_tune.insert(segment_source, segment_target)
             elif corpus_eval.get_size() < num_eval:
                 corpus_eval.insert(segment_source, segment_target)

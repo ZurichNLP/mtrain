@@ -120,11 +120,6 @@ def get_argument_parser():
         choices=LOGGING_LEVELS.keys(),
         default="INFO"
     )
-    parser.add_argument(
-        "--stdout",
-        help="write logs to standard output rather than the default log file.",
-        action='store_true'
-    )
     return parser
 
 def main():
