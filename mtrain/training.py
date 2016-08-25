@@ -151,12 +151,12 @@ class Training(object):
         Trains a truecasing model.
         '''
         # create folder
-        basepath = os.sep.join([self._get_path('engine'), 'truecaser'])
+        basepath = os.sep.join([self._get_path('engine'), TRUECASING])
         if not assertions.dir_exists(basepath):
             os.mkdir(basepath)
         # train truecaser
         def command(lang):
-            return '{script} --model {basepath}/truecaser.{lang} --corpus {corpus}'.format(
+            return '{script} --model {basepath}/model.{lang} --corpus {corpus}'.format(
                 script=MOSES_TRAIN_TRUECASER,
                 basepath=basepath,
                 lang=lang,
@@ -172,7 +172,7 @@ class Training(object):
         def command(corpus, lang):
             return '{script} --model {model} < {corpus_in} > {corpus_out}'.format(
                 script=MOSES_TRUECASER,
-                model=os.sep.join([self._get_path('engine'), 'truecaser', 'truecaser.%s' % lang]),
+                model=os.sep.join([self._get_path('engine'), 'truecaser', 'model.%s' % lang]),
                 corpus_in=self._get_path_corpus(corpus, lang),
                 corpus_out=self._get_path_corpus([corpus, SUFFIX_TRUECASED], lang)
             )
@@ -198,7 +198,7 @@ class Training(object):
             phrase table should be kept
         '''
         # create target directory
-        base_dir_recaser = self._get_path('engine') + os.sep + 'recaser'
+        base_dir_recaser = self._get_path('engine') + os.sep + RECASING
         if not assertions.dir_exists(base_dir_recaser):
             os.mkdir(base_dir_recaser)
         # train model
@@ -269,6 +269,12 @@ class Training(object):
         Maximises the engine's performance on the tuning corpus
         '''
         self._MERT(num_threads)
+
+    def evaluate(self):
+        '''
+        Evaluates the engine using MultEval
+        '''
+        self._multeval()
 
     def _preprocess_segment(self, segment, tokenizer, min_tokens, max_tokens,
                             tokenize=True):
@@ -687,22 +693,8 @@ class Training(object):
         )
         commander.run(mert_command, "Tuning engine through Maximum Error Rate Training (MERT)")
 
-    def write_final_ini(self):
+    def _multeval(self):
         '''
-        Copies the final moses.ini file to the /engine base directory
+        Evaluates the engine using MultEval
         '''
-        if self._tuning:
-            final_moses_ini = os.sep.join(
-                [self._get_path('engine'), 'tm', 'mert', 'moses.ini']
-            )
-        else:
-            final_moses_ini = os.sep.join(
-                [self._get_path('engine'), 'tm', 'compressed', 'moses.ini']
-            )
-        # copy final moses.ini into /engine directory
-        final_destination = self._get_path('engine') + os.sep + 'moses.ini'
-        logging.info("Copying final moses.ini file to %s", final_destination)
-        shutil.copyfile(
-            final_moses_ini,
-            final_destination
-        )
+        pass #todo; use TranslationEngine class

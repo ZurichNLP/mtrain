@@ -116,7 +116,7 @@ def get_argument_parser():
     )
     parser.add_argument(
         "--logging",
-        help="logging level in stdout",
+        help="logging level in stderr",
         choices=LOGGING_LEVELS.keys(),
         default="INFO"
     )

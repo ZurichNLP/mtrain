@@ -4,6 +4,7 @@
 Stores the constants needed to execute commands.
 '''
 
+import logging
 import os
 from collections import OrderedDict
 
@@ -11,11 +12,13 @@ from collections import OrderedDict
 MOSES_HOME = str(os.environ.get('MOSES_HOME')) # Moses base directory
 MOSES_BIN = MOSES_HOME + os.sep + 'bin'
 FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the fast_align binaries (fast_align, atools)
+MULTEVAL_HOME = str(os.environ.get('MULTEVAL_HOME')) # MultEval base directory
 
 # Paths to Moses files/scripts
 MOSES = MOSES_HOME + os.sep + 'bin/moses'
 MOSES_TRAIN_MODEL = MOSES_HOME + os.sep + 'scripts/training/train-model.perl'
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
+MOSES_DETOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/detokenizer.perl'
 MOSES_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/truecase.perl'
 MOSES_TRAIN_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-truecaser.perl'
 MOSES_RECASER = ''
@@ -99,4 +102,13 @@ CASING_STRATEGIES = {
         "(trains a separate truecasing model)",
     RECASING: "the decoder is trained on lowercased input and output " +
         "(trains a separate recasing model)",
+}
+
+# Python logging levels
+LOGGING_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
 }

@@ -17,6 +17,6 @@ setup(name='mtrain',
       packages=['mtrain', 'mtrain.preprocessing'],
       test_suite='nose.collector',
       tests_require=['nose', 'coverage'],
-      scripts=['bin/mtrain'],
+      scripts=['bin/mtrain', 'bin/mtrans'],
       include_package_data=True,
       zip_safe=False)
