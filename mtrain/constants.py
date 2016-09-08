@@ -9,10 +9,10 @@ import os
 from collections import OrderedDict
 
 # Paths to 3rd party packages
-MOSES_HOME = str(os.environ.get('MOSES_HOME')) # Moses base directory
+MOSES_HOME = os.environ.get('MOSES_HOME') if os.environ.get('MOSES_HOME') else '' # Moses base directory
 MOSES_BIN = MOSES_HOME + os.sep + 'bin'
-FASTALIGN_HOME = str(os.environ.get('FASTALIGN_HOME')) # directory storing the fast_align binaries (fast_align, atools)
-MULTEVAL_HOME = str(os.environ.get('MULTEVAL_HOME')) # MultEval base directory
+FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
+MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
 
 # Paths to Moses files/scripts
 MOSES = MOSES_HOME + os.sep + 'bin/moses'

@@ -73,6 +73,6 @@ if __name__ == '__main__':
     # abort if Python version is not supported
     checker.check_python_version()
     # abort if MOSES_HOME environment variable is not set
-    checker.check_environment_variable(MOSES_HOME)
+    checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
     # run main routine
     main()
