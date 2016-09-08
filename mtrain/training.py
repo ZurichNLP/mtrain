@@ -698,3 +698,14 @@ class Training(object):
         Evaluates the engine using MultEval
         '''
         pass #todo; use TranslationEngine class
+
+    def write_final_ini(self):
+        '''
+        Symlinks the final moses.ini file to /engine/moses.ini
+        '''
+        final_moses_ini = self._get_path('engine') + os.sep + 'moses.ini'
+        if self._tuning:
+            moses_ini = self._get_path('engine') + os.sep.join(['tm', 'mert', 'moses.ini'])
+        else:
+            moses_ini = self._get_path('engine') + os.sep.join(['tm', 'compressed', 'moses.ini'])
+        self._symlink(moses_ini, final_moses_ini)
