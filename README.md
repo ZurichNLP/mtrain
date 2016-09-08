@@ -2,7 +2,7 @@
 
 This python3 package provides convenience wrappers to train (`mtrain`) and
 translate with (`mtrans`) Moses-based machine translation engines. Given a
-parallel corpus of any size, this is as easy as
+parallel corpus of any size, training and translation are as easy as
 
 ```sh
 mkdir ~/my_engine
@@ -61,7 +61,7 @@ tests.
 ### Training
 
 Engines are trained using the `mtrain` command. Given a parallel corpus located
-at ~/my-corpus.en (source side) and ~/my-corpus.fr (target side), you can train
+at `~/my-corpus.en` (source side) and `~/my-corpus.fr` (target side), you can train
 a phrase-based Moses English to French engine using the following command:
 
 ```sh
@@ -115,7 +115,7 @@ segment
 echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr
 ```
 
-... or an entire file
+or an entire file
 
 ```sh
 mtrans ~/my_engine en fr < my-english-file.txt > french-translation.txt
@@ -133,4 +133,12 @@ mtrans --help
 
 ## Use cases
 
-TODO
+Description pending.
+
+In the meantime, you may want to have a look at the advanced options of `mtrain`
+and `mtrans` by typing
+
+```sh
+mtrain --help
+mtrans --help
+```
