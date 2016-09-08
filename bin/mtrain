@@ -7,6 +7,7 @@ import os
 
 from mtrain.training import Training
 from mtrain.constants import *
+from mtrain import checker
 
 LOGGING_LEVELS = {
     "DEBUG": logging.DEBUG,
@@ -187,4 +188,10 @@ def main():
     training.write_final_ini()
 
 if __name__ == '__main__':
+    # abort if Python version is not supported
+    checker.check_python_version()
+    # abort if environment variables are not set
+    checker.check_environment_variable(MOSES_HOME)
+    checker.check_environment_variable(FASTALIGN_HOME)
+    # run main routine
     main()

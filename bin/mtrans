@@ -8,6 +8,7 @@ import os
 
 from mtrain.translation import TranslationEngine
 from mtrain.constants import *
+from mtrain import checker
 
 def get_argument_parser():
     parser = argparse.ArgumentParser()
@@ -69,4 +70,9 @@ def main():
             print(translation)
 
 if __name__ == '__main__':
+    # abort if Python version is not supported
+    checker.check_python_version()
+    # abort if MOSES_HOME environment variable is not set
+    checker.check_environment_variable(MOSES_HOME)
+    # run main routine
     main()

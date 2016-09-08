@@ -95,10 +95,10 @@ or `-c truecasing` to your command, respectively:
 mtrain ~/my-corpus en fr -o ~/my_engine -t 1000 -c recasing
 ```
 
-This will train a phrase-based (maximum phrase length: 7 tokens) translation
+Altogether, this will train a phrase-based (maximum phrase length: 7 tokens) translation
 engine with a 5-gram language model (modified Kneser-Ney smoothing) and a
-lexicalised (msd-bidirectional-fe) reordering model. The phrase and reordering
-tables will be [compressed](http://ufal.mff.cuni.cz/pbml/98/art-junczys-dowmunt.pdf).
+lexicalised (msd-bidirectional-fe) reordering model, as well as a standard Moses
+recasing engine. All phrase and reordering tables will be [compressed](http://ufal.mff.cuni.cz/pbml/98/art-junczys-dowmunt.pdf).
 
 For further training options, run
 
