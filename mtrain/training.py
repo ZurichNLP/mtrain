@@ -705,7 +705,7 @@ class Training(object):
         '''
         final_moses_ini = self._get_path('engine') + os.sep + 'moses.ini'
         if self._tuning:
-            moses_ini = self._get_path('engine') + os.sep.join(['tm', 'mert', 'moses.ini'])
+            moses_ini = self._get_path('engine') + os.sep + os.sep.join(['tm', 'mert', 'moses.ini'])
         else:
-            moses_ini = self._get_path('engine') + os.sep.join(['tm', 'compressed', 'moses.ini'])
+            moses_ini = self._get_path('engine') + os.sep + os.sep.join(['tm', 'compressed', 'moses.ini'])
         self._symlink(moses_ini, final_moses_ini)
