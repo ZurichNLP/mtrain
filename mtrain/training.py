@@ -213,7 +213,7 @@ class Training(object):
         )
         # binarize language model
         commander.run(
-            '{script} "{base_dir_recaser}/cased.kenlm" "{base_dir_recaser}/cased.kenlm.bin"'.format(
+            '{script} "{base_dir_recaser}/cased.kenlm.gz" "{base_dir_recaser}/cased.kenlm.bin"'.format(
                 script=KENLM_BUILD_BINARY,
                 base_dir_recaser=base_dir_recaser,
             ),
@@ -235,13 +235,13 @@ class Training(object):
             moses_ini = f.read()
         moses_ini = moses_ini.replace('PhraseDictionaryMemory', 'PhraseDictionaryCompact')
         moses_ini = moses_ini.replace('phrase-table.gz', 'phrase-table')
-        moses_ini = moses_ini.replace('cased.kenlm', 'cased.kenlm.bin')
+        moses_ini = moses_ini.replace('cased.kenlm.gz', 'cased.kenlm.bin')
         moses_ini = moses_ini.replace('lazyken=1', 'lazyken=0')
         with open("%s/moses.ini" % base_dir_recaser, 'w') as f:
             f.write(moses_ini)
         # Remove uncompressed models
         if not keep_uncompressed:
-            os.remove("%s/cased.kenlm" % base_dir_recaser)
+            os.remove("%s/cased.kenlm.gz" % base_dir_recaser)
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
 
     def train_engine(self, n=5, alignment='grow-diag-final-and',
