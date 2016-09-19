@@ -3,7 +3,7 @@
 import sys
 
 def check_python_version():
-    if sys.version_info < (2,7):
+    if sys.version_info < (3,5):
         sys.exit('Your Python version is not supported. Please use version 3.5 or later.')
 
 def check_environment_variable(constant, name, example_name):
