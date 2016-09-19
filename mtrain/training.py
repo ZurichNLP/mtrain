@@ -172,7 +172,7 @@ class Training(object):
         def command(corpus, lang):
             return '{script} --model {model} < {corpus_in} > {corpus_out}'.format(
                 script=MOSES_TRUECASER,
-                model=os.sep.join([self._get_path('engine'), 'truecaser', 'model.%s' % lang]),
+                model=os.sep.join([self._get_path('engine'), 'truecasing', 'model.%s' % lang]),
                 corpus_in=self._get_path_corpus(corpus, lang),
                 corpus_out=self._get_path_corpus([corpus, SUFFIX_TRUECASED], lang)
             )
