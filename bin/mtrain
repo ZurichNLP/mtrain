@@ -187,6 +187,9 @@ def main():
         training.tune(args.threads)
     training.write_final_ini()
 
+    if args.eval:
+        training.evaluate()
+
 if __name__ == '__main__':
     # abort if Python version is not supported
     checker.check_python_version()
