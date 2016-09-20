@@ -27,6 +27,9 @@ should point to the base directory of your Moses installation, containing the
 subdirectories `scripts`, `bin`, etc. `FASTALIGN_HOME` is where your compiled
 fast_align binaries (`fastalign` and `atools`) are stored.
 
+For evaluation (optional), `mtrain` requires an additional environment variable,
+`MULTEVAL_HOME`, a directory containing a MultEval installation and `multeval.sh`, among other things.
+
 #### Setting environment variables temporarily
 To set `MOSES_HOME` and `FASTALIGN_HOME` for the duration of your shell session,
 type
@@ -34,6 +37,7 @@ type
 ```bash
 export MOSES_HOME=/path/to/moses
 export FASTALIGN_HOME=/path/to/fastalign/bin
+export MULTEVAL_HOME=/path/to/multeval
 ```
 
 #### Setting environment variables permanently

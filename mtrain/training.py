@@ -707,17 +707,17 @@ class Training(object):
         if not assertions.dir_exists(base_dir_evaluation):
             os.mkdir(base_dir_evaluation)
         base_dir_multeval = base_dir_evaluation + os.sep + 'multeval'
-        if not assertions.dir_exists(base_dir_eval):
+        if not assertions.dir_exists(base_dir_multeval):
             os.mkdir(base_dir_multeval)
 
         # translate source side of test corpus
-        engine = TranslationEngine(self._get_path('engine'), self._src_lang, self._trg_lang)
+        engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang)
         
         with open(self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang), 'r') as corpus_evaluation_src:
-            with open(base_dir_multeval + os.sep + 'hypothesis' + self._trg_lang) as hypothesis:
+            with open(base_dir_multeval + os.sep + 'hypothesis.' + self._trg_lang, 'w') as hypothesis:
                 for segment_source in corpus_evaluation_src:
                     segment_source.strip()
-                    translated_segment = engine.translate(source_segment, lowercase=False) # do not lowercase in ... well, all cases?
+                    translated_segment = engine.translate(segment_source, lowercase=False) # do not lowercase in ... well, all cases?
                     hypothesis.write(translated_segment, '\n')
 
         # evaluate with multeval
