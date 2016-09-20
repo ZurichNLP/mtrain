@@ -33,14 +33,14 @@ def get_argument_parser():
             "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
             "`",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' #overrides ugnly double-listing of available choices in --help
+        metavar='src_lang' #overrides ugly double-listing of available choices in --help
     )
     parser.add_argument(
         "trg_lang",
         type=str,
         help="target language code: same valid choices as in src_lang",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' #overrides ugnly double-listing of available choices in --help
+        metavar='trg_lang' #overrides ugly double-listing of available choices in --help
     )
     parser.add_argument(
         "-o", "--output_dir",

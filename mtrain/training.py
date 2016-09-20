@@ -699,36 +699,35 @@ class Training(object):
         '''
         Evaluates the engine using MultEval
         '''
-	# abort if MULTEVAL_HOME environment variable is not set
-	checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
+        # abort if MULTEVAL_HOME environment variable is not set
+        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
 
-	# create target directories
-	base_dir_evaluation = self._get_path('evaluation')
-	if not assertions.dir_exists(base_dir_evaluation):
-		os.mkdir(base_dir_evaluation)
-	base_dir_multeval = base_dir_evaluation + os.sep + 'multeval'
-	if not assertions.dir_exists(base_dir_eval):
-		os.mkdir(base_dir_multeval)
+        # create target directories
+        base_dir_evaluation = self._get_path('evaluation')
+        if not assertions.dir_exists(base_dir_evaluation):
+            os.mkdir(base_dir_evaluation)
+        base_dir_multeval = base_dir_evaluation + os.sep + 'multeval'
+        if not assertions.dir_exists(base_dir_eval):
+            os.mkdir(base_dir_multeval)
 
-	# translate source side of test corpus
-	engine = TranslationEngine(self._get_path('engine'), self._src_lang, self._trg_lang)
-	
-	with open(self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang), 'r') as corpus_evaluation_src:
-		with open(base_dir_multeval + os.sep + 'hypothesis' + self._trg_lang) as hypothesis:
-			for segment_source in corpus_evaluation_src:
-				segment_source.strip()
-					if source_segment != '':
-						translated_segment = engine.translate(source_segment, lowercase=False) # do not lowercase in ... well, all cases?
-						hypothesis.write(translated_segment, '\n')
-	
-	# evaluate with multeval
-	multeval_command = '{script} eval --meteor.language "{trg_lang}" --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}"'.format(
-		script=MULTEVAL,
-		trg_lang=self._trg_lang,
-		corpus_evaluation_trg=self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-		hypothesis=base_dir_multeval + os.sep + 'hypothesis' + self._trg_lang
-	)
-	commander.run(multeval_command, "Evaluating engine with MultEval")
+        # translate source side of test corpus
+        engine = TranslationEngine(self._get_path('engine'), self._src_lang, self._trg_lang)
+        
+        with open(self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang), 'r') as corpus_evaluation_src:
+            with open(base_dir_multeval + os.sep + 'hypothesis' + self._trg_lang) as hypothesis:
+                for segment_source in corpus_evaluation_src:
+                    segment_source.strip()
+                    translated_segment = engine.translate(source_segment, lowercase=False) # do not lowercase in ... well, all cases?
+                    hypothesis.write(translated_segment, '\n')
+
+        # evaluate with multeval
+        multeval_command = '{script} eval --meteor.language "{trg_lang}" --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}"'.format(
+            script=MULTEVAL,
+            trg_lang=self._trg_lang,
+            corpus_evaluation_trg=self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._trg_lang),
+            hypothesis=base_dir_multeval + os.sep + 'hypothesis' + self._trg_lang
+        )
+        commander.run(multeval_command, "Evaluating engine with MultEval")
 
     def write_final_ini(self):
         '''
