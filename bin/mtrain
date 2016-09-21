@@ -33,14 +33,14 @@ def get_argument_parser():
             "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
             "`",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' #overrides ugnly double-listing of available choices in --help
+        metavar='src_lang' #overrides ugly double-listing of available choices in --help
     )
     parser.add_argument(
         "trg_lang",
         type=str,
         help="target language code: same valid choices as in src_lang",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' #overrides ugnly double-listing of available choices in --help
+        metavar='trg_lang' #overrides ugly double-listing of available choices in --help
     )
     parser.add_argument(
         "-o", "--output_dir",
@@ -186,6 +186,11 @@ def main():
     if args.tune:
         training.tune(args.threads)
     training.write_final_ini()
+
+    if args.eval:
+        # abort if MULTEVAL_HOME environment variable is not set
+        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
+        training.evaluate(args.threads, lowercase=False) # todo: make lowercasing of evaluation a command line argument?
 
 if __name__ == '__main__':
     # abort if Python version is not supported

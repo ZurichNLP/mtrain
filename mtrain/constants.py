@@ -35,6 +35,9 @@ KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
 FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'
 ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
 
+# Path to multeval script
+MULTEVAL = MULTEVAL_HOME + os.sep + 'multeval.sh'
+
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.
 MOSES_SPECIAL_CHARS = OrderedDict()

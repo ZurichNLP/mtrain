@@ -12,6 +12,7 @@ from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
+from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
 
 class Training(object):
@@ -270,11 +271,11 @@ class Training(object):
         '''
         self._MERT(num_threads)
 
-    def evaluate(self):
+    def evaluate(self, num_threads=1, lowercase=False):
         '''
-        Evaluates the engine using MultEval
+        Evaluates the engine by translating and scoring an  evaluation set
         '''
-        self._multeval()
+        self._multeval(num_threads, lowercase=lowercase)
 
     def _preprocess_segment(self, segment, tokenizer, min_tokens, max_tokens,
                             tokenize=True):
@@ -693,11 +694,48 @@ class Training(object):
         )
         commander.run(mert_command, "Tuning engine through Maximum Error Rate Training (MERT)")
 
-    def _multeval(self):
+    def _multeval(self, num_threads, lowercase=False):
         '''
-        Evaluates the engine using MultEval
+        Evaluates the engine using MultEval.
+        @param num_threads max number of threads used
+        @param lowercase whether to lowercase the translated segments before evaluation
         '''
-        pass #todo; use TranslationEngine class
+        # create target directories
+        base_dir_evaluation = self._get_path('evaluation')
+        if not assertions.dir_exists(base_dir_evaluation):
+            os.mkdir(base_dir_evaluation)
+        base_dir_multeval = base_dir_evaluation + os.sep + 'multeval'
+        if not assertions.dir_exists(base_dir_multeval):
+            os.mkdir(base_dir_multeval)
+
+        # translate source side of test corpus
+        logging.info("Translating evaluation corpus")
+        engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang)
+        
+        path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.' + ('lowercased.' if lowercase else '') + self._trg_lang
+
+        with open(self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang), 'r') as corpus_evaluation_src:
+            with open(path_hypothesis, 'w') as hypothesis:
+                for segment_source in corpus_evaluation_src:
+                    segment_source = segment_source.strip()
+                    translated_segment = engine.translate(segment_source, preprocess=False, lowercase=lowercase, detokenize=False)
+                    hypothesis.write(translated_segment + '\n')
+
+        # remove all engine processes
+        engine.close()
+
+        # evaluate with multeval
+        output_file = base_dir_multeval + os.sep + 'hypothesis' + ('.lowercased' if lowercase else '') + '.multeval'
+
+        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" --meteor.language "{trg_lang}" --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_file}"'.format(
+            script=MULTEVAL,
+            num_threads=num_threads,
+            trg_lang=self._trg_lang,
+            corpus_evaluation_trg=self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._trg_lang),
+            hypothesis=path_hypothesis,
+            output_file=output_file
+        )
+        commander.run(multeval_command, "Evaluating engine with MultEval")
 
     def write_final_ini(self):
         '''

@@ -15,7 +15,7 @@ class Truecaser(object):
 
     def __init__(self, path_model):
         self._processor = ExternalProcessor(
-            command=MOSES_TRUECASER + " --model" % path_model
+            command=MOSES_TRUECASER + " --model %s" % path_model
         )
 
     def close(self):
@@ -31,4 +31,4 @@ class Truecaser(object):
         '''
         Truecases a list of tokens.
         '''
-        return self.truecase(" ".join(tokens).split(" "))
+        return self.truecase(" ".join(tokens)).split(" ")
