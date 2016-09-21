@@ -88,12 +88,14 @@ class TranslationEngine(object):
         elif self._casing_strategy == RECASING:
             self._recaser.close()
 
-    def translate(self, segment, lowercase=False):
+    def translate(self, segment, lowercase=False, preprocess=True):
         '''
         Translates a single segment
-        @param lowercase whether to lowercae (True) or restore the original
+        @param lowercase whether to lowercase (True) or restore the original
             casing (False) of the output segment.
+        @param preprocess whether to apply preprocessing steps to segment
         '''
-        segment = self._preprocess_segment(segment)
+        if preprocess:
+            segment = self._preprocess_segment(segment)
         translation = self._engine.process(segment)
         return self._postprocess_segment(translation, lowercase)

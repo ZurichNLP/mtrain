@@ -190,7 +190,7 @@ def main():
     if args.eval:
         # abort if MULTEVAL_HOME environment variable is not set
         checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
-        training.evaluate()
+        training.evaluate(args.threads)
 
 if __name__ == '__main__':
     # abort if Python version is not supported
