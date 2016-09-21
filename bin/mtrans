@@ -63,7 +63,7 @@ def main():
     for line in sys.stdin: # read stdin
         source_segment = line.strip()
         if source_segment != '':
-            translation = engine.translate(source_segment, args.lowercase, preprocess=True, postprocess=True) # todo: make last two arguments changeable
+            translation = engine.translate(source_segment, preprocess=True, args.lowercase, detokenize=True) # todo: make last two arguments changeable
             # uppercase translation's first letter if first letter in source_segment is uppercased
             if not args.lowercase and source_segment[0].isupper():
                 translation = translation[0].upper() + translation[1:]

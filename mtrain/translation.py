@@ -72,14 +72,18 @@ class TranslationEngine(object):
             tokens = lowercaser.lowercase_tokens(tokens)
         return " ".join(tokens)
 
-    def _postprocess_segment(self, segment, lowercase=False):
+    def _postprocess_segment(self, segment, lowercase=False, detokenize=True):
         if lowercase:
             segment = lowercaser.lowercase_string(segment)
         else:
             if self._casing_strategy == RECASING:
                 segment = self._recaser.recase(segment)
-        output_tokens = segment.split(" ")
-        return self._detokenizer.detokenize(output_tokens)
+        if detokenize:
+            output_tokens = segment.split(" ")
+            return self._detokenizer.detokenize(output_tokens)
+
+        else:
+            return segment
 
     def close(self):
         del self._engine
@@ -88,16 +92,15 @@ class TranslationEngine(object):
         elif self._casing_strategy == RECASING:
             self._recaser.close()
 
-    def translate(self, segment, lowercase=False, preprocess=True, postprocess=True):
+    def translate(self, segment, preprocess=True, lowercase=False, detokenize=True):
         '''
-        Translates a single segment
+        Translates a single segment.
+        @param preprocess whether to apply preprocessing steps to segment
         @param lowercase whether to lowercase (True) or restore the original
             casing (False) of the output segment.
-        @param preprocess whether to apply preprocessing steps to segment
+        @param detokenize whether to detokenize the translated segment
         '''
         if preprocess:
             segment = self._preprocess_segment(segment)
         translation = self._engine.process(segment)
-        if postprocess:
-            translation = self._postprocess_segment(translation, lowercase)
-        return translation
+        return self._postprocess_segment(translation, lowercase, detokenize)
