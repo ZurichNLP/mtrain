@@ -14,7 +14,6 @@ from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
 from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
-from mtrain import checker
 
 class Training(object):
     '''
@@ -699,9 +698,6 @@ class Training(object):
         '''
         Evaluates the engine using MultEval
         '''
-        # abort if MULTEVAL_HOME environment variable is not set
-        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
-
         # create target directories
         base_dir_evaluation = self._get_path('evaluation')
         if not assertions.dir_exists(base_dir_evaluation):

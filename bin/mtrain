@@ -188,6 +188,8 @@ def main():
     training.write_final_ini()
 
     if args.eval:
+        # abort if MULTEVAL_HOME environment variable is not set
+        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
         training.evaluate()
 
 if __name__ == '__main__':
