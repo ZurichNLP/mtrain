@@ -6,21 +6,17 @@ import shutil
 import sys
 import os
 
-from unittest import TestCase
+from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
 from mtrain.training import Training
 from mtrain.constants import *
 from mtrain import assertions
 
-class TestTraining(TestCase):
+class TestTraining(TestCaseWithCleanup):
     @staticmethod
     def count_lines(filename):
         with open(filename) as f:
             return sum(1 for line in f)
-
-    @staticmethod
-    def get_random_name():
-        return str(random.randint(0, 9999999))
 
     @staticmethod
     def get_random_sentence():
@@ -40,9 +36,12 @@ class TestTraining(TestCase):
     def _count_lines(filepath):
         return sum(1 for line in open(filepath))
 
+    def get_random_basename(self):
+        return str(self._basedir_test_cases + os.sep + str(random.randint(0, 9999999)))
+
     # preprocessing
     def test_preprocess_base_corpus_file_creation_train_only(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None)
         self._create_random_parallel_corpus_files(
@@ -61,10 +60,9 @@ class TestTraining(TestCase):
             BASENAME_TRAINING_CORPUS + ".fr" in files_created,
             "Training corpus for target language must be created"
         )
-        shutil.rmtree(random_basedir_name)
 
     def test_preprocess_base_corpus_file_creation_train_tune_eval(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20)
         self._create_random_parallel_corpus_files(
@@ -99,10 +97,9 @@ class TestTraining(TestCase):
             BASENAME_EVALUATION_CORPUS + ".fr" in files_created,
             "Evaluation corpus for target language must be created"
         )
-        shutil.rmtree(random_basedir_name)
 
     def test_preprocess_base_corpus_correct_number_of_lines_train_only(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None)
         self._create_random_parallel_corpus_files(
@@ -120,10 +117,9 @@ class TestTraining(TestCase):
             200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".fr"])),
             "Number of segments in target side of training corpus must be correct"
         )
-        shutil.rmtree(random_basedir_name)
 
     def test_preprocess_base_corpus_correct_number_of_lines_train_tune_eval(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20)
         self._create_random_parallel_corpus_files(
@@ -157,14 +153,13 @@ class TestTraining(TestCase):
             20 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_EVALUATION_CORPUS + ".fr"])),
             "Number of segments in target side of evaluation corpus must be correct"
         )
-        shutil.rmtree(random_basedir_name)
 
     def test_preprocess_external_tuning_corpus(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(
             random_basedir_name, "en", "fr", SELFCASING,
-            tuning="external-sample-corpus",
+            tuning=self._basedir_test_cases + os.sep + "external-sample-corpus",
             evaluation=None
         )
         # create sample base corpus
@@ -176,7 +171,7 @@ class TestTraining(TestCase):
         )
         # create sample external tuning corpus
         self._create_random_parallel_corpus_files(
-            path="",
+            path=self._basedir_test_cases,
             filename_source="external-sample-corpus.en",
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
@@ -198,17 +193,14 @@ class TestTraining(TestCase):
             self.count_lines(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_TUNING_CORPUS + ".fr"),
             "Number of segments in target side of external tuning corpus must be correct"
         )
-        shutil.rmtree(random_basedir_name)
-        os.remove("external-sample-corpus.en")
-        os.remove("external-sample-corpus.fr")
 
     def test_preprocess_external_eval_corpus(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(
             random_basedir_name, "en", "fr", SELFCASING,
             tuning=None,
-            evaluation="external-sample-corpus"
+            evaluation=self._basedir_test_cases + os.sep + "external-sample-corpus"
         )
         # create sample base corpus
         self._create_random_parallel_corpus_files(
@@ -219,7 +211,7 @@ class TestTraining(TestCase):
         )
         # create sample external eval corpus
         self._create_random_parallel_corpus_files(
-            path="",
+            path=self._basedir_test_cases,
             filename_source="external-sample-corpus.en",
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
@@ -241,12 +233,9 @@ class TestTraining(TestCase):
             self.count_lines(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + ".fr"),
             "Number of segments in target side of external evaluation corpus must be correct"
         )
-        shutil.rmtree(random_basedir_name)
-        os.remove("external-sample-corpus.en")
-        os.remove("external-sample-corpus.fr")
 
     def test_preprocess_create_lowercased_eval_trg_file(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(random_basedir_name, "en", "fr", SELFCASING, 50, 20)
         self._create_random_parallel_corpus_files(
@@ -260,10 +249,9 @@ class TestTraining(TestCase):
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + "." + SUFFIX_LOWERCASED + ".fr"),
             "A lowercased version of the evaluation corpus' target side must be created"
         )
-        shutil.rmtree(random_basedir_name)
 
     def test_preprocess_min_tokens(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         with open(os.sep.join([random_basedir_name, 'sample-corpus.en']), 'w') as f:
             f.write('one' + '\n')
@@ -286,10 +274,9 @@ class TestTraining(TestCase):
             1, # only one line satisfies min_tokens for both en and fr
             "There must be no segment with less than min_tokens"
         )
-        shutil.rmtree(random_basedir_name)
 
     def test_preprocess_max_tokens(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         with open(os.sep.join([random_basedir_name, 'sample-corpus.en']), 'w') as f:
             f.write('one' + '\n')
@@ -312,10 +299,9 @@ class TestTraining(TestCase):
             1, # only one line satisfies max_tokens for both en and fr
             "There must be no segment with less than min_tokens"
         )
-        shutil.rmtree(random_basedir_name)
 
     def test_preprocess_remove_empty_lines(self):
-        random_basedir_name = self.get_random_name()
+        random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         with open(os.sep.join([random_basedir_name, 'sample-corpus.en']), 'w') as f:
             f.write('one' + '\n')
@@ -344,4 +330,3 @@ class TestTraining(TestCase):
             4, # only one line satisfies max_tokens for both en and fr
             "Bi-segments where src and/or trg are empty lines must be removed"
         )
-        shutil.rmtree(random_basedir_name)

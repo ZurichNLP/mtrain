@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from unittest import TestCase
+from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
 from mtrain.preprocessing import lowercaser
 
@@ -9,7 +9,7 @@ import filecmp
 import glob
 import os
 
-class TestLowercaser(TestCase):
+class TestLowercaser(TestCaseWithCleanup):
     test_cases = {
         "FOO": "foo",
         "Foo": "foo",
@@ -27,7 +27,7 @@ class TestLowercaser(TestCase):
             self.assertEqual(lowercaser.lowercase_string(upper), lower)
 
     def test_lowercase_file(self):
-        random_basename = self.get_random_name()
+        random_basename = self._basedir_test_cases + os.sep + self.get_random_name()
         # create reference files
         with open(random_basename + ".upper", 'w') as f:
             f.writelines([e + "\n" for e in self.test_cases.keys()])
@@ -40,6 +40,3 @@ class TestLowercaser(TestCase):
             filecmp.cmp(random_basename + ".lower", random_basename + ".converted", shallow=False),
             "Lowercaser must correctly transform all file contents to lowercase."
         )
-        # delete test files
-        for test_file in glob.glob("%s.*" % random_basename):
-            os.remove(test_file)
