@@ -716,16 +716,17 @@ class Training(object):
             with open(path_hypothesis, 'w') as hypothesis:
                 for segment_source in corpus_evaluation_src:
                     segment_source = segment_source.strip()
-                    translated_segment = engine.translate(segment_source, lowercase=False, preprocess=False) # do not lowercase in ... well, all cases?
+                    translated_segment = engine.translate(segment_source, lowercase=False, preprocess=False, postprocess=False)
                     hypothesis.write(translated_segment + '\n')
 
         # evaluate with multeval
-        multeval_command = '{script} eval --verbosity 0 --threads "{num_threads}" --meteor.language "{trg_lang}" --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}"'.format(
+        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" --meteor.language "{trg_lang}" --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_file}"'.format(
             script=MULTEVAL,
             num_threads=num_threads,
             trg_lang=self._trg_lang,
             corpus_evaluation_trg=self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            hypothesis=path_hypothesis
+            hypothesis=path_hypothesis,
+            output_file=base_dir_multeval + os.sep + 'hypothesis.multeval'
         )
         commander.run(multeval_command, "Evaluating engine with MultEval")
 
