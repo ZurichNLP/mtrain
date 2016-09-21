@@ -4,7 +4,7 @@ from mtrain.constants import *
 from mtrain.preprocessing.external import ExternalProcessor
 
 '''
-Recases segments using a Moses truecaser engine.
+Recases segments using a Moses recaser engine.
 '''
 
 class Recaser(object):
@@ -33,8 +33,8 @@ class Recaser(object):
         '''
         return self._processor.process(segment)
 
-    def truecase_tokens(self, tokens):
+    def recase_tokens(self, tokens):
         '''
         Recases a list of tokens.
         '''
-        return self.recase(" ".join(tokens).split(" "))
+        return self.recase(" ".join(tokens)).split(" ")

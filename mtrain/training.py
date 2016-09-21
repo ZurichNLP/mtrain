@@ -274,7 +274,7 @@ class Training(object):
 
     def evaluate(self):
         '''
-        Evaluates the engine using MultEval
+        Evaluates the engine by translating and scoring an  evaluation set
         '''
         self._multeval()
 
