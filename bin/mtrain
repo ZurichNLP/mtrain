@@ -72,7 +72,7 @@ def get_argument_parser():
             "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
     )
     parser.add_argument(
-        "--eval-lowercase",
+        "--eval_lowercase",
         help="lowercase reference and translation before evaluation. Otherwise," +
             "evaluation uses the engine's casing strategy.",
         default=False,
