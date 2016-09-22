@@ -47,13 +47,27 @@ def run_parallel(commands, description=None, num_threads=None):
     with Pool(num_threads) as p:
         p.map(run, commands)
 
+def _is_relevant_for_log(line):
+    '''
+    Determines whether a string is relevant for logging purposes.
+    '''
+    if line.strip() == 'Initializing LexicalReordering..': # line from Moses decoding, erroneously printed regardless of logging level
+        return False
+    elif line == '': # do not log empty lines
+        return False
+    else:
+        try:
+            line = int(line) # don't log lines that consists of a single integer (Moses training outputs a lot of those to visualize training progress)
+        except ValueError:
+            return True
+        else:
+            return False
+
 def _log(output):
     '''
     Logs every line in @param output as a separate DEBUG event, except for lines
     that consist of a single integer.
     '''
     for line in output.decode().split('\n'):
-        try:
-            line = int(line) # don't log lines that consists of a single integer (Moses training outputs a lot of those to visualize training progress)
-        except ValueError:
+        if _is_relevant_for_log(line):
             logging.debug(line)
