@@ -262,7 +262,7 @@ class Training(object):
             be kept after binarization
         '''
         self._train_language_model(n, path_temp_files, keep_uncompressed)
-        self._word_alignment(alignment)
+        self._word_alignment(alignment, num_threads)
         self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
 
     def tune(self, num_threads=1):
@@ -553,7 +553,7 @@ class Training(object):
                 )
             )
 
-    def _word_alignment(self, symmetrization_heuristic):
+    def _word_alignment(self, symmetrization_heuristic, num_threads=1):
         '''
         Performs word alignment using fast_align
         '''
@@ -574,11 +574,13 @@ class Training(object):
                 segment_target = segment_target.strip()
                 joined_corpus.write(" ||| ".join([segment_source, segment_target]) + '\n')
         # create source-target and target-source alignments in parallel
-        command_forward = '{script} -i {corpus} -d -o -v > {corpus}.forward'.format(
+        command_forward = '{threads_environment}{script} -i {corpus} -d -o -v > {corpus}.forward'.format(
+            threads_environment=('OMP_NUM_THREADS=%d ' % num_threads) if num_threads else '',
             script=FAST_ALIGN,
             corpus=path_joined_corpus
         )
-        command_backward = '{script} -i {corpus} -d -o -v > {corpus}.backward'.format(
+        command_backward = '{threads_environment}{script} -i {corpus} -d -o -v > {corpus}.backward'.format(
+            threads_environment=('OMP_NUM_THREADS=%d ' % num_threads) if num_threads else '',
             script=FAST_ALIGN,
             corpus=path_joined_corpus
         )
