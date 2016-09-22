@@ -712,9 +712,16 @@ class Training(object):
         logging.info("Translating evaluation corpus")
         engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang)
         
-        path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.' + ('lowercased.' if lowercase else '') + self._trg_lang
+        if lowercase:
+            logging.info("Evaluating lowercased text")
+            path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.lowercased.' + self._trg_lang
+            path_reference = self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang)
+        else:
+            logging.info("Evaluating cased text")
+            path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.' + self._trg_lang
+            path_reference = self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang)
 
-        with open(self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang), 'r') as corpus_evaluation_src:
+        with open(path_reference, 'r') as corpus_evaluation_src:
             with open(path_hypothesis, 'w') as hypothesis:
                 for segment_source in corpus_evaluation_src:
                     segment_source = segment_source.strip()

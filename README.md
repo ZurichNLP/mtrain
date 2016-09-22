@@ -19,6 +19,7 @@ improvements, please feel free to [open a ticket](https://gitlab.cl.uzh.ch/laeub
 * Python >= 3.5
 * [Moses](https://github.com/moses-smt/mosesdecoder) (tested with release 3.0). Make sure to compile with cmph (`./bjam --with-cmph=/path/to/cmph`)
 * [fast_align](https://github.com/clab/fast_align)
+* [MultEval](https://github.com/cidermole/multeval) (only for evaluation)
 
 ### Environment variables
 The environment variables `MOSES_HOME` and `FASTALIGN_HOME` are used to
@@ -39,7 +40,7 @@ export MOSES_HOME=/path/to/moses
 export FASTALIGN_HOME=/path/to/fastalign/bin
 ```
 
-And, optionally, type
+And, optionally, also export `MULTEVAL_HOME` by typing
 
 ```bash
 export MULTEVAL_HOME=/path/to/multeval
@@ -47,7 +48,7 @@ export MULTEVAL_HOME=/path/to/multeval
 
 #### Setting environment variables permanently
 If you want the environment variables to be loaded automatically for each of
-your shell sessions, simply add the two export statements above to your
+your shell sessions, simply add the export statements above to your
 `~/.bashrc` or `~/.bash_profile`.
 
 ### Installation using [pip](https://pypi.python.org/pypi/pip)
@@ -132,7 +133,7 @@ mtrans ~/my_engine en fr < my-english-file.txt > french-translation.txt
 
 `mtrans` will detect your engine's casing strategy automatically and handle
 capitalised words accordingly. If you prefer lowercased output, just add the
-`l-` (or `--lowercase`) flag.
+`-l` (or `--lowercase`) flag.
 
 For further translation options, run
 
