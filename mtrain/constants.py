@@ -69,7 +69,7 @@ SUFFIX_LOWERCASED = 'lowercased'
 SUFFIX_TRUECASED = 'truecased'
 SUFFIX_FINAL = 'final'
 
-# Valid language codes
+# Valid language codes for Moses tokenizer
 MOSES_TOKENIZER_LANG_CODES = {
     "ca": "Catalan",
     "cs": "Czech",
@@ -93,6 +93,29 @@ MOSES_TOKENIZER_LANG_CODES = {
     "sl": "Slovenian",
     "sv": "Swedish",
     "ta": "Tamil",
+}
+
+# Valid language codes for METEOR 1.4 (used by MultEval)
+METEOR_LANG_CODES = {
+    # fully supported:
+    "en": "English",
+    "ar": "Arabic",
+    "cz": "Czech",
+    "fr": "French",
+    "de": "German",
+    "es": "Spanish",
+    # only partially supported:
+    "da": "Danish",
+    "fi": "Finnish",
+    "hu": "Hungarian",
+    "it": "Italian",
+    "nl": "Dutch",
+    "no": "Norwegian",
+    "pt": "Portuguese",
+    "ro": "Romanian",
+    "ru": "Russian",
+    "se": "Swedish",
+    "tr": "Turkish"
 }
 
 # Valid casing strategies

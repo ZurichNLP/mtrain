@@ -726,11 +726,15 @@ class Training(object):
 
         # evaluate with multeval
         output_file = base_dir_multeval + os.sep + 'hypothesis' + ('.lowercased' if lowercase else '') + '.multeval'
+        meteor_argument = '--meteor.language "%s"' % self._trg_lang
+        if self._trg_lang not in METEOR_LANG_CODES.keys():
+            logging.warning("Target language not supported by METEOR library. Evaluation will not include METEOR scores.")
+            meteor_argument = '--metrics bleu,ter,length'
 
-        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" --meteor.language "{trg_lang}" --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_file}"'.format(
+        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" {meteor_argument} --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_file}"'.format(
             script=MULTEVAL,
             num_threads=num_threads,
-            trg_lang=self._trg_lang,
+            meteor_argument=meteor_argument,
             corpus_evaluation_trg=self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._trg_lang),
             hypothesis=path_hypothesis,
             output_file=output_file

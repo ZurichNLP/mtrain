@@ -37,6 +37,11 @@ type
 ```bash
 export MOSES_HOME=/path/to/moses
 export FASTALIGN_HOME=/path/to/fastalign/bin
+```
+
+And, optionally, type
+
+```bash
 export MULTEVAL_HOME=/path/to/multeval
 ```
 
