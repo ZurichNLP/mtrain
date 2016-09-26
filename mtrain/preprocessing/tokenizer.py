@@ -13,14 +13,34 @@ class Tokenizer(object):
     interaction with a Moses tokenizer process kept in memory.
     '''
 
-    def __init__(self, lang_code):
+    def __init__(self, lang_code, protect=False, skip_wrapping_xml=True, escape=True):
+        '''
+        @param lang_code language identifier
+        @param protect whether the tokenizer should respect patterns that should not be tokenized
+        @param skip_wrapping_xml whether the tokenizing of lines wrapped in XML should be skipped
+        @param whether characters critical to the decoder should be escaped
+        '''
         arguments = [
             '-l %s' % lang_code,
             '-b', #disable Perl buffering
             '-q', #don't report version
-            '-X', #skip XML
             '-a', #aggressive mode
         ]
+
+        if protect:
+            arguments.append(
+                '-protected %s' % MOSES_TOKENIZER_PROTECTED, # protect e.g. inline XML, URLs and email
+            )
+        if skip_wrapping_xml:
+            arguments.append(
+                '-x' # skip tokenizing of entire segment if wrapped by XML
+            )
+        
+        if not escape:
+            arguments.append(
+                '-no-escape' # do not escape reserved characters in Moses
+            )
+        
         self._processor = ExternalProcessor(
             command=" ".join([MOSES_TOKENIZER] + arguments)
         )
@@ -37,7 +57,7 @@ class Tokenizer(object):
 class Detokenizer(object):
     '''
     Creates a detokenizer which detokenizes lists of tokens on-the-fly, i.e.,
-    allowing interaction with a Moses detokeinzer process kept in memory.
+    allowing interaction with a Moses detokenizer process kept in memory.
     '''
 
     def __init__(self, lang_code, uppercase_first_letter=False):

@@ -18,6 +18,7 @@ MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME
 MOSES = MOSES_HOME + os.sep + 'bin/moses'
 MOSES_TRAIN_MODEL = MOSES_HOME + os.sep + 'scripts/training/train-model.perl'
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
+MOSES_TOKENIZER_PROTECTED = '/mnt/storage/clfiles/users/mmueller/ma/toy-data/protected-patterns.dat'  # MOSES_HOME + os.sep + 'scripts/tokenizer/basic-protected-patterns'
 MOSES_DETOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/detokenizer.perl'
 MOSES_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/truecase.perl'
 MOSES_TRAIN_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-truecaser.perl'
@@ -127,7 +128,16 @@ CASING_STRATEGIES = {
     TRUECASING: "the decoder is trained on truecased input and output " +
         "(trains a separate truecasing model)",
     RECASING: "the decoder is trained on lowercased input and output " +
-        "(trains a separate recasing model)",
+        "(trains a separate recasing model)"
+}
+
+# Valid masking strategies
+MASKING_ALIGNMENT = "alignment"
+MASKING_IDENTITY = "identity"
+MASKING_STRATEGIES = {
+    MASKING_ALIGNMENT: "mask tokens are less informative and content is" +
+        "restored based on alignment",
+    MASKING_IDENTITY: "all mask tokens in a segment have unique IDs"
 }
 
 # Python logging levels
