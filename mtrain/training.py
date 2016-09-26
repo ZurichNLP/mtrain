@@ -10,6 +10,7 @@ import re
 
 from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
+from mtrain.preprocessing.masking import Masker
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
 from mtrain.translation import TranslationEngine
@@ -22,7 +23,7 @@ class Training(object):
     '''
 
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy,
-                 tuning, evaluation):
+                 masking_strategy, tuning, evaluation):
         '''
         Creates a new project structure at @param basepath.
 
@@ -31,8 +32,11 @@ class Training(object):
             directory; existing files will be overwritten
         @param src_lang the language code of the source language, e.g., `en`
         @param trg_lang the language code of the target language, e.g., `fr`
+        @param casing_strategy how case should be handled in preprocessing
+        @param masking_strategy whether and how mask tokens should be
+            introduced into segments
         @param tuning the tuning set to be used. The options are
-            NONE:   do not tune (not recommended)
+            None:   do not tune (not recommended)
             INT:    select INT random lines from the base corpus for tuning
             STR:    use the parallel tuning corpus located at STR (base path
                     without language code suffixes)
@@ -49,8 +53,16 @@ class Training(object):
         self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
-        self._tokenizer_source = Tokenizer(self._src_lang)
-        self._tokenizer_target = Tokenizer(self._trg_lang)
+        self._masking_strategy = masking_strategy
+        # masking strategy has an impact on tokenizer behaviour
+        if self._masking_strategy:
+            self._tokenizer_source = Tokenizer(self._src_lang, protect=True, escape=False)
+            self._tokenizer_target = Tokenizer(self._trg_lang, protect=True, escape=False)
+            self._masker = Masker(self._masking_strategy, escape=True)
+        else:
+            self._tokenizer_source = Tokenizer(self._src_lang)
+            self._tokenizer_target = Tokenizer(self._trg_lang)
+        
         self._casing_strategy = casing_strategy
         self._tuning = tuning
         self._evaluation = evaluation
@@ -98,7 +110,7 @@ class Training(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    def preprocess(self, base_corpus_path, min_tokens, max_tokens, tokenize_external):
+    def preprocess(self, base_corpus_path, min_tokens, max_tokens, tokenize_external, mask, mask_external):
         '''
         Preprocesses the given parallel corpus.
 
@@ -118,16 +130,17 @@ class Training(object):
             `/foo/corpus.fr`.
         '''
         logging.info("Processing parallel corpus")
-        # tokenize, clean, and split base corpus
-        self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens)
-        # tokenize and clean separate tuning and training corpora (if applicable)
+        # tokenize, clean, mask and split base corpus
+        self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens, mask)
+        # tokenize, clean and mask separate tuning and training corpora (if applicable)
         if isinstance(self._tuning, str):
             self._preprocess_external_corpus(
                 self._tuning,
                 BASENAME_TUNING_CORPUS,
                 min_tokens,
                 max_tokens,
-                tokenize_external
+                tokenize_external,
+                mask_external
             )
         if isinstance(self._evaluation, str):
             self._preprocess_external_corpus(
@@ -135,7 +148,8 @@ class Training(object):
                 BASENAME_EVALUATION_CORPUS,
                 min_tokens,
                 max_tokens,
-                tokenize_external
+                tokenize_external,
+                mask_external
             )
         # lowercase as needed
         self._lowercase()
@@ -278,9 +292,9 @@ class Training(object):
         self._multeval(num_threads, lowercase=lowercase)
 
     def _preprocess_segment(self, segment, tokenizer, min_tokens, max_tokens,
-                            tokenize=True):
+                            tokenize=True, masker=None, mask=False):
         '''
-        Tokenizes a bisegment and removes special charcters for use in Moses.
+        Tokenizes a bisegment, removes special characters for use in Moses and introduces mask tokens.
         Also checks for minimum/maximum number of tokens.
 
         @return the preprocessed segment. None means that the segment should be
@@ -293,9 +307,14 @@ class Training(object):
                 return None # means segment should be discarded
             else:
                 segment = " ".join(tokens)
-        return cleaner.clean(segment)
+        segment = cleaner.clean(segment)
+        if mask:
+            segment, mapping = masker.mask_segment(segment)
+            return segment, mapping
+        else:
+            return segment
 
-    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask):
         '''
         Splits @param corpus_base_path into training, tuning, and evaluation
         sections (as applicable). Outputs are stored in /corpus.
@@ -324,9 +343,9 @@ class Training(object):
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
-            # clean segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens)
-            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens)
+            # tokenize, clean and mask segments (among other things, remove trailing \n)
+            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens, masker=self._masker, mask=mask)
+            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens, masker=self._masker, mask=mask)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             # reservoir sampling (Algorithm R)
@@ -359,7 +378,7 @@ class Training(object):
             logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, tokenize_external):
+                                    min_tokens, max_tokens, tokenize_external, mask_external):
         '''
         Pre-processes an external corpus into /corpus.
 
@@ -378,9 +397,11 @@ class Training(object):
         corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
         corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
         for segment_source, segment_target in zip(corpus_source, corpus_target):
-            # clean segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens, tokenize_external)
-            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens, tokenize_external)
+            # tokenize, clean and mask segments (most importantly, remove trailing \n)
+            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens,
+                max_tokens, tokenize_external, self._masker, mask_external)
+            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens,
+                max_tokens, tokenize_external, self._masker, mask_external)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             else:

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 '''
-Replace stretches of text with a mask token.
+Class for replacing stretches of text with a mask token or
+reversing this process.
 '''
 
 from mtrain.constants import *

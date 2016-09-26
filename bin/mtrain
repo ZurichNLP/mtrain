@@ -87,6 +87,21 @@ def get_argument_parser():
         action='store_true'
     )
     parser.add_argument(
+        "--mask_external",
+        help="mask external corpora. Don't use if " +
+            "the external files provided in --tune and --eval are already " +
+            "masked.",
+        default=False,
+        action="store_true"
+    )
+    parser.add_argument(
+        "--masking",
+        help="enable masking. Valid strategies are: " +
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in MASKING_STRATEGIES.items()]),
+        choices=CASING_STRATEGIES.keys(),
+        default=None
+    )
+    parser.add_argument(
         "-n", "--n_gram_order",
         help="the language model's n-gram order",
         type=int,
