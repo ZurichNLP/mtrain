@@ -31,36 +31,48 @@ class _Replacement(object):
         self.occurrences.append((replaced, matched))
         return replaced
 
-def mask_segment(segment, strategy, escape_moses=True):
-    '''
-    Introduces mask tokens into segment and escapes characters.
-    @param segment the input text
-    @param strategy valid masking strategy, either 'alignment' or 'identity'
-    @param moses whether characters reserved in Moses should be escaped
-    '''
+class Masker(object):
     
-    if strategy == MASKING_ALIGNMENT:    
-        replacement = _Replacement('xml', with_id=False)
-    elif strategy == MASKING_IDENTITY:
-        replacement = _Replacement('xml', with_id=True)
-    
-    segment = re.sub(r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>', replacement, segment)
-    mapping = replacement.occurrences
+    def __init__(self, strategy, escape=True):
+        '''
+        @param strategy valid masking strategy, either 'alignment' or 'identity'
+        @param escape whether characters reserved in Moses should be escaped
+        '''
+        self._strategy = strategy
+        self._escape = escape
+
+    def mask_segment(self, segment):
+        '''
+        Introduces mask tokens into segment and escapes characters.
+        @param segment the input text
+        '''
         
-    if escape_moses:
-        segment = cleaner.escape_special_chars(segment)
-
-    return segment, mapping
-
-def unmask_segment(segment, strategy, mapping, word_alignment=None, phrase_alignment=None):
-    '''
-    Removes mask tokens from string and replaces them with their actual content.
-    '''
-    if strategy == MASKING_ALIGNMENT:
-        raise NotImplementedError
+        if self._strategy == MASKING_ALIGNMENT:    
+            replacement = _Replacement('xml', with_id=False)
+        elif self._strategy == MASKING_IDENTITY:
+            replacement = _Replacement('xml', with_id=True)
+        
+        segment = re.sub(r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>', replacement, segment)
+        mapping = replacement.occurrences
+        
+        if escape_moses:
+            segment = cleaner.escape_special_chars(segment)
     
-    elif strategy == MASKING_IDENTITY:
-        for mask_token, original in mapping:
-            segment = segment.replace(mask_token, original)
-    
-    return segment
+        return segment, mapping
+
+    def unmask_segment(self, segment, mapping, word_alignment=None, phrase_alignment=None):
+        '''
+        Removes mask tokens from string and replaces them with their actual content.
+        @param segment text to be unmasked
+        @param mapping list of tuples [(mask_token, original_content), ...]
+        @param word_alignment word alignment reported by Moses
+        @param phrase_alignment phrasal alignment reported by Moses
+        '''
+        if self._strategy == MASKING_ALIGNMENT:
+            raise NotImplementedError
+        
+        elif self._strategy == MASKING_IDENTITY:
+            for mask_token, original in mapping:
+                segment = segment.replace(mask_token, original)
+        
+        return segment
