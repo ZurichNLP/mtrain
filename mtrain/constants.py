@@ -139,6 +139,8 @@ CASING_STRATEGIES = {
         "(trains a separate recasing model)"
 }
 
+# Masking
+MASKING = "masking"
 # Valid masking strategies
 MASKING_ALIGNMENT = "alignment"
 MASKING_IDENTITY = "identity"

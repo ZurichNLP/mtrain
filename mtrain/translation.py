@@ -3,6 +3,7 @@
 from mtrain.constants import *
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
+from mtrain.preprocessing.masking import Masker
 from mtrain.preprocessing.truecaser import Truecaser
 from mtrain.preprocessing.external import ExternalProcessor
 from mtrain.preprocessing.recaser import Recaser
@@ -22,13 +23,16 @@ class TranslationEngine(object):
         self._src_lang = src_lang
         self._trg_lang = trg_lang
         self._casing_strategy = inspector.get_casing_strategy(self._basepath)
-        self._tokenizer = Tokenizer(src_lang)
+        self._masking_strategy = inspector.get_masking_strategy(self._basepath)
+        self._load_tokenizer()
         self._detokenizer = Detokenizer(trg_lang, uppercase_first_letter)
         self._load_engine()
         if self._casing_strategy == TRUECASING:
             self._load_truecaser()
         elif self._casing_strategy == RECASING:
             self._load_recaser()
+        if self._masking_strategy is not None:
+            self._load_masker()
 
     def _load_engine(self):
         path_moses_ini = os.sep.join([
@@ -45,6 +49,12 @@ class TranslationEngine(object):
         self._engine = ExternalProcessor(
             command=" ".join([MOSES] + arguments)
         )
+
+    def _load_tokenizer(self):
+        if self._masking_strategy is not None:
+            self._tokenizer = Tokenizer(self._src_lang, protect=True, escape=False)
+        else:
+            self._tokenizer = Tokenizer(self._src_lang)
 
     def _load_truecaser(self):
         path_model = os.sep.join([
@@ -64,8 +74,13 @@ class TranslationEngine(object):
         ])
         self._recaser = Recaser(path_moses_ini)
 
+    def _load_masker(self, strategy):
+        self._masker = Masker(strategy)
+
     def _preprocess_segment(self, segment):
         tokens = self._tokenizer.tokenize(segment)
+        if self._masking_strategy is not None:
+            tokens = self._masker.mask_tokens(tokens)
         if self._casing_strategy == TRUECASING:
             tokens = self._truecaser.truecase_tokens(tokens)
         else:
@@ -73,6 +88,8 @@ class TranslationEngine(object):
         return " ".join(tokens)
 
     def _postprocess_segment(self, segment, lowercase=False, detokenize=True):
+        if self._masking_strategy is not None:
+            segment = self._masker.unmask_segment(segment)
         if lowercase:
             segment = lowercaser.lowercase_string(segment)
         else:
@@ -81,7 +98,6 @@ class TranslationEngine(object):
         if detokenize:
             output_tokens = segment.split(" ")
             return self._detokenizer.detokenize(output_tokens)
-
         else:
             return segment
 
@@ -91,6 +107,8 @@ class TranslationEngine(object):
             self._truecaser.close()
         elif self._casing_strategy == RECASING:
             self._recaser.close()
+        if self._masking_strategy is not None:
+            del self._masker
 
     def translate(self, segment, preprocess=True, lowercase=False, detokenize=True):
         '''

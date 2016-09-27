@@ -54,10 +54,23 @@ class Training(object):
         self._src_lang = src_lang
         self._trg_lang = trg_lang
         self._masking_strategy = masking_strategy
-        # masking strategy has an impact on tokenizer behaviour
+        # create tokenizers: masking strategy has an impact on tokenizer behaviour
         if self._masking_strategy:
-            self._tokenizer_source = Tokenizer(self._src_lang, protect=True, escape=False)
-            self._tokenizer_target = Tokenizer(self._trg_lang, protect=True, escape=False)
+            protected_patterns_path = self._get_path_masking_patterns()
+            masking.write_masking_patterns(protected_patterns_path)
+            
+            self._tokenizer_source = Tokenizer(
+                self._src_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
+            self._tokenizer_target = Tokenizer(
+                self._trg_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
             self._masker = Masker(self._masking_strategy, escape=True)
         else:
             self._tokenizer_source = Tokenizer(self._src_lang)
@@ -110,6 +123,16 @@ class Training(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
+    def _get_path_masking_patterns(self):
+        '''
+        Make sure a masking directory and masking strategy subfolder exist,
+        @return the path to the masking patterns file
+        '''
+        protected_patterns_dir = os.sep.join([self._get_path('engine'), MASKING, self._masking_strategy])
+        if not assertions.dir_exists(protected_patterns_dir):
+            os.makedirs(protected_patterns_dir, exist_ok=True)
+        return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
+
     def preprocess(self, base_corpus_path, min_tokens, max_tokens, tokenize_external, mask, mask_external):
         '''
         Preprocesses the given parallel corpus.
@@ -122,6 +145,9 @@ class Training(object):
             with more tokens will be discarded
         @param tokenize_external whether or not external corpora (tune, eval)
             should be tokenized
+        @param mask whether or not segments should be masked
+        @param mask_external whether or not external corpora (tune, eval)
+            should be masked
 
         Note: The source and target side files of the parallel corpus are
             induced from concatenating @param corpus_base_path with

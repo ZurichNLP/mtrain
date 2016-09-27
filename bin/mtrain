@@ -98,7 +98,7 @@ def get_argument_parser():
         "--masking",
         help="enable masking. Valid strategies are: " +
             "; ".join(["`%s`: %s" % (name, descr) for name, descr in MASKING_STRATEGIES.items()]),
-        choices=CASING_STRATEGIES.keys(),
+        choices=MASKING_STRATEGIES.keys(),
         default=None
     )
     parser.add_argument(
@@ -172,12 +172,13 @@ def main():
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
-    # training
+    # make instance of Training class
     training = Training(
         basepath=args.output_dir,
         src_lang=args.src_lang,
         trg_lang=args.trg_lang,
         casing_strategy=args.caser,
+        masking_strategy=args.masking,
         tuning=args.tune,
         evaluation=args.eval
     )
@@ -185,7 +186,9 @@ def main():
         base_corpus_path=args.basepath,
         min_tokens=args.min_tokens,
         max_tokens=args.max_tokens,
-        tokenize_external=args.tokenize_external
+        tokenize_external=args.tokenize_external,
+        mask=bool(args.masking_strategy),
+        mask_external=args.mask_external
     )
     if args.caser == TRUECASING:
         training.train_truecaser()

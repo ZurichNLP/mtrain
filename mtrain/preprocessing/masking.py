@@ -48,19 +48,23 @@ class Masker(object):
         @param segment the input text
         '''
         
-        if self._strategy == MASKING_ALIGNMENT:    
-            replacement = _Replacement('xml', with_id=False)
-        elif self._strategy == MASKING_IDENTITY:
-            replacement = _Replacement('xml', with_id=True)
+        for mask_token, regex in PROTECTED_PATTERNS.items():        
+            if self._strategy == MASKING_ALIGNMENT:    
+                replacement = _Replacement(mask_token, with_id=False)
+            elif self._strategy == MASKING_IDENTITY:
+                replacement = _Replacement(mask_token, with_id=True)
         
-        segment = re.sub(r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>', replacement, segment)
-        mapping = replacement.occurrences
+            segment = re.sub(regex, replacement, segment)
+            mapping = replacement.occurrences
         
         if escape_moses:
             segment = cleaner.escape_special_chars(segment)
     
         return segment, mapping
-
+    
+    def mask_tokens(self, tokens):
+        return mask_segment(" ".join(tokens)).split()
+    
     def unmask_segment(self, segment, mapping, word_alignment=None, phrase_alignment=None):
         '''
         Removes mask tokens from string and replaces them with their actual content.
@@ -77,3 +81,12 @@ class Masker(object):
                 segment = segment.replace(mask_token, original)
         
         return segment
+
+    def write_masking_patterns(self, protected_patterns_path):
+        '''
+        Writes protected patterns to a physical file in the engine directory.
+        @param protected_patterns_path path to file the patterns should be written to
+        '''
+        with open(protected_patterns_path, 'w') as patterns_file:
+            for mask_token, regex in PROTECTED_PATTERNS_FILE_NAME.items():
+                patterns_file.write("\# %s\n%s\n" % (mask_token, regex))

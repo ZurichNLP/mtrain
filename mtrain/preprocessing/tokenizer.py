@@ -13,11 +13,11 @@ class Tokenizer(object):
     interaction with a Moses tokenizer process kept in memory.
     '''
 
-    def __init__(self, lang_code, protect=False, skip_wrapping_xml=True, escape=True):
+    def __init__(self, lang_code, protect=False, protected_patterns_path=None, escape=True):
         '''
         @param lang_code language identifier
         @param protect whether the tokenizer should respect patterns that should not be tokenized
-        @param skip_wrapping_xml whether the tokenizing of lines wrapped in XML should be skipped
+        @param protected_patterns_path path to file with protected patterns
         @param whether characters critical to the decoder should be escaped
         '''
         arguments = [
@@ -29,7 +29,7 @@ class Tokenizer(object):
 
         if protect:
             arguments.append(
-                '-protected %s' % MOSES_TOKENIZER_PROTECTED, # protect e.g. inline XML, URLs and email
+                '-protected %s' % protected_patterns_path, # protect e.g. inline XML, URLs and email
             )
         if skip_wrapping_xml:
             arguments.append(
