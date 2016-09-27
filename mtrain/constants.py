@@ -18,7 +18,6 @@ MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME
 MOSES = MOSES_HOME + os.sep + 'bin/moses'
 MOSES_TRAIN_MODEL = MOSES_HOME + os.sep + 'scripts/training/train-model.perl'
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
-MOSES_TOKENIZER_PROTECTED = '/mnt/storage/clfiles/users/mmueller/ma/toy-data/protected-patterns.dat'  # MOSES_HOME + os.sep + 'scripts/tokenizer/basic-protected-patterns'
 MOSES_DETOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/detokenizer.perl'
 MOSES_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/truecase.perl'
 MOSES_TRAIN_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-truecaser.perl'
@@ -51,6 +50,14 @@ MOSES_SPECIAL_CHARS["'"] = "&apos;"
 MOSES_SPECIAL_CHARS["["] = "&#91;"
 MOSES_SPECIAL_CHARS["]"] = "&#93;"
 
+# Protected patterns relevant for tokenization and masking
+# OrderedDict[mask token] = 'regular expression'
+PROTECTED_PATTERNS_FILE_NAME = 'protected-patterns.dat'
+PROTECTED_PATTERNS = {}
+PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'
+PROTECTED_PATTERNS['email'] = r'[\w\-\_\.]+\@([\w\-\_]+\.)+[a-zA-Z]{2,}'
+PROTECTED_PATTERNS['url'] = r'(http[s]?|ftp):\/\/[^:\/\s]+(\/\w+)*\/[\w\-\.]+'
+
 # Relative paths to components inside working directory
 PATH_COMPONENT = {
     # Maps components to their base directory name
@@ -65,6 +72,7 @@ BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
 BASENAME_EVALUATION_CORPUS = 'test'
 SUFFIX_TOKENIZED = 'tokenized'
+SUFFIX_MASKED = 'masked'
 SUFFIX_CLEANED = 'cleaned'
 SUFFIX_LOWERCASED = 'lowercased'
 SUFFIX_TRUECASED = 'truecased'
@@ -135,7 +143,7 @@ CASING_STRATEGIES = {
 MASKING_ALIGNMENT = "alignment"
 MASKING_IDENTITY = "identity"
 MASKING_STRATEGIES = {
-    MASKING_ALIGNMENT: "mask tokens are less informative and content is" +
+    MASKING_ALIGNMENT: "mask tokens are less informative and content is " +
         "restored based on alignment",
     MASKING_IDENTITY: "all mask tokens in a segment have unique IDs"
 }
