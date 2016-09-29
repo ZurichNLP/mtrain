@@ -31,11 +31,7 @@ class Tokenizer(object):
             arguments.append(
                 '-protected %s' % protected_patterns_path, # protect e.g. inline XML, URLs and email
             )
-        if skip_wrapping_xml:
-            arguments.append(
-                '-x' # skip tokenizing of entire segment if wrapped by XML
-            )
-        
+
         if not escape:
             arguments.append(
                 '-no-escape' # do not escape reserved characters in Moses

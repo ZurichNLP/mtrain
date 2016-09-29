@@ -370,8 +370,10 @@ class Training(object):
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
             # tokenize, clean and mask segments (among other things, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens, masker=self._masker, mask=mask)
-            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens, masker=self._masker, mask=mask)
+            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens,
+                                                      max_tokens, masker=self._masker if mask else None, mask=mask)
+            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens,
+                                                      max_tokens, masker=self._masker if mask else None, mask=mask)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             # reservoir sampling (Algorithm R)
@@ -425,9 +427,9 @@ class Training(object):
         for segment_source, segment_target in zip(corpus_source, corpus_target):
             # tokenize, clean and mask segments (most importantly, remove trailing \n)
             segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens,
-                max_tokens, tokenize_external, self._masker, mask_external)
+                max_tokens, tokenize_external, self._masker if mask_external else None, mask_external)
             segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens,
-                max_tokens, tokenize_external, self._masker, mask_external)
+                max_tokens, tokenize_external, self._masker if mask_external else None, mask_external)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             else:

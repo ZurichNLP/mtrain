@@ -47,6 +47,7 @@ class Masker(object):
         Introduces mask tokens into segment and escapes characters.
         @param segment the input text
         '''
+        mapping = []
         
         for mask_token, regex in PROTECTED_PATTERNS.items():        
             if self._strategy == MASKING_ALIGNMENT:    
@@ -55,9 +56,9 @@ class Masker(object):
                 replacement = _Replacement(mask_token, with_id=True)
         
             segment = re.sub(regex, replacement, segment)
-            mapping = replacement.occurrences
+            mapping.extend(replacement.occurrences)
         
-        if escape_moses:
+        if self._escape:
             segment = cleaner.escape_special_chars(segment)
     
         return segment, mapping
