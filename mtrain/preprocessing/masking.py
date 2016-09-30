@@ -83,11 +83,11 @@ class Masker(object):
         
         return segment
 
-    def write_masking_patterns(self, protected_patterns_path):
-        '''
-        Writes protected patterns to a physical file in the engine directory.
-        @param protected_patterns_path path to file the patterns should be written to
-        '''
-        with open(protected_patterns_path, 'w') as patterns_file:
-            for mask_token, regex in PROTECTED_PATTERNS_FILE_NAME.items():
-                patterns_file.write("\# %s\n%s\n" % (mask_token, regex))
+def write_masking_patterns(protected_patterns_path):
+    '''
+    Writes protected patterns to a physical file in the engine directory.
+    @param protected_patterns_path path to file the patterns should be written to
+    '''
+    with open(protected_patterns_path, 'w') as patterns_file:
+        for mask_token, regex in PROTECTED_PATTERNS.items():
+            patterns_file.write("# %s\n%s\n" % (mask_token, regex))

@@ -10,7 +10,7 @@ import re
 
 from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
-from mtrain.preprocessing.masking import Masker
+from mtrain.preprocessing.masking import Masker, write_masking_patterns
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
 from mtrain.translation import TranslationEngine
@@ -57,7 +57,7 @@ class Training(object):
         # create tokenizers: masking strategy has an impact on tokenizer behaviour
         if self._masking_strategy:
             protected_patterns_path = self._get_path_masking_patterns()
-            masking.write_masking_patterns(protected_patterns_path)
+            write_masking_patterns(protected_patterns_path)
             
             self._tokenizer_source = Tokenizer(
                 self._src_lang,
@@ -318,7 +318,7 @@ class Training(object):
         self._multeval(num_threads, lowercase=lowercase)
 
     def _preprocess_segment(self, segment, tokenizer, min_tokens, max_tokens,
-                            tokenize=True, masker=None, mask=False):
+                            tokenize=True, masker=None, mask=False, return_mapping=False):
         '''
         Tokenizes a bisegment, removes special characters for use in Moses and introduces mask tokens.
         Also checks for minimum/maximum number of tokens.
@@ -336,6 +336,7 @@ class Training(object):
         segment = cleaner.clean(segment)
         if mask:
             segment, mapping = masker.mask_segment(segment)
+        if return_mapping:
             return segment, mapping
         else:
             return segment

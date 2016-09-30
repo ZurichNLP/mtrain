@@ -187,7 +187,7 @@ def main():
         min_tokens=args.min_tokens,
         max_tokens=args.max_tokens,
         tokenize_external=args.tokenize_external,
-        mask=bool(args.masking_strategy),
+        mask=bool(args.masking),
         mask_external=args.mask_external
     )
     if args.caser == TRUECASING:
