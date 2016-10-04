@@ -47,8 +47,8 @@ def get_masking_strategy(basepath):
     '''
     if not is_mtrain_engine(basepath):
         logging.warning("%s doesn't seem to be the base directory of an engine trained through `mtrain`", basepath)
-    path_alignment_masking = os.sep.join([basepath, PATH_COMPONENT['engine'], MASKING_ALIGNMENT])   
-    path_identity_masking = os.sep.join([basepath, PATH_COMPONENT['engine'], MASKING_IDENTITY])
+    path_alignment_masking = os.sep.join([basepath, PATH_COMPONENT['engine'], MASKING, MASKING_ALIGNMENT])   
+    path_identity_masking = os.sep.join([basepath, PATH_COMPONENT['engine'], MASKING, MASKING_IDENTITY])
     masking_strategy = None # default
     if assertions.dir_exists(path_alignment_masking):
         masking_strategy = MASKING_ALIGNMENT
