@@ -43,7 +43,8 @@ class TranslationEngine(object):
             '-v 0',
         ]
         self._engine = ExternalProcessor(
-            command=" ".join([MOSES] + arguments)
+            command=" ".join([MOSES] + arguments),
+            stream_stderr=True
         )
 
     def _load_truecaser(self):
