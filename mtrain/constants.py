@@ -51,7 +51,7 @@ MOSES_SPECIAL_CHARS["["] = "&#91;"
 MOSES_SPECIAL_CHARS["]"] = "&#93;"
 
 # Protected patterns relevant for tokenization and masking
-# OrderedDict[mask token] = 'regular expression'
+# Dictionary[mask token] = 'regular expression'
 PROTECTED_PATTERNS_FILE_NAME = 'protected-patterns.dat'
 PROTECTED_PATTERNS = {}
 PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'

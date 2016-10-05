@@ -64,7 +64,8 @@ class Masker(object):
         return segment, mapping
     
     def mask_tokens(self, tokens):
-        return mask_segment(" ".join(tokens)).split()
+        masked_segment, mapping = self.mask_segment(" ".join(tokens))
+        return masked_segment.split(" "), mapping
     
     def unmask_segment(self, segment, mapping, word_alignment=None, phrase_alignment=None):
         '''

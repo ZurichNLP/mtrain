@@ -32,9 +32,15 @@ class TranslationEngine(object):
         elif self._casing_strategy == RECASING:
             self._load_recaser()
         if self._masking_strategy is not None:
-            self._load_masker()
+            self._load_masker(self._masking_strategy)
 
-    def _load_engine(self):
+    def _load_engine(self, word_alignment=False, phrase_segmentation=False):
+        '''
+        Start a Moses process and keep it running.
+        @param word_alignment whether Moses should report word alignments
+        @param phrase_segmentation whether Moses should report how the translation is
+            made up of phrases
+        '''
         path_moses_ini = os.sep.join([
             self._basepath,
             PATH_COMPONENT['engine'],
@@ -46,13 +52,26 @@ class TranslationEngine(object):
             '-minlexr-memory',
             '-v 0',
         ]
+        if word_alignment:
+            arguments.append('-print-alignment-info')
+        if phrase_segmentation:
+            arguments.append('-report-segmentation')
+
         self._engine = ExternalProcessor(
             command=" ".join([MOSES] + arguments)
         )
 
     def _load_tokenizer(self):
         if self._masking_strategy is not None:
-            self._tokenizer = Tokenizer(self._src_lang, protect=True, escape=False)
+            patterns_path = os.sep.join([
+                self._basepath,
+                PATH_COMPONENT['engine'],
+                MASKING,
+                self._masking_strategy,
+                PROTECTED_PATTERNS_FILE_NAME
+            ])
+            
+            self._tokenizer = Tokenizer(self._src_lang, protect=True, protected_patterns_path=patterns_path, escape=False)
         else:
             self._tokenizer = Tokenizer(self._src_lang)
 
@@ -80,16 +99,18 @@ class TranslationEngine(object):
     def _preprocess_segment(self, segment):
         tokens = self._tokenizer.tokenize(segment)
         if self._masking_strategy is not None:
-            tokens = self._masker.mask_tokens(tokens)
+            tokens, mapping = self._masker.mask_tokens(tokens)
+        else:
+            mapping = None
         if self._casing_strategy == TRUECASING:
             tokens = self._truecaser.truecase_tokens(tokens)
         else:
             tokens = lowercaser.lowercase_tokens(tokens)
-        return " ".join(tokens)
+        return " ".join(tokens), mapping
 
-    def _postprocess_segment(self, segment, lowercase=False, detokenize=True):
+    def _postprocess_segment(self, segment, lowercase=False, detokenize=True, mapping=None):
         if self._masking_strategy is not None:
-            segment = self._masker.unmask_segment(segment)
+            segment = self._masker.unmask_segment(segment, mapping)
         if lowercase:
             segment = lowercaser.lowercase_string(segment)
         else:
@@ -119,6 +140,6 @@ class TranslationEngine(object):
         @param detokenize whether to detokenize the translated segment
         '''
         if preprocess:
-            segment = self._preprocess_segment(segment)
+            segment, mapping = self._preprocess_segment(segment)
         translation = self._engine.process(segment)
-        return self._postprocess_segment(translation, lowercase, detokenize)
+        return self._postprocess_segment(translation, lowercase, detokenize, mapping)
