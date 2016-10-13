@@ -4,11 +4,16 @@
 Class for handling XML markup during training and translation
 '''
 
+from mtrain.preprocessing.masking import Masker
 from mtrain.constants import *
+
+import re
+from lxml import etree
 
 class XmlProcessor(object):
     '''
-    Process XML markup properly before and after translation.
+    Process XML markup properly before training, and before
+        and after translation.
     '''
     def __init__(self, markup_strategy):
         self._markup_strategy = markup_strategy
@@ -20,7 +25,16 @@ class XmlProcessor(object):
         @param segment the string from which XML markup
             should be removed
         '''
-        pass
+        # unescaped markup
+        if '<' in segment:
+            tree = etree.fromstring('<root>' + segment + '</root>')
+            segment  = etree.tostring(tree, encoding='unicode', method='text')
+        # markup that was escaped in the original segment, now surfaced
+        if '<' in segment:        
+            segment = re.sub('<[^>]*>', '', segment)
+            segment = re.sub(' +', ' ', segment)
+
+        return segment
 
     def _mask_markup(self, segment):
         '''
@@ -31,7 +45,7 @@ class XmlProcessor(object):
         '''
         pass
 
-    def _unmask_markup(self, segment, mapping)
+    def _unmask_markup(self, segment, mapping):
         '''
         When a mask token is found, reinsert the original
             XML markup content.
