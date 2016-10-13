@@ -37,7 +37,8 @@ class Engine(object):
         
         self._processor = ExternalProcessor(
             command=" ".join([MOSES] + arguments),
-            stream_stderr=True
+            stream_stderr=True,
+            trailing_output=True
         )
 
     def close(self):
@@ -59,13 +60,20 @@ class Engine(object):
         if self._report_segmentation:
             tokens = []
             segmentation = []
+            current_phrase_indexes = []
+            current_index = 0
             for string in translation.split(" "):
                 if '|' in string:
+                    current_segmentation = string.replace('|', '')
+                    current_phrase_indexes = "-".join(current_phrase_indexes)
                     segmentation.append(
-                        string.replace('|', '')
+                        "|".join([current_phrase_indexes, current_segmentation])
                     )
+                    current_phrase_indexes = []
                 else:
+                    current_phrase_indexes.append(str(current_index))
                     tokens.append(string)
+                    current_index += 1
             translation = " ".join(tokens) # update translation to only contain actual tokens
         
         return TranslatedSegment(
