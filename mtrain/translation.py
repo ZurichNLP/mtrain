@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from mtrain.constants import *
+from mtrain.engine import Engine
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.masking import Masker
@@ -34,7 +35,7 @@ class TranslationEngine(object):
         if self._masking_strategy is not None:
             self._load_masker(self._masking_strategy)
 
-    def _load_engine(self, word_alignment=False, phrase_segmentation=False):
+    def _load_engine(self, report_alignment=False, report_segmentation=False):
         '''
         Start a Moses process and keep it running.
         @param word_alignment whether Moses should report word alignments
@@ -46,19 +47,10 @@ class TranslationEngine(object):
             PATH_COMPONENT['engine'],
             'moses.ini'
         ])
-        arguments = [
-            '-f %s' % path_moses_ini,
-            '-minphr-memory',
-            '-minlexr-memory',
-            '-v 0',
-        ]
-        if word_alignment:
-            arguments.append('-print-alignment-info')
-        if phrase_segmentation:
-            arguments.append('-report-segmentation')
-
-        self._engine = ExternalProcessor(
-            command=" ".join([MOSES] + arguments)
+        self._engine = Engine(
+            path_moses_ini=path_moses_ini,
+            report_alignment=report_alignment,
+            report_segmentation=report_segmentation
         )
 
     def _load_tokenizer(self):
@@ -141,5 +133,8 @@ class TranslationEngine(object):
         '''
         if preprocess:
             segment, mapping = self._preprocess_segment(segment)
-        translation = self._engine.process(segment)
+        translated_segment = self._engine.translate_segment(segment)
+        
+        translation = translated_segment._segment
+        
         return self._postprocess_segment(translation, lowercase, detokenize, mapping)

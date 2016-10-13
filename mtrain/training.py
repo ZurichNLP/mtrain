@@ -54,28 +54,7 @@ class Training(object):
         self._src_lang = src_lang
         self._trg_lang = trg_lang
         self._masking_strategy = masking_strategy
-        # create tokenizers: masking strategy has an impact on tokenizer behaviour
-        if self._masking_strategy:
-            protected_patterns_path = self._get_path_masking_patterns()
-            write_masking_patterns(protected_patterns_path)
-            
-            self._tokenizer_source = Tokenizer(
-                self._src_lang,
-                protect=True,
-                protected_patterns_path=protected_patterns_path,
-                escape=False
-            )
-            self._tokenizer_target = Tokenizer(
-                self._trg_lang,
-                protect=True,
-                protected_patterns_path=protected_patterns_path,
-                escape=False
-            )
-            self._masker = Masker(self._masking_strategy, escape=True)
-        else:
-            self._tokenizer_source = Tokenizer(self._src_lang)
-            self._tokenizer_target = Tokenizer(self._trg_lang)
-        
+        self._load_tokenizer()
         self._casing_strategy = casing_strategy
         self._tuning = tuning
         self._evaluation = evaluation
@@ -132,6 +111,29 @@ class Training(object):
         if not assertions.dir_exists(protected_patterns_dir):
             os.makedirs(protected_patterns_dir, exist_ok=True)
         return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
+
+    def _load_tokenizer(self):
+        # create tokenizers: masking strategy has an impact on tokenizer behaviour
+        if self._masking_strategy:
+            protected_patterns_path = self._get_path_masking_patterns()
+            write_masking_patterns(protected_patterns_path)
+            
+            self._tokenizer_source = Tokenizer(
+                self._src_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
+            self._tokenizer_target = Tokenizer(
+                self._trg_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
+            self._masker = Masker(self._masking_strategy, escape=True)
+        else:
+            self._tokenizer_source = Tokenizer(self._src_lang)
+            self._tokenizer_target = Tokenizer(self._trg_lang)
 
     def preprocess(self, base_corpus_path, min_tokens, max_tokens, tokenize_external, mask, mask_external):
         '''

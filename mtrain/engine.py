@@ -18,8 +18,6 @@ class Engine(object):
         @param report_alignment whether Moses should report word alignments
         @param report_segmentation whether Moses should report how the translation
             is made up of phrases
-        @param allow_forced_translation whether Moses should expect forced translations
-            as XML content
         '''
         self._path_moses_ini = path_moses_ini
         self._report_alignment = report_alignment
@@ -31,13 +29,12 @@ class Engine(object):
             '-minphr-memory', # compact phrase table
             '-minlexr-memory', # compact reordering table
             '-v 0', # as quiet as possible
+            '-xml-input exclusive' # allow forced translations and zones
         ]
         if self._report_alignment:
             arguments.append('-print-alignment-info')
         if self._report_segmentation:
             arguments.append('-report-segmentation')
-        if self._allow_forced_translation:
-            arguments.append('-xml-input exclusive')        
         
         self._processor = ExternalProcessor(
             command=" ".join([MOSES] + arguments),
