@@ -54,10 +54,11 @@ class ExternalProcessor(object):
             result = self._process.stdout.readline()
             # attempt reading from STDERR, grace period of 0.1 seconds for external
             if self._stream_stderr:
-                # grace period of 0.1 seconds for external process to return STDERR
-                errors = self._nbsr.readline(0.1).decode()
-                if errors and commander._is_relevant_for_log(errors):
-                    logging.info(errors.strip())
+                errors = self._nbsr.readline()
+                if errors:
+                    message = errors.decode()
+                    if commander._is_relevant_for_log(message):
+                        logging.info(message.strip())
         return result.decode().strip()
 
 class _NonBlockingStreamReader:
