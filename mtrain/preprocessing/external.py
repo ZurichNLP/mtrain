@@ -19,9 +19,18 @@ class ExternalProcessor(object):
     Thread-safe wrapper for interaction with an external I/O shell script
     '''
 
-    def __init__(self, command, stream_stderr=False):
+    def __init__(self, command, stream_stderr=False, trailing_output=False):
+        '''
+        @param command the command that should be executed on the shell
+        @param stream_stderr whether STDERR should be streamread in a non-
+            blocking way
+        @param trailing_output whether the external process outputs trailing
+            lines after the actual, single, output line
+        '''
         self.command = command
         self._stream_stderr = stream_stderr
+        self._trailing_output = trailing_output
+
         logging.debug("Executing %s", self.command)
         self._process = Popen(
             self.command,
@@ -52,7 +61,10 @@ class ExternalProcessor(object):
             self._process.stdin.write(line)
             self._process.stdin.flush()
             result = self._process.stdout.readline()
-            # attempt reading from STDERR, grace period of 0.1 seconds for external
+            # work around Moses printing an empty line after alignment info
+            if self._trailing_output:
+                self._process.stdout.readline() # do nothing with this line
+            # attempt reading from STDERR
             if self._stream_stderr:
                 errors = self._nbsr.readline()
                 if errors:
