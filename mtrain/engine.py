@@ -12,7 +12,7 @@ class Engine(object):
     '''
     Starts a translation engine process and keep it running.
     '''
-    def __init__(self, path_moses_ini, report_alignment=False, report_segmentation=False, allow_forced_translation=False):
+    def __init__(self, path_moses_ini, report_alignment=False, report_segmentation=False):
         '''
         @param path_moses_ini path to Moses configuration file
         @param report_alignment whether Moses should report word alignments
@@ -22,14 +22,13 @@ class Engine(object):
         self._path_moses_ini = path_moses_ini
         self._report_alignment = report_alignment
         self._report_segmentation = report_segmentation
-        self._allow_forced_translation = allow_forced_translation
 
         arguments = [
             '-f %s' % self._path_moses_ini,
             '-minphr-memory', # compact phrase table
             '-minlexr-memory', # compact reordering table
             '-v 0', # as quiet as possible
-            '-xml-input exclusive' # allow forced translations and zones
+            '-xml-input constraint' # allow forced translations and zones
         ]
         if self._report_alignment:
             arguments.append('-print-alignment-info')
@@ -51,18 +50,20 @@ class Engine(object):
         optionally, alignments and/or segmentation info
         '''
         translation = self._processor.process(segment)
-        
+
         if self._report_alignment:
             alignment = []
             parts = translation.split('|||')
-            translation = parts[0].strip() # update translation to remove segmentation info
+            translation = parts[0].strip() # update translation to remove alignment info
             alignment = parts[1].strip().split(" ")
         if self._report_segmentation:
             tokens = []
             segmentation = []
             for string in translation.split(" "):
                 if '|' in string:
-                    segmentation.append(string)
+                    segmentation.append(
+                        string.replace('|', '')
+                    )
                 else:
                     tokens.append(string)
             translation = " ".join(tokens) # update translation to only contain actual tokens

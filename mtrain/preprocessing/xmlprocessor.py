@@ -17,6 +17,8 @@ class XmlProcessor(object):
     '''
     def __init__(self, markup_strategy):
         self._markup_strategy = markup_strategy
+        # todo: make this depend on markup strategy
+        self._masker = Masker(MASKING_IDENTITY)
 
     def _strip_markup(self, segment):
         '''
@@ -43,7 +45,7 @@ class XmlProcessor(object):
         @return the masked segment and the mapping
             between mask tokens and original content
         '''
-        pass
+        return self._masker.mask_segment(segment)
 
     def _unmask_markup(self, segment, mapping):
         '''
@@ -53,7 +55,7 @@ class XmlProcessor(object):
         @param mapping a dictionary containing the mask tokens
             and the original content
         '''
-        pass
+        return self._masker.unmask_segment(segment, mapping)
 
     def _restore_markup(self, segment, original):
         '''
@@ -65,13 +67,19 @@ class XmlProcessor(object):
         '''
         pass
 
-    def _force_mask_translation(self, masked_segment):
+    def _force_mask_translation(self, segment):
         '''
         Turns mask tokens into forced translation directives which
             ensure that Moses translates mask tokens correctly.
-        @param masked_segment an untranslated segment with mask tokens
+        @param masked_segment an untranslated segment that probably
+            has  mask tokens
         '''
-        pass
+        pattern = re.compile('__.+__')
+        for mask_token in re.findall(pattern, segment):
+            replacement = '<mask translation="%s">%s</mask>' % (mask_token, mask_token)
+            segment = segment.replace(mask_token, replacement)
+
+        return segment
 
     # Exposed methods
     def preprocess_markup(self, segment):
