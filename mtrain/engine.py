@@ -44,14 +44,13 @@ class Engine(object):
     def close(self):
         del self._processor
 
-    def translate_segment(self, segment):
+    def _untangle_translation(self, translation):
         '''
-        Translates a single input segment, @param segment.
-        @return a TranslatedSegment object with a translation and,
-        optionally, alignments and/or segmentation info
+        Separates the actual translation from reported segmentation
+            and word alignments. Changes slightly the segmentation info
+            by adding information about the source tokens.
+        @param translation the exact string returned by a Moses engine
         '''
-        translation = self._processor.process(segment)
-
         if self._report_alignment:
             alignment = []
             parts = translation.split('|||')
@@ -65,6 +64,8 @@ class Engine(object):
             for string in translation.split(" "):
                 if '|' in string:
                     current_segmentation = string.replace('|', '')
+                    if len(current_phrase_indexes) == 1:
+                        current_phrase_indexes.append(current_phrase_indexes[0]) # duplicate single index
                     current_phrase_indexes = "-".join(current_phrase_indexes)
                     segmentation.append(
                         "|".join([current_phrase_indexes, current_segmentation])
@@ -75,11 +76,26 @@ class Engine(object):
                     tokens.append(string)
                     current_index += 1
             translation = " ".join(tokens) # update translation to only contain actual tokens
-        
+
+        return (
+            translation,
+            alignment if self._report_alignment else None,
+            segmentation if self._report_segmentation else None
+        ) 
+
+    def translate_segment(self, segment):
+        '''
+        Translates a single input segment, @param segment.
+        @return a TranslatedSegment object with a translation and,
+        optionally, alignments and/or segmentation info
+        '''
+        translation = self._processor.process(segment)
+        translation, alignment, segmentation = self._untangle_translation(translation)
+
         return TranslatedSegment(
             translated_segment=translation,
-            alignment=alignment if self._report_alignment else None,
-            segmentation=segmentation if self._report_segmentation else None
+            alignment=alignment,
+            segmentation=segmentation
         )
         
 class TranslatedSegment(object):
@@ -88,6 +104,6 @@ class TranslatedSegment(object):
     phrase segmentation.
     '''
     def __init__(self, translated_segment, alignment=None, segmentation=None):
-        self._segment = translated_segment
-        self._alignment = alignment
-        self._segmentation = segmentation
+        self.translation = translated_segment
+        self.alignment = alignment
+        self.segmentation = segmentation
