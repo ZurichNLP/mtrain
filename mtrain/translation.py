@@ -33,7 +33,7 @@ class TranslationEngine(object):
         elif self._casing_strategy == RECASING:
             self._load_recaser()
         if self._masking_strategy is not None:
-            self._load_masker(self._masking_strategy)
+            self._load_masker()
 
     def _load_engine(self, report_alignment=False, report_segmentation=False):
         '''
@@ -85,8 +85,8 @@ class TranslationEngine(object):
         ])
         self._recaser = Recaser(path_moses_ini)
 
-    def _load_masker(self, strategy):
-        self._masker = Masker(strategy)
+    def _load_masker(self):
+        self._masker = Masker(self._masking_strategy)
 
     def _preprocess_segment(self, segment):
         tokens = self._tokenizer.tokenize(segment)
@@ -133,8 +133,9 @@ class TranslationEngine(object):
         '''
         if preprocess:
             segment, mapping = self._preprocess_segment(segment)
+
+        # an mtrain.engine.TranslatedSegment object is returned
         translated_segment = self._engine.translate_segment(segment)
-        
-        translation = translated_segment._segment
+        translation = translated_segment.translation
         
         return self._postprocess_segment(translation, lowercase, detokenize, mapping)

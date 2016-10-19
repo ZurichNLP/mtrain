@@ -44,6 +44,56 @@ class Engine(object):
     def close(self):
         del self._processor
 
+    def _extract_alignment(self, alignment_string):
+        '''
+        Transforms a word alignment string into an easily
+            accessible list of tuples [(source, target), ...]
+        @param alignment_string the exact string returned by Moses
+            that contains alignment information
+        '''
+        alignments = []
+
+        for alignment in alignment_string.strip().split(" "):
+            source, target = alignment.split("-")
+            alignments.append(
+                (int(source), int(target))
+            )
+
+        return alignments
+
+    def _separate_tokens_from_segmentation(self, translation):
+        '''
+        Transform phrase segmentation strings into easily
+            accessible list of tuples of tuples:
+            [((source start, source end), (target start, target end)), ...]
+        @param translation a translation string returned by Moses that does not 
+            contain word alignments anymore, but phrase segmentation is still
+            interspersed
+        '''
+        tokens = []
+        segmentation = []
+        current_phrase_indexes = []
+        current_index = 0
+            
+        for string in translation.split(" "):
+            if '|' in string:
+                current_segmentation = string.replace('|', '').split("-")
+                if len(current_phrase_indexes) == 1:
+                    current_phrase_indexes.append(current_phrase_indexes[0]) # duplicate single index
+                segmentation.append(
+                    (
+                        tuple(int(index) for index in current_phrase_indexes),
+                        tuple(int(index) for index in current_segmentation)
+                    )
+                )
+                current_phrase_indexes = []
+            else:
+                current_phrase_indexes.append(str(current_index))
+                tokens.append(string)
+                current_index += 1
+
+        return tokens, segmentation
+
     def _untangle_translation(self, translation):
         '''
         Separates the actual translation from reported segmentation
@@ -55,7 +105,9 @@ class Engine(object):
             alignment = []
             parts = translation.split('|||')
             translation = parts[0].strip() # update translation to remove alignment info
-            alignment = parts[1].strip().split(" ")
+    
+            alignment = self._extract_alignment(parts[1])
+                
         if self._report_segmentation:
             tokens = []
             segmentation = []
@@ -68,13 +120,15 @@ class Engine(object):
                         current_phrase_indexes.append(current_phrase_indexes[0]) # duplicate single index
                     current_phrase_indexes = "-".join(current_phrase_indexes)
                     segmentation.append(
-                        "|".join([current_phrase_indexes, current_segmentation])
+                        (current_phrase_indexes, current_segmentation)
                     )
                     current_phrase_indexes = []
                 else:
                     current_phrase_indexes.append(str(current_index))
                     tokens.append(string)
                     current_index += 1
+
+            tokens, segmentation = self._separate_tokens_from_segmentation(translation)
             translation = " ".join(tokens) # update translation to only contain actual tokens
 
         return (
