@@ -7,6 +7,8 @@ reversing this process.
 
 from mtrain.constants import *
 from mtrain.preprocessing import cleaner
+
+from collections import Counter
 import re
 
 class _Replacement(object):
@@ -36,7 +38,7 @@ class Masker(object):
     
     def __init__(self, strategy, escape=True):
         '''
-        @param strategy valid masking strategy, either 'alignment' or 'identity'
+        @param strategy valid masking strategy
         @param escape whether characters reserved in Moses should be escaped
         '''
         self._strategy = strategy
@@ -50,11 +52,11 @@ class Masker(object):
         mapping = []
         
         for mask_token, regex in PROTECTED_PATTERNS.items():        
-            if self._strategy == MASKING_ALIGNMENT:    
-                replacement = _Replacement(mask_token, with_id=False)
-            elif self._strategy == MASKING_IDENTITY:
+            if self._strategy == MASKING_IDENTITY:
                 replacement = _Replacement(mask_token, with_id=True)
-        
+            # currently, for all other strategies
+            else:
+                replacement = _Replacement(mask_token, with_id=False)
             segment = re.sub(regex, replacement, segment)
             mapping.extend(replacement.occurrences)
         
@@ -67,28 +69,88 @@ class Masker(object):
         masked_segment, mapping = self.mask_segment(" ".join(tokens))
         return masked_segment.split(" "), mapping
     
-    def unmask_segment(self, segment, mapping, alignment=None, segmentation=None):
+    def _is_mask_token(self, token):
+        '''
+        Determines whether an input @param token is a mask or not.
+        '''
+        # make sure token is a string
+        token = str(token)
+        
+        for mask in PROTECTED_PATTERNS.keys():
+            if self._strategy == MASKING_IDENTITY:
+                return bool(re.match("__%s_\d+__" % mask, token))
+            else:
+                return token == "__%s__" % mask
+
+    def _first_original(self, mask, mapping):
+        '''
+        Removes the first occurrence of @param mask from @param mapping.
+        @return the original and index of this tuple in the mapping
+        '''
+        for index, tuple in enumerate(mapping):
+            token, original = tuple
+            if token == mask:
+                return original, index
+
+    def unmask_segment(self, source_segment, target_segment, mapping, alignment=None, segmentation=None):
         '''
         Removes mask tokens from string and replaces them with their actual content.
-        @param segment text to be unmasked
+        @param source_segment masked segment before translation
+        @param target_segment text to be unmasked
         @param mapping list of tuples [(mask_token, original_content), ...]
-        @param alignment word alignment reported by Moses,
-            a list of tuples [(source word, target word), ...]
-        @param segmentation phrase segmentation reported by Moses,
-            a list of tuples of tuples [((first source token, last source token), ...), ...]
+        @param alignment word alignment reported by Moses, a dictionary
+        @param segmentation phrase segmentation reported by Moses, a dictionary
         '''
-        if self._strategy == MASKING_SEGMENTATION:
-            # assume that info on phrase segmentation is available
-            
+        
+        if mapping:
+            # assume that info on word alignment is available
+            if self._strategy == MASKING_ALIGNMENT:                
+                mapping_masks = [tuple[0] for tuple in mapping]
+                
+                # no duplicate masks in the mapping?
+                if len(mapping_masks) == len(set(mapping_masks)):
+                    # then, same strategy as identity masking
+                    for mask_token, original in mapping:
+                        target_segment = target_segment.replace(mask_token, original, 1)
+                        # consume mapping tuples?
+                else:
+                    source_tokens = source_segment.split(" ")
+                    target_tokens = target_segment.split(" ")
+                    # go through source tokens
+                    for source_index, source_token in source_tokens:
+                        if self._is_mask_token(source_token):
+                            found_match = False
+                            # follow alignment to target token(s)
+                            for candidate_index in alignment[source_index]:
+                                # determine aligned token in target phrase
+                                target_token = target_tokens[candidate_index]
+                                if self._is_mask_token(target_token):
+                                    # then, finally reinsert original content
+                                    target_tokens[candidate_index], remove_index = self._first_original(mask, mapping)
+                                    del mapping[remove_index]
+                                    
+                                    found_match = True
+                                    # immediately break out, do not check other aligned candidates in the target phrase
+                                    break
 
-        elif self._strategy == MASKING_ALIGNMENT:
-            raise NotImplementedError
+                            if not found_match:
+                                logging.debug(
+                                    "Unmasking for source mask %s failed. " % source_token
+                                    + "Mask is missing in the target phrase or in mapping."
+                                )
+                    # and if masks are left in the mapping that could not be assigned?
+                    if mapping:
+                        logging.debug(
+                            "One or more masks in the mapping were not used for unmasking: %s" % str(mapping)
+                        )
+                    target_segment = " ".join(target_tokens)
+
+            elif self._strategy == MASKING_IDENTITY:
+                for mask_token, original in mapping:
+                    target_segment = target_segment.replace(mask_token, original, 1)
+                    
         
-        elif self._strategy == MASKING_IDENTITY:
-            for mask_token, original in mapping:
-                segment = segment.replace(mask_token, original)
-        
-        return segment
+        return target_segment
 
 def write_masking_patterns(protected_patterns_path):
     '''

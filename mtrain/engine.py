@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import logging
+from collections import defaultdict
+
 from mtrain.constants import *
 from mtrain.preprocessing.external import ExternalProcessor
 
@@ -47,31 +49,29 @@ class Engine(object):
     def _extract_alignment(self, alignment_string):
         '''
         Transforms a word alignment string into an easily
-            accessible list of tuples [(source, target), ...]
+            accessible dictionary {source: [target, ...], ...}
         @param alignment_string the exact string returned by Moses
             that contains alignment information
         '''
-        alignments = []
+        alignments = defaultdict(list)
 
         for alignment in alignment_string.strip().split(" "):
-            source, target = alignment.split("-")
-            alignments.append(
-                (int(source), int(target))
-            )
+            source, target = [int(string) for string in alignment.split("-")]
+            alignments[source].append(target)
 
         return alignments
 
     def _separate_tokens_from_segmentation(self, translation):
         '''
         Transform phrase segmentation strings into easily
-            accessible list of tuples of tuples:
-            [((source start, source end), (target start, target end)), ...]
+            accessible dictionary:
+            {(source start, source end): (target start, target end), ...}
         @param translation a translation string returned by Moses that does not 
             contain word alignments anymore, but phrase segmentation is still
             interspersed
         '''
         tokens = []
-        segmentation = []
+        segmentation = {}
         current_phrase_indexes = []
         current_index = 0
             
@@ -80,14 +80,14 @@ class Engine(object):
                 current_segmentation = string.replace('|', '').split("-")
                 if len(current_phrase_indexes) == 1:
                     current_phrase_indexes.append(current_phrase_indexes[0]) # duplicate single index
-                segmentation.append(
-                    (
-                        tuple(int(index) for index in current_phrase_indexes),
-                        tuple(int(index) for index in current_segmentation)
-                    )
-                )
+                
+                current_key = tuple(int(index) for index in current_segmentation)
+                segmentation[current_key] = tuple(int(index) for index in current_phrase_indexes)
+
                 current_phrase_indexes = []
             else:
+                if len(current_phrase_indexes) >= 2:
+                    current_phrase_indexes.pop()
                 current_phrase_indexes.append(str(current_index))
                 tokens.append(string)
                 current_index += 1
@@ -109,25 +109,6 @@ class Engine(object):
             alignment = self._extract_alignment(parts[1])
                 
         if self._report_segmentation:
-            tokens = []
-            segmentation = []
-            current_phrase_indexes = []
-            current_index = 0
-            for string in translation.split(" "):
-                if '|' in string:
-                    current_segmentation = string.replace('|', '')
-                    if len(current_phrase_indexes) == 1:
-                        current_phrase_indexes.append(current_phrase_indexes[0]) # duplicate single index
-                    current_phrase_indexes = "-".join(current_phrase_indexes)
-                    segmentation.append(
-                        (current_phrase_indexes, current_segmentation)
-                    )
-                    current_phrase_indexes = []
-                else:
-                    current_phrase_indexes.append(str(current_index))
-                    tokens.append(string)
-                    current_index += 1
-
             tokens, segmentation = self._separate_tokens_from_segmentation(translation)
             translation = " ".join(tokens) # update translation to only contain actual tokens
 

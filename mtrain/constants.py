@@ -142,12 +142,13 @@ CASING_STRATEGIES = {
 # Masking
 MASKING = "masking"
 # Valid masking strategies
-MASKING_ALIGNMENT = "alignment"
+MASKING_ALIGNMENT = 'alignment'
 MASKING_IDENTITY = "identity"
 MASKING_STRATEGIES = {
-    MASKING_ALIGNMENT: "mask tokens are less informative and content is " +
-        "restored based on alignment",
-    MASKING_IDENTITY: "all mask tokens in a segment have unique IDs"
+    MASKING_ALIGNMENT: "mask tokens are not unique, content is restored based on " +
+        "the source segment and word alignment",
+    MASKING_IDENTITY: "all mask tokens in a segment have unique IDs, content " +
+        "is restored based solely on mapping information",
 }
 
 # Python logging levels

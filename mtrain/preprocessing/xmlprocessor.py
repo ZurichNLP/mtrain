@@ -20,19 +20,21 @@ class XmlProcessor(object):
         # todo: make this depend on markup strategy
         self._masker = Masker(MASKING_IDENTITY)
 
-    def _strip_markup(self, segment):
+    def _strip_markup(self, segment, keep_escaped_markup=False):
         '''
         Removes all XML markup from a segment and normalizes
             whitespace between tokens before returning.
         @param segment the string from which XML markup
             should be removed
+        @param keep_escaped_markup whether markup that is escaped in the
+            original segment should be removed to reveal its content
         '''
         # unescaped markup
         if '<' in segment:
             tree = etree.fromstring('<root>' + segment + '</root>')
             segment  = etree.tostring(tree, encoding='unicode', method='text')
         # markup that was escaped in the original segment, now surfaced
-        if '<' in segment:        
+        if '<' in segment and not keep_escaped_markup:        
             segment = re.sub('<[^>]*>', '', segment)
             segment = re.sub(' +', ' ', segment)
 
