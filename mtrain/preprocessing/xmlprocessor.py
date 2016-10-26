@@ -17,8 +17,7 @@ class XmlProcessor(object):
     '''
     def __init__(self, markup_strategy):
         self._markup_strategy = markup_strategy
-        # todo: make this depend on markup strategy
-        self._masker = Masker(MASKING_IDENTITY)
+        self._masker = Masker(MASKING_IDENTITY) # todo: make this depend on the markup strategy
 
     def _strip_markup(self, segment, keep_escaped_markup=False):
         '''
@@ -59,29 +58,22 @@ class XmlProcessor(object):
         '''
         return self._masker.unmask_segment(segment, mapping)
 
-    def _restore_markup(self, segment, original):
+    # todo: make this function depend on self._markup_strategy
+    def _restore_markup(self, source_segment, target_segment):
         '''
         Restores XML markup in a segment where markup was
             stripped before translation.
-        @param segment a segment stripped of markup
-        @param original the original segment in the source language
-            before XML markup was removed
+        @param source_segment the original segment in the source language
+            before XML markup was removed, but after markup-aware tokenization
+        @param target_segment a TranslatedSegment object, containing a translation
+            without markup, segmentation and alignment information
         '''
-        pass
-
-    def _force_mask_translation(self, segment):
-        '''
-        Turns mask tokens into forced translation directives which
-            ensure that Moses translates mask tokens correctly.
-        @param masked_segment an untranslated segment that probably
-            has  mask tokens
-        '''
-        pattern = re.compile('__.+__')
-        for mask_token in re.findall(pattern, segment):
-            replacement = '<mask translation="%s">%s</mask>' % (mask_token, mask_token)
-            segment = segment.replace(mask_token, replacement)
-
-        return segment
+        return self._reinserter.reinsert_markup(
+            source_segment,
+            target_segment.translation,
+            target_segment.segmentation,
+            target_segment.alignment
+        )
 
     # Exposed methods
     def preprocess_markup(self, segment):

@@ -6,6 +6,7 @@ Stores the constants needed to execute commands.
 
 import logging
 import os
+import re
 from collections import OrderedDict
 
 # Paths to 3rd party packages
@@ -150,6 +151,11 @@ MASKING_STRATEGIES = {
     MASKING_IDENTITY: "all mask tokens in a segment have unique IDs, content " +
         "is restored based solely on mapping information",
 }
+
+# Markup restoration
+OPENING_TAG = re.compile("<[a-zA-Z_][^\/<>]*>")
+CLOSING_TAG = re.compile("<[a-zA-Z_][^\/<>]*\/>")
+COMMENT = re.compile("<!\-\-[^<>]*\-\->")
 
 # Python logging levels
 LOGGING_LEVELS = {
