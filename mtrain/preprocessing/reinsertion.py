@@ -3,6 +3,7 @@
 from mtrain.constants import *
 
 from lxml import etree
+import re
 
 '''
 Reinsert markup into target segments, based on the markup found in the source segments.
@@ -26,12 +27,12 @@ class Reinserter(object):
         current_opening_tag = None
 
         for source_index, source_token in enumerate(source_tokens):
-            if is_closing_tag(source_token):
+            if _is_closing_tag(source_token):
                 # then break out of loop, because the closing tag is bound to correspond to
                 # the most recent opening tag
                 current_indexes.append(source_index)
                 break
-            elif is_opening_tag(source_token):
+            elif _is_opening_tag(source_token):
                 # then reset current indexes and tags
                 current_indexes = [source_index]
                 current_opening_tag = source_token
@@ -50,7 +51,7 @@ class Reinserter(object):
         @param source_tag_region a list of indexes that identify a source tag region
         @param segmentation phrase segmentation reported by Moses, a dictionary
             where keys are tuples of source spans
-        @return a list of tuples, a subset of @param segmentation
+        @return a sorted list of tuples, a subset of @param segmentation
         '''
         source_phrase_region = []
 
@@ -67,7 +68,7 @@ class Reinserter(object):
                 # break early because source phrase region must be contiguous
                 break
 
-        return source_phrase_region
+        return sorted(source_phrase_region)
 
     def _find_target_covering_phrases(self, source_phrase_regions, segmentation):
         '''
@@ -91,8 +92,8 @@ class Reinserter(object):
             starting index of the source_phrase_regions, and with their last ending index
         '''
         # source_phrase_regions must be sorted
-        if source_tag_region[0] == source_phrase_regions[0][0] and
-            source_tag_region[-1] == source_phrase_regions[-1][1]:
+        if ( source_tag_region[0] == source_phrase_regions[0][0] and
+            source_tag_region[-1] == source_phrase_regions[-1][1]) :
             return True
         else:
             return False
@@ -107,7 +108,7 @@ class Reinserter(object):
             if not last_tuple:
                 last_tuple = (start, end)
             # if start of phrase not immediately adjacent to last phrase
-            elif last_tuple[1] != start + 1:
+            elif last_tuple[1] != start - 1:
                 return False
             else:
                 last_tuple = (start, end)
@@ -172,21 +173,27 @@ class Reinserter(object):
 
 def _is_opening_tag(token):
     '''
-    Determine whether @param token is the opening tag of an XML element.
+    Determines whether @param token is the opening tag of an XML element.
     '''
-    return bool(OPENING_TAG.match(token))
+    return bool( re.match(r"<[a-zA-Z_][^\/<>]*>", token) )
 
 def _is_closing_tag(token):
     '''
-    Determine whether @param token is the closing tag of an XML element.
+    Determines whether @param token is the closing tag of an XML element.
     '''
-    return bool(CLOSING_TAG.match(token))
+    return bool( re.match(r"<\/[a-zA-Z_][^\/<>]*>", token) )
 
 def _is_selfclosing_tag(token):
     '''
-    Determine whether @param token is a self-closing XML element.
+    Determines whether @param token is a self-closing XML element.
     '''
-    return bool(SELFCLOSING_TAG.match(token))
+    return bool( re.match(r"<[a-zA-Z_][^\/<>]*\/>", token) )
+
+def _is_xml_comment(token):
+    '''
+    Determines whether @param token is an XML comment.
+    '''
+    return bool( re.match(r"<!\-\-[^<>]*\-\->", token) )
 
 def _element_names_identical(opening_tag, closing_tag):
     '''

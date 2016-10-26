@@ -152,10 +152,9 @@ MASKING_STRATEGIES = {
         "is restored based solely on mapping information",
 }
 
-# Markup restoration
-OPENING_TAG = re.compile("<[a-zA-Z_][^\/<>]*>")
-CLOSING_TAG = re.compile("<[a-zA-Z_][^\/<>]*\/>")
-COMMENT = re.compile("<!\-\-[^<>]*\-\->")
+# Markup reinsertion
+REINSERTION = 'reinsertion'
+REINSERTION_FULL = 'full'
 
 # Python logging levels
 LOGGING_LEVELS = {

@@ -166,14 +166,18 @@ class Masker(object):
                     
         return target_segment
 
-def write_masking_patterns(protected_patterns_path):
+def write_masking_patterns(protected_patterns_path, markup_only=False):
     '''
     Writes protected patterns to a physical file in the engine directory.
     @param protected_patterns_path path to file the patterns should be written to
+    @param markup_only whether only markup should be protected during tokenization
     '''
     with open(protected_patterns_path, 'w') as patterns_file:
-        for mask_token, regex in PROTECTED_PATTERNS.items():
-            patterns_file.write("# %s\n%s\n" % (mask_token, regex))
+        if markup_only:
+            patterns_file.write("# %s\n%s\n" % ('xml', PROTECTED_PATTERNS['xml']))
+        else:
+            for mask_token, regex in PROTECTED_PATTERNS.items():
+                patterns_file.write("# %s\n%s\n" % (mask_token, regex))
 
 def force_mask_translation(segment):
     '''
