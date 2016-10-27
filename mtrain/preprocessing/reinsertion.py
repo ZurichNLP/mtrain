@@ -29,14 +29,20 @@ class Reinserter(object):
             tags_seen_offset = 0
             
             for source_index, source_token in enumerate(source_tokens):
-                if _is_closing_tag(source_token):
+                if _is_selfclosing_tag(source_token):
+                    # yield and break, no content
+                    del source_tokens[source_index]
+                    yield (source_index - tags_seen_offset, source_token), [], None
+                    break
+                elif _is_closing_tag(source_token):
                     # delete this pair of tags from the source
                     del source_tokens[source_index]
                     del source_tokens[current_opening_tag[0]]
                     # then yield, because the closing tag is bound to correspond to
                     # the most recent opening tag
-                    yield current_opening_tag[1], current_indexes, source_token
-                    break # break?            
+                    yield (current_opening_tag[0] - tags_seen_offset, current_opening_tag[1]), \
+                        current_indexes, (source_index - tags_seen_offset, source_token)
+                    break            
                 elif _is_opening_tag(source_token):
                     tags_seen_offset += 1
                     # then reset current indexes and tags
@@ -138,11 +144,24 @@ class Reinserter(object):
         
         str_generator = self._next_source_tag_region(source_tokens)
         
-        for opening_tag, source_tag_region, closing_tag in str_generator:
-            if not source_tag_region:
+        for opening, source_tag_region, closing in str_generator:
+            opening_index, opening_tag = opening[0], opening[1]
+            
+            if not closing:
+                # selfclosing tag
+                changes.append( (alignment[opening_index][0], opening_tag) )
+
+            elif not source_tag_region:
                 # tag pair with no content tokens between them
-                pass
+                closing_tag = closing[1]
+                insert_at = alignment[opening_index][0] + 1
+
+                changes.append(
+                    (insert_at, " ".join( [opening_tag, closing_tag]) )
+                )
             else:
+                closing_tag = closing[1]
+
                 source_phrase_regions = self._find_source_phrase_regions(source_tag_region, segmentation)
                 target_covering_phrases = self._find_target_covering_phrases(source_phrase_regions, segmentation)
 
@@ -165,16 +184,33 @@ class Reinserter(object):
                             (max(target_covering_phrases, key=lambda x: x[1])[1] + 1, closing_tag)
                         )
                 else:
+                    # rely on word alignments in this part
+                    relevant_alignments = []
+                    for index in source_tag_region:
+                        relevant_alignments.extend(alignment[index])
+
+                    if self._tcp_is_contiguous(target_covering_phrases):
                         # Rule 2
-                        relevant_alignments = []
-                        for index in source_tag_region:
-                            relevant_alignments.extend(alignment[index])
                         changes.append(
                             (min(relevant_alignments), opening_tag)
                         )
                         changes.append(
                             (max(relevant_alignments) + 1, closing_tag)
                         )
+                    else:
+                        # Rule 3.5
+                        # find leftmost and rightmost TCP
+                        left_start, left_end = min(target_covering_phrases, key=lambda x: x[0])
+                        right_start, right_end = max(target_covering_phrases, key=lambda x: x[1])
+
+                        for index in range(left_start, left_end+1):
+                            if index in relevant_alignments:
+                                changes.append( (index, opening_tag) )
+                                break
+                        for index in reversed(range(right_start, right_end + 1)):
+                            if index in relevant_alignments:
+                                changes.append( (index, closing_tag) )
+                                break
 
         # then, actually make changes in reverse order
         for insert_at, tag in sorted(changes, key=lambda x: x[0], reverse=True):
