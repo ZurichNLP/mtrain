@@ -23,26 +23,30 @@ class Reinserter(object):
         Finds a source tag region for reinsertion that does not itself contain tags.
         @return a list of indexes if a region is found, empty if no region was found
         '''
-        current_indexes = []
-        current_opening_tag = None
-
-        for source_index, source_token in enumerate(source_tokens):
-            if _is_closing_tag(source_token):
-                # then break out of loop, because the closing tag is bound to correspond to
-                # the most recent opening tag
-                current_indexes.append(source_index)
-                break
-            elif _is_opening_tag(source_token):
-                # then reset current indexes and tags
-                current_indexes = [source_index]
-                current_opening_tag = source_token
-            else:
-                if current_opening_tag:
-                    # then add to indexes
-                    current_indexes.append(source_index)
-                # else, do nothing; not yet in a source tag region
-
-        return current_indexes    
+        while _tag_in_list(source_tokens):
+            current_indexes = []
+            current_opening_tag = None        
+            tags_seen_offset = 0
+            
+            for source_index, source_token in enumerate(source_tokens):
+                if _is_closing_tag(source_token):
+                    # delete this pair of tags from the source
+                    del source_tokens[source_index]
+                    del source_tokens[current_opening_tag[0]]
+                    # then yield, because the closing tag is bound to correspond to
+                    # the most recent opening tag
+                    yield current_opening_tag[1], current_indexes, source_token
+                    break # break?            
+                elif _is_opening_tag(source_token):
+                    tags_seen_offset += 1
+                    # then reset current indexes and tags
+                    current_indexes = []
+                    current_opening_tag = source_index, source_token
+                else:
+                    if current_opening_tag:
+                        # then add to indexes
+                        current_indexes.append(source_index - tags_seen_offset)
+                    # else, do nothing; not yet in a source tag region
 
     def _find_source_phrase_regions(self, source_tag_region, segmentation):
         '''
@@ -130,35 +134,53 @@ class Reinserter(object):
         source_tokens = source_segment.split(" ")
         target_tokens = target_segment.split(" ")
 
-        while True:
-            source_tag_region = next_source_tag_region(source_tokens)
+        changes = []
+        
+        str_generator = self._next_source_tag_region(source_tokens)
+        
+        for opening_tag, source_tag_region, closing_tag in str_generator:
             if not source_tag_region:
-                break # tags in the source segment are exhausted
-            elif len(source_tag_region) == 2:
                 # tag pair with no content tokens between them
                 pass
             else:
-                source_phrase_regions = find_source_phrase_regions(source_tag_region, segmentation)
-                target_covering_phrases = find_target_covering_phrases(source_phrase_regions, segmentation)
+                source_phrase_regions = self._find_source_phrase_regions(source_tag_region, segmentation)
+                target_covering_phrases = self._find_target_covering_phrases(source_phrase_regions, segmentation)
 
-                if tcp_is_contiguous(target_covering_phrases):
-                    if str_scp_coincide(source_tag_region, source_phrase_regions):
-                        opening_tag_index = source_tag_region[0]
-                        closing_tag_index = source_tag_region[-1]
-                        target_tokens.insert(
-                            target_covering_phrases[-1][1] + 1,
-                            source_tokens.pop(closing_tag_index)
+                if self._str_spr_coincide(source_tag_region, source_phrase_regions):
+                    if self._tcp_is_contiguous(target_covering_phrases):
+                        # Rule 1
+                        changes.append(
+                            (target_covering_phrases[-1][1] + 1, closing_tag)
                         )
-                        target_tokens.insert(
-                            target_covering_phrases[0][0] + 1,
-                            source_tokens.pop(opening_tag_index)
+                        changes.append(
+                            (target_covering_phrases[0][0], opening_tag)
                         )
-                        # update indexes after insertions
+                        
                     else:
-                        pass
+                        # Rule 3
+                        changes.append(
+                            (min(target_covering_phrases, key=lambda x: x[0])[0], opening_tag)
+                        )
+                        changes.append(
+                            (max(target_covering_phrases, key=lambda x: x[1])[1] + 1, closing_tag)
+                        )
                 else:
-                    pass
+                        # Rule 2
+                        relevant_alignments = []
+                        for index in source_tag_region:
+                            relevant_alignments.extend(alignment[index])
+                        changes.append(
+                            (min(relevant_alignments), opening_tag)
+                        )
+                        changes.append(
+                            (max(relevant_alignments) + 1, closing_tag)
+                        )
 
+        # then, actually make changes in reverse order
+        for insert_at, tag in sorted(changes, key=lambda x: x[0], reverse=True):
+            target_tokens.insert(insert_at, tag)
+
+        return " ".join(target_tokens)
 
     def reinsert_markup(self, source_segment, target_segment, segmentation, alignment):
         '''
@@ -194,6 +216,15 @@ def _is_xml_comment(token):
     Determines whether @param token is an XML comment.
     '''
     return bool( re.match(r"<!\-\-[^<>]*\-\->", token) )
+
+def _tag_in_list(tokens):
+    '''
+    Returns True if any token in the list is a tag.
+    '''
+    for token in tokens:
+        if _is_opening_tag(token) or _is_closing_tag(token) or _is_selfclosing_tag(token):
+            return True
+    return False
 
 def _element_names_identical(opening_tag, closing_tag):
     '''
