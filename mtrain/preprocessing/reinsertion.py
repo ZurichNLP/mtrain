@@ -2,6 +2,7 @@
 
 from mtrain.constants import *
 
+from collections import defaultdict
 from lxml import etree
 import re
 
@@ -218,12 +219,97 @@ class Reinserter(object):
 
         return " ".join(target_tokens)
 
+    def _reinsert_markup_segmentation(self, source_segment, target_segment, segmentation):
+        '''
+        Reinserts markup based on the source segment and information about phrase segmentation.
+        '''
+        source_tokens = source_segment.split(" ")
+        target_tokens = target_segment.split(" ")
+        output_tokens = []
+
+        # gather info from segmentation
+        target_phrases = []
+
+        for source, target in segmentation.items():
+    
+            source_start, source_end = source[0], source[1]
+            target_start, target_end = target[0], target[1]
+    
+            tokens_in_source_phrase = source_tokens[source_start:source_end+1]
+            tokens_in_target_phrase = target_tokens[target_start:target_end+1]
+    
+            target_phrases.append(
+                (source, target, tokens_in_source_phrase, tokens_in_target_phrase)
+            )
+
+        # gather info from source segment
+        opening_elements_by_position = defaultdict(list)
+        closing_elements_by_position = defaultdict(list)
+
+        tags_seen_offset = 0
+
+        for source_index, source_token in enumerate(source_tokens):
+            if _is_opening_tag(source_token) or _is_selfclosing_tag(source_token):
+                opening_elements_by_position[source_index - tags_seen_offset].append(source_token)
+                tags_seen_offset += 1
+            elif _is_closing_tag(source_token):
+                closing_elements_by_position[source_index - tags_seen_offset - 1].append(source_token)
+                tags_seen_offset += 1
+            # else: do nothing
+        
+        # then for each target phrase
+        for source, target, tokens_in_source, tokens_in_target in sorted(target_phrases, key=lambda x: x[1]):
+            relevant_source_indexes = _indexes_from_segmentation(source)
+    
+            open_now = []
+            close_now = []
+    
+            for index in relevant_source_indexes:
+                # check if elements need to be opened here
+                if index in opening_elements_by_position:
+                    open_now.extend(opening_elements_by_position[index])
+                    del opening_elements_by_position[index]
+                # check if elements need to be closed here
+                if index in closing_elements_by_position:
+                    close_now.extend(closing_elements_by_position[index])
+                    del closing_elements_by_position[index]
+    
+            # actually open elements
+            output_tokens.extend(open_now)
+            # output actual phrase
+            output_tokens.extend(tokens_in_target)
+            # actually close elements
+            output_tokens.extend(close_now)
+
+        # if there are remaining opening tags
+        if opening_elements_by_position:
+            for key in sorted(opening_elements_by_position.keys()):
+                output_tokens.extend(opening_elements_by_position[key])
+
+        # if there are remaining closing tags
+        if closing_elements_by_position:
+            for key in sorted(closing_elements_by_position.keys()):
+                output_tokens.extend(closing_elements_by_position[key])
+
+        return " ".join(output_tokens)
+
     def reinsert_markup(self, source_segment, target_segment, segmentation, alignment):
         '''
-        Reinsert markup found in the source segment into the target segment.
+        Reinserts markup found in the source segment into the target segment.
         '''
         if self._reinsertion_strategy == REINSERTION_FULL:
-            self._reinsert_markup_full(source_segment, target_segment, segmentation, alignment)
+            return self._reinsert_markup_full(
+                source_segment,
+                target_segment,
+                segmentation,
+                alignment
+            )
+        elif self._reinsertion_strategy == REINSERTION_SEGMENTATION:
+            return self._reinsert_markup_segmentation(
+                source_segment,
+                target_segment,
+                segmentation
+            )
         else:
             raise NotImplementedError(
                 "Reinsertion strategy '%s' is unknown." % self._reinsertion_strategy
@@ -274,3 +360,10 @@ def _element_names_identical(opening_tag, closing_tag):
     except:
         # not well-formed XML = element names are not identical
         return False
+
+def _indexes_from_segmentation(tuple):
+    '''
+    Lists indexes that are bounded by the start and end index
+        in @param tuple.
+    '''
+    return list(range(tuple[0], tuple[1]+1))
