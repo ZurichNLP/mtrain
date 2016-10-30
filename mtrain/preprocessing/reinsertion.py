@@ -243,19 +243,7 @@ class Reinserter(object):
             )
 
         # gather info from source segment
-        opening_elements_by_position = defaultdict(list)
-        closing_elements_by_position = defaultdict(list)
-
-        tags_seen_offset = 0
-
-        for source_index, source_token in enumerate(source_tokens):
-            if _is_opening_tag(source_token) or _is_selfclosing_tag(source_token):
-                opening_elements_by_position[source_index - tags_seen_offset].append(source_token)
-                tags_seen_offset += 1
-            elif _is_closing_tag(source_token):
-                closing_elements_by_position[source_index - tags_seen_offset - 1].append(source_token)
-                tags_seen_offset += 1
-            # else: do nothing
+        opening_elements_by_position, closing_elements_by_position = _tag_indexes_from_tokens(source_tokens)
         
         # then for each target phrase
         for source, target, tokens_in_source, tokens_in_target in sorted(target_phrases, key=lambda x: x[1]):
@@ -291,6 +279,56 @@ class Reinserter(object):
             for key in sorted(closing_elements_by_position.keys()):
                 output_tokens.extend(closing_elements_by_position[key])
 
+        return " ".join(output_tokens)
+
+    def _reinsert_markup_alignment(self, source_segment, target_segment, alignment):
+        output_tokens = []
+
+        source_tokens = source_segment.split(" ")
+        target_tokens = target_segment.split(" ")
+
+        # gather info from source segment # -> put this in separate function
+        opening_elements_by_position, closing_elements_by_position = _tag_indexes_from_tokens(source_tokens)
+
+        # gather info from word alignment
+        target_to_source_alignment = {}
+        for source, targets in alignment.items():
+            for target in targets:
+                target_to_source_alignment[target] = source
+
+        # then for each word in target
+        for target_index, target_token in enumerate(target_tokens):
+    
+            open_now = []
+            close_now = []
+            source_index = target_to_source_alignment[target_index]
+            
+            # check if elements need to be opened here
+            if source_index in opening_elements_by_position:
+                open_now.extend(opening_elements_by_position[source_index])
+                del opening_elements_by_position[source_index]
+            # check if elements need to be closed here
+            if source_index in closing_elements_by_position:
+                close_now.extend(closing_elements_by_position[source_index])
+                del closing_elements_by_position[source_index]
+
+            # actually open elements
+            output_tokens.extend(open_now)
+            # output actual phrase
+            output_tokens.append(target_token)
+            # actually close elements
+            output_tokens.extend(close_now)
+
+        # if there are remaining opening tags
+        if opening_elements_by_position:
+            for key in sorted(opening_elements_by_position.keys()):
+                output_tokens.extend(opening_elements_by_position[key])
+
+        # if there are remaining closing tags
+        if closing_elements_by_position:
+            for key in sorted(closing_elements_by_position.keys()):
+                output_tokens.extend(closing_elements_by_position[key])
+        
         return " ".join(output_tokens)
 
     def reinsert_markup(self, source_segment, target_segment, segmentation, alignment):
@@ -367,3 +405,20 @@ def _indexes_from_segmentation(tuple):
         in @param tuple.
     '''
     return list(range(tuple[0], tuple[1]+1))
+
+def _tag_indexes_from_tokens(source_tokens):
+    opening_elements_by_position = defaultdict(list)
+    closing_elements_by_position = defaultdict(list)
+
+    tags_seen_offset = 0
+
+    for source_index, source_token in enumerate(source_tokens):
+        if _is_opening_tag(source_token) or _is_selfclosing_tag(source_token):
+            opening_elements_by_position[source_index - tags_seen_offset].append(source_token)
+            tags_seen_offset += 1
+        elif _is_closing_tag(source_token):
+            closing_elements_by_position[source_index - tags_seen_offset - 1].append(source_token)
+            tags_seen_offset += 1
+        # else: do nothing
+
+    return opening_elements_by_position, closing_elements_by_position
