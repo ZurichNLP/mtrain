@@ -21,8 +21,9 @@ class Reinserter(object):
 
     def _next_source_tag_region(self, source_tokens):
         '''
-        Finds a source tag region for reinsertion that does not itself contain tags.
-        @return a list of indexes if a region is found, empty if no region was found
+        Generates lists of source token indexes that are bounded by an opening
+            and closing tag.
+        @return a list of indexes if a region is found, until the generator is exhausted
         '''
         while _tag_in_list(source_tokens):
             current_indexes = []
@@ -219,9 +220,16 @@ class Reinserter(object):
 
         return " ".join(target_tokens)
 
-    def _reinsert_markup_segmentation(self, source_segment, target_segment, segmentation):
+    def _reinsert_markup_segmentation(self, source_segment, target_segment, segmentation, force_all=True):
         '''
         Reinserts markup based on the source segment and information about phrase segmentation.
+        @param source_segment the original segment in the source language
+            before XML markup was removed, but after markup-aware tokenization
+        @param target_segment a translated segment without markup
+        @param segmentation phrase segmentation reported by Moses, a dictionary
+            where keys are tuples of source spans
+        @param force_all whether all tags found in the source must by all means be
+            inserted into the target segment, even if there is no conclusive evidence
         '''
         source_tokens = source_segment.split(" ")
         target_tokens = target_segment.split(" ")
@@ -269,25 +277,36 @@ class Reinserter(object):
             # actually close elements
             output_tokens.extend(close_now)
 
-        # if there are remaining opening tags
-        if opening_elements_by_position:
-            for key in sorted(opening_elements_by_position.keys()):
-                output_tokens.extend(opening_elements_by_position[key])
+        if force_all:
+            # if there are remaining opening tags
+            if opening_elements_by_position:
+                for key in sorted(opening_elements_by_position.keys()):
+                    output_tokens.extend(opening_elements_by_position[key])
 
-        # if there are remaining closing tags
-        if closing_elements_by_position:
-            for key in sorted(closing_elements_by_position.keys()):
-                output_tokens.extend(closing_elements_by_position[key])
+            # if there are remaining closing tags
+            if closing_elements_by_position:
+                for key in sorted(closing_elements_by_position.keys()):
+                    output_tokens.extend(closing_elements_by_position[key])
 
         return " ".join(output_tokens)
 
-    def _reinsert_markup_alignment(self, source_segment, target_segment, alignment):
+    def _reinsert_markup_alignment(self, source_segment, target_segment, alignment, force_all=True):
+        '''
+        Reinserts markup based on the source segment and information about word alignment.
+        @param source_segment the original segment in the source language
+            before XML markup was removed, but after markup-aware tokenization
+        @param target_segment a translated segment without markup
+        @param alignment word alignment information reported by Moses, a
+            dictionary where source tokens are keys
+        @param force_all whether all tags found in the source must by all means be
+            inserted into the target segment, even if there is no conclusive evidence
+        '''
         output_tokens = []
 
         source_tokens = source_segment.split(" ")
         target_tokens = target_segment.split(" ")
 
-        # gather info from source segment # -> put this in separate function
+        # gather info from source segment
         opening_elements_by_position, closing_elements_by_position = _tag_indexes_from_tokens(source_tokens)
 
         # gather info from word alignment
@@ -319,15 +338,16 @@ class Reinserter(object):
             # actually close elements
             output_tokens.extend(close_now)
 
-        # if there are remaining opening tags
-        if opening_elements_by_position:
-            for key in sorted(opening_elements_by_position.keys()):
-                output_tokens.extend(opening_elements_by_position[key])
+        if force_all:
+            # if there are remaining opening tags
+            if opening_elements_by_position:
+                for key in sorted(opening_elements_by_position.keys()):
+                    output_tokens.extend(opening_elements_by_position[key])
 
-        # if there are remaining closing tags
-        if closing_elements_by_position:
-            for key in sorted(closing_elements_by_position.keys()):
-                output_tokens.extend(closing_elements_by_position[key])
+            # if there are remaining closing tags
+            if closing_elements_by_position:
+                for key in sorted(closing_elements_by_position.keys()):
+                    output_tokens.extend(closing_elements_by_position[key])
         
         return " ".join(output_tokens)
 
@@ -347,6 +367,12 @@ class Reinserter(object):
                 source_segment,
                 target_segment,
                 segmentation
+            )
+        elif self._reinsertion_strategy == REINSERTION_ALIGNMENT:
+            return self._reinsert_markup_alignment(
+                source_segment,
+                target_segment,
+                alignment
             )
         else:
             raise NotImplementedError(
@@ -407,6 +433,11 @@ def _indexes_from_segmentation(tuple):
     return list(range(tuple[0], tuple[1]+1))
 
 def _tag_indexes_from_tokens(source_tokens):
+    '''
+    Identifies tokens that are tags and lists their indexes in the source
+        segment.
+    @param source_tokens a list of tokens that might contain tags
+    '''
     opening_elements_by_position = defaultdict(list)
     closing_elements_by_position = defaultdict(list)
 

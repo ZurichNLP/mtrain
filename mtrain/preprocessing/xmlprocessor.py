@@ -9,6 +9,7 @@ from mtrain.constants import *
 
 import re
 from lxml import etree
+from xml.sax import saxutils
 
 class XmlProcessor(object):
     '''
@@ -19,14 +20,15 @@ class XmlProcessor(object):
         self._markup_strategy = markup_strategy
         self._masker = Masker(MASKING_IDENTITY) # todo: make this depend on the markup strategy
 
-    def _strip_markup(self, segment, keep_escaped_markup=False):
+    def _strip_markup(self, segment, keep_escaped_markup=True):
         '''
         Removes all XML markup from a segment and normalizes
             whitespace between tokens before returning.
         @param segment the string from which XML markup
             should be removed
         @param keep_escaped_markup whether markup that is escaped in the
-            original segment should be removed to reveal its content
+            original segment should be removed as well, and
+            only its text content should be kept
         '''
         # unescaped markup
         if '<' in segment:
@@ -35,9 +37,10 @@ class XmlProcessor(object):
         # markup that was escaped in the original segment, now surfaced
         if '<' in segment and not keep_escaped_markup:        
             segment = re.sub('<[^>]*>', '', segment)
-            segment = re.sub(' +', ' ', segment)
+        else:
+            segment = saxutils.escape(segment)
 
-        return segment
+        return re.sub(' +', ' ', segment)
 
     def _mask_markup(self, segment):
         '''

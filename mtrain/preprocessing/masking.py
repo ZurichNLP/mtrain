@@ -12,7 +12,7 @@ import re
 
 class _Replacement(object):
     '''
-    Track replacements in strings.
+    Tracks replacements in strings.
     Based on: http://stackoverflow.com/a/9135166/1987598
     '''
     def __init__(self, replacement, with_id=False):
@@ -100,7 +100,60 @@ class Masker(object):
             if token == mask:
                 return original, index
 
-    def unmask_segment(self, source_segment, target_segment, mapping, alignment=None, segmentation=None):
+    def _unmask_segment_identity(self, target_segment, mapping):
+        '''
+        Replaces mask tokens in @param target_segment using unique mask
+            tokens in @param mapping.
+        '''
+        for mask_token, original in mapping:
+            target_segment = target_segment.replace(mask_token, original, 1)
+
+        return target_segment
+
+    def _unmask_segment_alignment(self, source_segment, target_segment, mapping, alignment):
+        '''
+        Replaces mask tokens in @param target_segment with their actual content. Decisions
+            are based on the source segment, the mapping and word alignments.
+        '''
+        mapping_masks = [tuple[0] for tuple in mapping]
+
+        # no duplicate masks in the mapping?
+        if len(mapping_masks) == len(set(mapping_masks)):
+            # then, same strategy as identity masking
+            target_segment = self._unmask_segment_identity(target_segment, mapping)
+        else:
+            source_tokens = source_segment.split(" ")
+            target_tokens = target_segment.split(" ")
+            # go through source tokens
+            for source_index, source_token in enumerate(source_tokens):
+                if self._is_mask_token(source_token):
+                    found_match = False
+                    # follow alignment to target token(s)
+                    for candidate_index in alignment[source_index]:
+                        # determine aligned token in target phrase
+                        target_token = target_tokens[candidate_index]
+                        if self._is_mask_token(target_token):
+                            # then, finally reinsert original content
+                            target_tokens[candidate_index], remove_index = self._first_original(source_token, mapping)
+                            del mapping[remove_index]
+
+                            found_match = True
+                            # immediately break out, do not check other aligned candidates in the target phrase
+                            break
+
+                    if not found_match:
+                        logging.debug(
+                            "Unmasking for source mask %s failed. " % source_token
+                            + "Mask is missing in the target phrase or in mapping."
+                        )
+            # and if masks are left in the mapping that could not be assigned
+            if mapping:
+                logging.debug(
+                    "One or more masks in the mapping were not used for unmasking: %s" % str(mapping)
+                )
+        return  " ".join(target_tokens)
+
+    def unmask_segment(self, source_segment, target_segment, mapping, alignment=None):
         '''
         Removes mask tokens from string and replaces them with their actual content.
         @param source_segment masked segment before translation
@@ -108,55 +161,14 @@ class Masker(object):
         @param mapping list of tuples [(mask_token, original_content), ...]
         @param alignment word alignment reported by Moses, a dictionary with
             source indexes as keys 
-        @param segmentation phrase segmentation reported by Moses, a dictionary
-            with source index tuples as keys
         '''
         
         if mapping:
-            # assume that info on word alignment is available
-            if self._strategy == MASKING_ALIGNMENT:                
-                mapping_masks = [tuple[0] for tuple in mapping]
-                
-                # no duplicate masks in the mapping?
-                if len(mapping_masks) == len(set(mapping_masks)):
-                    # then, same strategy as identity masking
-                    for mask_token, original in mapping:
-                        target_segment = target_segment.replace(mask_token, original, 1)
-                else:
-                    source_tokens = source_segment.split(" ")
-                    target_tokens = target_segment.split(" ")
-                    # go through source tokens
-                    for source_index, source_token in enumerate(source_tokens):
-                        if self._is_mask_token(source_token):
-                            found_match = False
-                            # follow alignment to target token(s)
-                            for candidate_index in alignment[source_index]:
-                                # determine aligned token in target phrase
-                                target_token = target_tokens[candidate_index]
-                                if self._is_mask_token(target_token):
-                                    # then, finally reinsert original content
-                                    target_tokens[candidate_index], remove_index = self._first_original(source_token, mapping)
-                                    del mapping[remove_index]
-                                    
-                                    found_match = True
-                                    # immediately break out, do not check other aligned candidates in the target phrase
-                                    break
-
-                            if not found_match:
-                                logging.debug(
-                                    "Unmasking for source mask %s failed. " % source_token
-                                    + "Mask is missing in the target phrase or in mapping."
-                                )
-                    # and if masks are left in the mapping that could not be assigned
-                    if mapping:
-                        logging.debug(
-                            "One or more masks in the mapping were not used for unmasking: %s" % str(mapping)
-                        )
-                    target_segment = " ".join(target_tokens)
+            if self._strategy == MASKING_ALIGNMENT:
+                target_segment = self._unmask_segment_alignment(source_segment, target_segment, mapping, alignment)
 
             elif self._strategy == MASKING_IDENTITY:
-                for mask_token, original in mapping:
-                    target_segment = target_segment.replace(mask_token, original, 1)
+                target_segment = self._unmask_segment_identity(target_segment, mapping)
 
         # check if there are still masks in the target segment
         if self._mask_in_string(target_segment):

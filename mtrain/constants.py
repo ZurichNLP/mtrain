@@ -154,7 +154,18 @@ MASKING_STRATEGIES = {
 
 # Markup reinsertion
 REINSERTION = 'reinsertion'
+# Valid reinsertion strategies
 REINSERTION_FULL = 'full'
+REINSERTION_SEGMENTATION = 'segmentation'
+REINSERTION_ALIGNMENT = 'alignment'
+REINSERTION_STRATEGIES = {
+    REINSERTION_FULL: "reinsert markup with a hybrid method that uses both " +
+        "phrase segmentation and alignment information",
+    REINSERTION_SEGMENTATION: "reinsert markup based solely on information " +
+        "about phrase segmentation",
+    REINSERTION_ALIGNMENT: "reinsert markup based solely on information " +
+        "about word alignments"
+}
 
 # Python logging levels
 LOGGING_LEVELS = {
