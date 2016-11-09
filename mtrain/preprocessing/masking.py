@@ -83,11 +83,15 @@ class Masker(object):
         # make sure token is a string
         token = str(token)
         
+        
         for mask in PROTECTED_PATTERNS.keys():
             if self._strategy == MASKING_IDENTITY:
-                return bool(re.match("__%s_\d+__" % mask, token))
+                 if re.match("__%s_\d+__" % mask, token):
+                    return True
             else:
-                return token == "__%s__" % mask
+                if token == "__%s__" % mask:
+                    return True
+        return False
 
     def _first_original(self, mask, mapping):
         '''
@@ -151,7 +155,10 @@ class Masker(object):
                 logging.debug(
                     "One or more masks in the mapping were not used for unmasking: %s" % str(mapping)
                 )
-        return  " ".join(target_tokens)
+        
+            target_segment = " ".join(target_tokens)
+
+        return target_segment
 
     def unmask_segment(self, source_segment, target_segment, mapping, alignment=None):
         '''
