@@ -6,4 +6,19 @@ from mtrain.preprocessing.xmlprocessor import *
 from mtrain.constants import *
 
 class TestXmlProcessor(TestCase):
-    pass
+    
+    test_cases_xmlprocessor_markup_stripping = [
+        ("", ""),
+        ("<b/>", ""),
+        ("<i> </i>", " "),
+        ("das ist <b> ein </b> test", "das ist ein test"),
+        ("das <i> </i> ist <b> ein </b> test", "das ist ein test")
+    ]
+
+    def test_xmlprocessor_markup_stripping(self):
+        x = XmlProcessor('any')
+        for input, output in self.test_cases_xmlprocessor_markup_stripping:
+            self.assertTrue(
+                x._strip_markup(input) == output,
+                "XML processor did not remove all markup from string or removed too much"
+            )

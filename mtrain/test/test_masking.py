@@ -78,6 +78,19 @@ class TestIdentityMasker(TestCase):
                 "Identity masking must replace mask tokens with Moses forced translation directives"
             )
 
+    def test_identity_mask_tokens(self):
+        m = Masker('identity')
+        result, mapping = m.mask_tokens('Email me at an@ribute.com or <a> http://www.statmt.org </a>'.split(" "))
+
+        self.assertTrue(
+            result == ['Email', 'me', 'at', '__email_0__', 'or', '__xml_0__', '__url_0__', '__xml_1__'],
+            "Identity masking did not mask a list of tokens correctly"
+        )
+        self.assertTrue(
+            _mappings_equal(mapping, [('__url_0__', 'http://www.statmt.org'), ('__xml_0__', '<a>'), ('__xml_1__', '</a>'), ('__email_0__', 'an@ribute.com')]),
+            "Identity masking did not return the correct mapping for a list of input tokens"
+        )
+
 class TestAlignmentMasker(TestCase):
     
     test_cases_alignment_masking = [
@@ -97,14 +110,11 @@ class TestAlignmentMasker(TestCase):
                 "Alignment masking must insert mask tokens in the correct places"
             )
 
-    def _mappings_equal(self, mapping_a, mapping_b):
-        return Counter(mapping_a) == Counter(mapping_b)        
-
     def test_alignment_mapping(self):
         m = Masker('alignment')
         for unmasked, masked, mapping in self.test_cases_alignment_masking:
             self.assertTrue(
-                self._mappings_equal(m.mask_segment(unmasked)[1], mapping),
+                _mappings_equal(m.mask_segment(unmasked)[1], mapping),
                 "Alignment masking must correctly record the mapping between mask tokens and their original content"
             )
 
@@ -172,3 +182,7 @@ class TestWritingPatterns(TestCaseWithCleanup):
                 random_file.read() == '# xml\n<\\/?[a-zA-Z_][a-zA-Z_.\\-0-9]*[^<>]*\\/?>\n',
                 "If requested, only the pattern to protect markup should be written to a file"
             )
+
+
+def _mappings_equal(mapping_a, mapping_b):
+    return Counter(mapping_a) == Counter(mapping_b)

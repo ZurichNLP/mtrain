@@ -139,8 +139,8 @@ class Reinserter(object):
         @param alignment word alignment information reported by Moses, a
             dictionary where source tokens are keys
         '''
-        source_tokens = source_segment.split(" ")
-        target_tokens = target_segment.split(" ")
+        source_tokens = _split_keep_elements_together(source_segment)
+        target_tokens = _split_keep_elements_together(target_segment)
 
         changes = []
         
@@ -231,8 +231,8 @@ class Reinserter(object):
         @param force_all whether all tags found in the source must by all means be
             inserted into the target segment, even if there is no conclusive evidence
         '''
-        source_tokens = source_segment.split(" ")
-        target_tokens = target_segment.split(" ")
+        source_tokens = _split_keep_elements_together(source_segment)
+        target_tokens = _split_keep_elements_together(target_segment)
         output_tokens = []
 
         # gather info from segmentation
@@ -303,8 +303,8 @@ class Reinserter(object):
         '''
         output_tokens = []
 
-        source_tokens = source_segment.split(" ")
-        target_tokens = target_segment.split(" ")
+        source_tokens = _split_keep_elements_together(source_segment)
+        target_tokens = _split_keep_elements_together(target_segment)
 
         # gather info from source segment
         opening_elements_by_position, closing_elements_by_position = _tag_indexes_from_tokens(source_tokens)
@@ -389,7 +389,7 @@ def _is_closing_tag(token):
     '''
     Determines whether @param token is the closing tag of an XML element.
     '''
-    return bool( re.match(r"<\/[a-zA-Z_][^\/<>]*>", token) )
+    return bool( re.match(r"<\/[a-zA-Z_][^\/<> ]* *>", token) )
 
 def _is_selfclosing_tag(token):
     '''
@@ -453,3 +453,30 @@ def _tag_indexes_from_tokens(source_tokens):
         # else: do nothing
 
     return opening_elements_by_position, closing_elements_by_position
+
+def _split_keep_elements_together(segment):
+    '''
+    Splits a string into tokens but keeps together element names and their attributes.
+    '''
+    
+    # opening element as the separator
+    tokens_1 = re.split(r"(<[a-zA-Z_][^\/<>]*>)", segment)
+
+    tokens_2 = []
+    tokens_3 = []
+    tokens_4 = []
+
+    for token in tokens_1:
+        tokens_2.extend(re.split(r"(<\/[a-zA-Z_][^\/<>]*>)", token))
+
+    for token in tokens_2:
+        tokens_3.extend(re.split(r"(<[a-zA-Z_][^\/<>]*\/>)", token))
+
+    for token in tokens_3:
+        if token:
+            if _is_opening_tag(token) or _is_closing_tag(token) or _is_selfclosing_tag(token):
+                tokens_4.append(token)
+            else:
+                tokens_4.extend(token.split(" "))
+
+    return [token for token in tokens_4 if token]

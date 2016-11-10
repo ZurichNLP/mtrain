@@ -65,6 +65,12 @@ class Masker(object):
         return segment, mapping
     
     def mask_tokens(self, tokens):
+        '''
+        Introduces mask tokens into a list of tokens.
+        @param tokens a list of input tokens
+        @return a modified list of tokens that can contain mask tokens
+            and a list of mappings for recovering the original content
+        '''
         masked_segment, mapping = self.mask_segment(" ".join(tokens))
         return masked_segment.split(" "), mapping
     
