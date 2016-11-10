@@ -185,6 +185,23 @@ class Masker(object):
                     
         return target_segment
 
+    def force_mask_translation(self, segment):
+        '''
+        Turns mask tokens into forced translation directives which
+            ensure that Moses translates mask tokens correctly.
+        @param masked_segment an untranslated segment that probably
+            has mask tokens
+        '''
+        if self._strategy == MASKING_IDENTITY:
+            pattern = re.compile(r'__\w+_\d+__')
+        else:
+            pattern = re.compile(r'__\w+__')
+        for mask_token in set(re.findall(pattern, segment)):
+            replacement = '<mask translation="%s">%s</mask>' % (mask_token, mask_token)
+            segment = segment.replace(mask_token, replacement)
+
+        return segment
+
 def write_masking_patterns(protected_patterns_path, markup_only=False):
     '''
     Writes protected patterns to a physical file in the engine directory.
@@ -198,16 +215,3 @@ def write_masking_patterns(protected_patterns_path, markup_only=False):
             for mask_token, regex in PROTECTED_PATTERNS.items():
                 patterns_file.write("# %s\n%s\n" % (mask_token, regex))
 
-def force_mask_translation(segment):
-    '''
-    Turns mask tokens into forced translation directives which
-        ensure that Moses translates mask tokens correctly.
-    @param masked_segment an untranslated segment that probably
-        has mask tokens
-    '''
-    pattern = re.compile('__.+__')
-    for mask_token in re.findall(pattern, segment):
-        replacement = '<mask translation="%s">%s</mask>' % (mask_token, mask_token)
-        segment = segment.replace(mask_token, replacement)
-
-    return segment

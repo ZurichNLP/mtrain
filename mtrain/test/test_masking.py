@@ -2,15 +2,18 @@
 
 from unittest import TestCase
 from collections import Counter
+import random
 
-from mtrain.preprocessing.masking import Masker
-from mtrain.constants import *
+from mtrain import constants
+from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
-# override protected patterns, since they can be modified in mtrain.constants.py:
-PROTECTED_PATTERNS = {}
-PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'
-PROTECTED_PATTERNS['email'] = r'[\w\-\_\.]+\@([\w\-\_]+\.)+[a-zA-Z]{2,}'
-PROTECTED_PATTERNS['url'] = r'(?:(?:https?|ftp)://)(?:\S+(?::\S*)?@)?(?:(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:/[^\s]*)?'
+# override protected patterns before import, since they can be modified in mtrain.constants.py:
+constants.PROTECTED_PATTERNS = {}
+constants.PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'
+constants.PROTECTED_PATTERNS['email'] = r'[\w\-\_\.]+\@([\w\-\_]+\.)+[a-zA-Z]{2,}'
+constants.PROTECTED_PATTERNS['url'] = r'(?:(?:https?|ftp)://)(?:\S+(?::\S*)?@)?(?:(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:/[^\s]*)?'
+
+from mtrain.preprocessing.masking import *
 
 class TestIdentityMasker(TestCase):
 
@@ -58,6 +61,21 @@ class TestIdentityMasker(TestCase):
             self.assertTrue(
                 m.unmask_segment(unmasked, masked, mapping) == unmasked,
                 "Identity masker must restore masks correctly given a translated segment and a mapping"
+            )
+
+    test_cases_identity_force_mask_translation = [
+        ("", ""),
+        ("text without masks", "text without masks"),
+        ("text with single __identity_1__ mask", 'text with single <mask translation="__identity_1__">__identity_1__</mask> mask'),
+        ("more than __one_1__ identity __mask_1__", 'more than <mask translation="__one_1__">__one_1__</mask> identity <mask translation="__mask_1__">__mask_1__</mask>')
+    ]
+
+    def test_identity_force_mask_translation(self):
+        m = Masker('identity')
+        for masked, forced in self.test_cases_identity_force_mask_translation:
+            self.assertTrue(
+               m.force_mask_translation(masked) == forced,
+                "Identity masking must replace mask tokens with Moses forced translation directives"
             )
 
 class TestAlignmentMasker(TestCase):
@@ -112,4 +130,45 @@ class TestAlignmentMasker(TestCase):
             self.assertTrue(
                 m.unmask_segment(source, target, mapping, alignment) == final_result,
                 "Alignment masking must restore markup in translated text based on the source segment, target segment, mapping and alignment"
+            )
+    
+    test_cases_alignment_force_mask_translation = [
+        ("text with __single__ alignment mask", 'text with <mask translation="__single__">__single__</mask> alignment mask'),
+        ("Email me at __email__ or __xml__ __url__ __xml__", 'Email me at <mask translation="__email__">__email__</mask> or <mask translation="__xml__">__xml__</mask> <mask translation="__url__">__url__</mask> <mask translation="__xml__">__xml__</mask>'),
+        ("text without masks", "text without masks"),
+        ("", "")        
+    ]
+
+    def test_alignment_force_mask_translation(self):
+        m = Masker('alignment')
+        for masked, forced in self.test_cases_alignment_force_mask_translation:
+            self.assertTrue(
+                m.force_mask_translation(masked) == forced,
+                "Alignment masking must replace mask tokens with forced translation directives if requested"
+            )
+
+class TestWritingPatterns(TestCaseWithCleanup):
+    
+    lines_that_should_be_read = [
+        '# xml\n', '<\\/?[a-zA-Z_][a-zA-Z_.\\-0-9]*[^<>]*\\/?>\n',
+        '# email\n', '[\\w\\-\\_\\.]+\\@([\\w\\-\\_]+\\.)+[a-zA-Z]{2,}\n',
+        '# url\n', '(?:(?:https?|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))(?::\\d{2,5})?(?:/[^\\s]*)?\n'
+    ]
+
+    def test_write_masking_patterns_all(self):
+        random_filename = self._basedir_test_cases + os.sep + str(random.randint(0, 9999999))
+        write_masking_patterns(random_filename, markup_only=False)
+        with open(random_filename, 'r') as random_file:
+            self.assertTrue(
+                Counter(random_file.readlines()) == Counter(self.lines_that_should_be_read),
+                "Masking patterns must be written to file faithfully"
+            )
+
+    def test_write_masking_patterns_markup_only(self):
+        random_filename = self._basedir_test_cases + os.sep + str(random.randint(0, 9999999))
+        write_masking_patterns(random_filename, markup_only=True)
+        with open(random_filename, 'r') as random_file:
+            self.assertTrue(
+                random_file.read() == '# xml\n<\\/?[a-zA-Z_][a-zA-Z_.\\-0-9]*[^<>]*\\/?>\n',
+                "If requested, only the pattern to protect markup should be written to a file"
             )
