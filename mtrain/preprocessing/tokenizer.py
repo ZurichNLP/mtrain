@@ -48,7 +48,7 @@ class Tokenizer(object):
         '''
         Tokenizes a single segment.
         '''
-        return self._processor.process(segment).split(" ")
+        return self._processor.process(segment)
 
 class Detokenizer(object):
     '''
