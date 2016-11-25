@@ -44,11 +44,15 @@ class Tokenizer(object):
     def close(self):
         del self._processor
 
-    def tokenize(self, segment):
+    def tokenize(self, segment, split=True):
         '''
         Tokenizes a single segment.
         '''
-        return self._processor.process(segment)
+        tokenized_segment = self._processor.process(segment)
+        if split:
+            return tokenized_segment.split(" ")
+        else:
+            return tokenized_segment
 
 class Detokenizer(object):
     '''

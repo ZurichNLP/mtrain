@@ -43,14 +43,14 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_file_creation_train_only(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, None)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, False, False)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
             BASENAME_TRAINING_CORPUS + ".en" in files_created,
@@ -64,14 +64,14 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_file_creation_train_tune_eval(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, 50, 20)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, 50, 20)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
             BASENAME_TRAINING_CORPUS + ".en" in files_created,
@@ -101,14 +101,14 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_correct_number_of_lines_train_only(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, None)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, False, False)
         self.assertTrue(
             200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
             "Number of segments in source side of training corpus must be correct"
@@ -121,14 +121,14 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_correct_number_of_lines_train_tune_eval(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, 50, 20)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, 50, 20)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
         self.assertTrue(
             130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
             "Number of segments in source side of training corpus must be correct"
@@ -158,7 +158,7 @@ class TestTraining(TestCaseWithCleanup):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(
-            random_basedir_name, "en", "fr", SELFCASING, None,
+            random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH,
             tuning=self._basedir_test_cases + os.sep + "external-sample-corpus",
             evaluation=None
         )
@@ -176,7 +176,7 @@ class TestTraining(TestCaseWithCleanup):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_TUNING_CORPUS + ".en"),
             "Source side of external tuning corpus must be created"
@@ -198,7 +198,7 @@ class TestTraining(TestCaseWithCleanup):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
         t = Training(
-            random_basedir_name, "en", "fr", SELFCASING, None,
+            random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH,
             tuning=None,
             evaluation=self._basedir_test_cases + os.sep + "external-sample-corpus"
         )
@@ -216,7 +216,7 @@ class TestTraining(TestCaseWithCleanup):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + ".en"),
             "Source side of external evaluation corpus must be created"
@@ -237,14 +237,14 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_create_lowercased_eval_trg_file(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, 50, 20)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, 50, 20)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + "." + SUFFIX_LOWERCASED + ".fr"),
             "A lowercased version of the evaluation corpus' target side must be created"
@@ -261,9 +261,9 @@ class TestTraining(TestCaseWithCleanup):
             f.write('one two three' + '\n')
             f.write('one two' + '\n')
             f.write('one' + '\n')
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, None)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
-            min_tokens=2, max_tokens=80, tokenize_external=False, mask=False, mask_external=False)
+            min_tokens=2, max_tokens=80, mask=False, preprocess_external=False, process_xml=False)
         self.assertIs(
             self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
             1, # only one line satisfies min_tokens for both en and fr
@@ -286,9 +286,9 @@ class TestTraining(TestCaseWithCleanup):
             f.write('one two three' + '\n')
             f.write('one two' + '\n')
             f.write('one' + '\n')
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, None)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
-            min_tokens=1, max_tokens=2, tokenize_external=False, mask=False, mask_external=False)
+            min_tokens=1, max_tokens=2, mask=False, preprocess_external=False, process_xml=False)
         self.assertIs(
             self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
             1, # only one line satisfies max_tokens for both en and fr
@@ -317,9 +317,9 @@ class TestTraining(TestCaseWithCleanup):
             f.write('one two' + '\n')
             f.write('\n') # must be removed
             f.write('one two' + '\n')
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, None, None)
+        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
-            min_tokens=1, max_tokens=80, tokenize_external=False, mask=False, mask_external=False)
+            min_tokens=1, max_tokens=80, mask=False, preprocess_external=False, process_xml=False)
         self.assertIs(
             self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
             4, # only one line satisfies max_tokens for both en and fr

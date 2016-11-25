@@ -342,7 +342,7 @@ class Training(object):
         '''
         segment = segment.strip()
         if tokenize:
-            segment = tokenizer.tokenize(segment)
+            segment = tokenizer.tokenize(segment, split=False)
         if mask:
             segment, mapping = self._masker.mask_segment(segment)
         elif process_xml:
@@ -436,6 +436,8 @@ class Training(object):
         @param basename the basename of the external corpus in the context of this
             training, e.g., `test`
         '''
+        mask = bool(self._masking_strategy)
+        process_xml = False if self._xml_strategy == XML_PASS_THROUGH else True
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang)
@@ -446,9 +448,9 @@ class Training(object):
         for segment_source, segment_target in zip(corpus_source, corpus_target):
             # tokenize, clean and mask segments (most importantly, remove trailing \n)
             segment_source = self._preprocess_segment(segment_source, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_source, mask=preprocess_segments, process_xml=preprocess_segments)
+                tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
             segment_target = self._preprocess_segment(segment_target, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_target, mask=preprocess_segments, process_xml=preprocess_segments)
+                tokenizer=self._tokenizer_target, mask=mask, process_xml=process_xml)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             else:
