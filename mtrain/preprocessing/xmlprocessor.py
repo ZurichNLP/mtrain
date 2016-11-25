@@ -5,6 +5,7 @@ Class for handling XML markup during training and translation
 '''
 
 from mtrain.preprocessing.masking import Masker
+from mtrain.preprocessing.reinsertion import Reinserter
 from mtrain.constants import *
 
 import re
@@ -16,9 +17,12 @@ class XmlProcessor(object):
     Process XML markup properly before training, and before
         and after translation.
     '''
-    def __init__(self, markup_strategy):
-        self._markup_strategy = markup_strategy
-        self._masker = Masker(MASKING_IDENTITY) # todo: make this depend on the markup strategy
+    def __init__(self, xml_strategy):
+        self._xml_strategy = xml_strategy
+        if self._xml_strategy in (XML_STRIP, XML_STRIP_REINSERT):
+            self._reinserter = Reinserter(XML_STRATEGIES_DEFAULTS[self._xml_strategy])
+        elif self._xml_strategy == XML_MASK:
+            self._masker = Masker(XML_STRATEGIES_DEFAULTS[self._xml_strategy])
 
     def _strip_markup(self, segment, keep_escaped_markup=True):
         '''
@@ -40,7 +44,7 @@ class XmlProcessor(object):
         else:
             segment = saxutils.escape(segment)
 
-        return re.sub(' +', ' ', segment)
+        return re.sub(' +', ' ', segment).strip()
 
     def _mask_markup(self, segment):
         '''
@@ -61,10 +65,9 @@ class XmlProcessor(object):
         '''
         return self._masker.unmask_segment(segment, mapping)
 
-    # todo: make this function depend on self._markup_strategy
-    def _restore_markup(self, source_segment, target_segment):
+    def _reinsert_markup(self, source_segment, target_segment):
         '''
-        Restores XML markup in a segment where markup was
+        Reinserts XML markup in a segment where markup was
             stripped before translation.
         @param source_segment the original segment in the source language
             before XML markup was removed, but after markup-aware tokenization
@@ -84,13 +87,20 @@ class XmlProcessor(object):
         Strips or masks XML markup before translation, depending
             on the markup strategy.
         '''
-        # do something, depending on strategy
-        pass
+        if self._xml_strategy in (XML_STRIP, XML_STRIP_REINSERT):
+            return self._strip_markup(segment)
+        elif self._xml_strategy == XML_MASK:
+            return self._mask_markup(segment)
 
-    def postprocess_markup(self, segment):
+    def postprocess_markup(self, source_segment, target_segment, mapping=None):
         '''
         Unmasks or restores XML markup after translation, depending
             on the markup strategy.
         '''
-        # do something, depending on strategy
-        pass
+        if self._xml_strategy == XML_STRIP_REINSERT:
+            return self._reinsert_markup(source_segment, target_segment)
+        elif self._xml_strategy == XML_STRIP:
+            # in this case, do nothing
+            return target_segment 
+        elif self._xml_strategy == XML_MASK:
+            return self._unmask_markup(target_segment, mapping)

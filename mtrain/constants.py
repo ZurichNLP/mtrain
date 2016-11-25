@@ -172,13 +172,13 @@ REINSERTION_STRATEGIES = {
 FORCE_REINSERT_ALL = False # whether unplaceable markup should be inserted anyway
 
 # XML processing
-XML_PASSTHROUGH = 'pass-through'
+XML_PASS_THROUGH = 'pass-through'
 XML_STRIP = 'strip' # for training
-XML_STRIPREINSERT = 'strip-reinsert' # for translation
+XML_STRIP_REINSERT = 'strip-reinsert' # for translation
 XML_MASK = 'mask'
 # Valid strategies for training
 XML_STRATEGIES_TRAINING = {
-    XML_PASSTHROUGH: "do nothing, except for properly escaping special " +
+    XML_PASS_THROUGH: "do nothing, except for properly escaping special " +
         "characters before training the models (not recommended if your " +
         "input contains markup)",
     XML_STRIP: "remove markup from all segments before training, and do " +
@@ -189,10 +189,12 @@ XML_STRATEGIES_TRAINING = {
 }
 # valid strategies for translation
 XML_STRATEGIES_TRANSLATION = {
-    XML_PASSTHROUGH: "do nothing, except for properly escaping special " +
+    XML_PASS_THROUGH: "do nothing, except for properly escaping special " +
         "characters before translation and undoing this afterwards " +
         "(not recommended if your input contains markup)",
-    XML_STRIPREINSERT: "remove markup from all segments before translation " +
+    XML_STRIP: "remove markup from all input segments before translation " +
+        "and do not reinsert afterwards",
+    XML_STRIP_REINSERT: "remove markup from all segments before translation " +
         "and reinsert into the translated segment afterwards",
     XML_MASK: "replace stretches of markup with mask tokens before " +
         "translation. After translation, reverse this process, replace " +
