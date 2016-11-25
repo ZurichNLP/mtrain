@@ -151,6 +151,8 @@ MASKING_STRATEGIES = {
     MASKING_IDENTITY: "all mask tokens in a segment have unique IDs, content " +
         "is restored based solely on mapping information",
 }
+# More fine-grained defaults for masking
+FORCE_MASK_TRANSLATION = False # constraint decoding for the mask token
 
 # Markup reinsertion
 REINSERTION = 'reinsertion'
@@ -165,6 +167,42 @@ REINSERTION_STRATEGIES = {
         "about phrase segmentation",
     REINSERTION_ALIGNMENT: "reinsert markup based solely on information " +
         "about word alignments"
+}
+# More fine-grained defaults for reinsertion
+FORCE_REINSERT_ALL = False # whether unplaceable markup should be inserted anyway
+
+# XML processing
+XML_PASSTHROUGH = 'pass-through'
+XML_STRIP = 'strip' # for training
+XML_STRIPREINSERT = 'strip-reinsert' # for translation
+XML_MASK = 'mask'
+# Valid strategies for training
+XML_STRATEGIES_TRAINING = {
+    XML_PASSTHROUGH: "do nothing, except for properly escaping special " +
+        "characters before training the models (not recommended if your " +
+        "input contains markup)",
+    XML_STRIP: "remove markup from all segments before training, and do " +
+        "not store the markup anywhere",
+    XML_MASK: "replace stretches of markup with mask tokens before " +
+        "training. Then train the models with segments that contain " +
+        "mask tokens"
+}
+# valid strategies for translation
+XML_STRATEGIES_TRANSLATION = {
+    XML_PASSTHROUGH: "do nothing, except for properly escaping special " +
+        "characters before translation and undoing this afterwards " +
+        "(not recommended if your input contains markup)",
+    XML_STRIPREINSERT: "remove markup from all segments before translation " +
+        "and reinsert into the translated segment afterwards",
+    XML_MASK: "replace stretches of markup with mask tokens before " +
+        "translation. After translation, reverse this process, replace " +
+        "the mask tokens with the original content"
+}
+# More fine-grained defaults for XML processing
+XML_STRATEGIES_DEFAULTS = {
+    XML_STRIP: REINSERTION_ALIGNMENT,
+    XML_STRIPREINSERT: REINSERTION_ALIGNMENT,
+    XML_MASK: MASKING_IDENTITY
 }
 
 # Python logging levels

@@ -142,3 +142,7 @@ class TranslatedSegment(object):
         self.translation = translated_segment
         self.alignment = alignment
         self.segmentation = segmentation
+
+    def __repr__(self):
+        generic_string = super(TranslatedSegment, self).__repr__()
+        return "%s\ntranslation:\t%s\nalignment:\t%s\nsegmentation:\t%s" % (generic_string, self.translation, str(self.alignment), str(self.segmentation))
