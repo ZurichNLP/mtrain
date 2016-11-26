@@ -91,6 +91,8 @@ class XmlProcessor(object):
             return self._strip_markup(segment), None
         elif self._xml_strategy == XML_MASK:
             return self._mask_markup(segment)
+        elif self._xml_strategy == XML_PASS_THROUGH:
+            return segment # then return segment unchanged
 
     def postprocess_markup(self, source_segment, target_segment, mapping=None):
         '''
@@ -104,3 +106,5 @@ class XmlProcessor(object):
             return target_segment 
         elif self._xml_strategy == XML_MASK:
             return self._unmask_markup(target_segment, mapping)
+        elif self._xml_strategy == XML_PASS_THROUGH:
+            return segment # then return segment unchanged

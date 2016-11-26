@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 
 import fileinput
 import logging
@@ -79,7 +79,7 @@ def main():
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
     # translation
-    engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang)
+    engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
     for line in sys.stdin: # read stdin
         source_segment = line.strip()
         if source_segment != '':
@@ -87,8 +87,7 @@ def main():
                 source_segment,
                 preprocess=not(args.skip_preprocess),
                 lowercase=args.lowercase,
-                detokenize=not(args.skip_detokenize),
-                xml_strategy=args.xml_input
+                detokenize=not(args.skip_detokenize)
             )
             # uppercase translation's first letter if first letter in source_segment is uppercased
             if not args.lowercase and source_segment[0].isupper():

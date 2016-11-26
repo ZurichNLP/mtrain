@@ -145,8 +145,7 @@ class Training(object):
             self._masker = Masker(self._masking_strategy, escape=True)
 
     def _load_xmlprocessor(self):
-        if self._xml_strategy != XML_PASS_THROUGH:
-            self._xmlprocessor = XmlProcessor(self._xml_strategy)
+        self._xml_processor = XmlProcessor(self._xml_strategy)
 
     def preprocess(self, base_corpus_path, min_tokens, max_tokens, mask, preprocess_external, process_xml):
         '''
@@ -346,7 +345,7 @@ class Training(object):
         if mask:
             segment, mapping = self._masker.mask_segment(segment)
         elif process_xml:
-            segment = self._xml_processor.preprocess_markup(segment)
+            segment, _ = self._xml_processor.preprocess_markup(segment)
         # check length of segment after masking and xml processing, otherwise
         # the counts will not be meaningful
         tokens = [token for token in segment.split(" ") if token != '']
