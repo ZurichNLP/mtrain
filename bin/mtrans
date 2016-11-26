@@ -87,7 +87,8 @@ def main():
                 source_segment,
                 preprocess=not(args.skip_preprocess),
                 lowercase=args.lowercase,
-                detokenize=not(args.skip_detokenize)
+                detokenize=not(args.skip_detokenize),
+                xml_strategy=args.xml_input
             )
             # uppercase translation's first letter if first letter in source_segment is uppercased
             if not args.lowercase and source_segment[0].isupper():

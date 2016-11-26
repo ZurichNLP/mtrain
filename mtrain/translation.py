@@ -5,6 +5,7 @@ from mtrain.engine import Engine
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.masking import Masker
+from mtrain.preprocessing.xmlprocessor import XmlProcessor
 from mtrain.preprocessing.truecaser import Truecaser
 from mtrain.preprocessing.external import ExternalProcessor
 from mtrain.preprocessing.recaser import Recaser
@@ -14,7 +15,7 @@ class TranslationEngine(object):
     '''
     An engine trained using `mtrain`
     '''
-    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False):
+    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None):
         '''
         @param basepath the path to the engine, i.e., `mtrain`'s output
             directory (-o).
@@ -23,8 +24,11 @@ class TranslationEngine(object):
         self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
+        # set strategies
         self._casing_strategy = inspector.get_casing_strategy(self._basepath)
         self._masking_strategy = inspector.get_masking_strategy(self._basepath)
+        self._xml_strategy = xml_strategy
+        # load components
         self._load_tokenizer()
         self._detokenizer = Detokenizer(trg_lang, uppercase_first_letter)
         self._load_engine()
@@ -32,8 +36,10 @@ class TranslationEngine(object):
             self._load_truecaser()
         elif self._casing_strategy == RECASING:
             self._load_recaser()
-        if self._masking_strategy is not None:
+        if self._masking_strategy:
             self._load_masker()
+        if self._xml_strategy:
+            self._load_xml_processor()
 
     def _load_engine(self, report_alignment=False, report_segmentation=False):
         '''
@@ -88,21 +94,33 @@ class TranslationEngine(object):
     def _load_masker(self):
         self._masker = Masker(self._masking_strategy)
 
+    def _load_xml_processor(self):
+        self._xml_processor = XmlProcessor(self._xml_strategy)
+
     def _preprocess_segment(self, segment):
+        # general preprocessing
         tokens = self._tokenizer.tokenize(segment)
-        if self._masking_strategy is not None:
-            tokens, mapping = self._masker.mask_tokens(tokens)
-        else:
-            mapping = None
         if self._casing_strategy == TRUECASING:
             tokens = self._truecaser.truecase_tokens(tokens)
         else:
-            tokens = lowercaser.lowercase_tokens(tokens)
-        return " ".join(tokens), mapping
-
-    def _postprocess_segment(self, segment, lowercase=False, detokenize=True, mapping=None):
+             tokens = lowercaser.lowercase_tokens(tokens)
+        source_segment = " ".join(tokens)
+        segment = source_segment
+        # related to masking and markup
         if self._masking_strategy is not None:
-            segment = self._masker.unmask_segment(segment, mapping)
+            segment, mask_mapping = self._masker.mask_segment(segment)
+        else:
+            mask_mapping = None
+        if self._xml_strategy is not None:
+            segment, xml_mapping = self._xml_processor.preprocess_markup(segment)
+        return source_segment, segment, mask_mapping, xml_mapping
+
+    def _postprocess_segment(self, source_segment, target_segment, lowercase=False,
+                             detokenize=True, mask_mapping=None, xml_mapping=None):
+        if self._masking_strategy is not None:
+            segment = self._masker.unmask_segment(segment, mask_mapping)
+        if self._xml_strategy is not None:
+            segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping)
         if lowercase:
             segment = lowercaser.lowercase_string(segment)
         else:
@@ -122,6 +140,8 @@ class TranslationEngine(object):
             self._recaser.close()
         if self._masking_strategy is not None:
             del self._masker
+        if self._xml_strategy is not None:
+            del self._xml_processor
 
     def translate(self, segment, preprocess=True, lowercase=False, detokenize=True):
         '''
@@ -132,10 +152,12 @@ class TranslationEngine(object):
         @param detokenize whether to detokenize the translated segment
         '''
         if preprocess:
-            segment, mapping = self._preprocess_segment(segment)
-
+            source_segment, segment, mask_mapping, xml_mapping = self._preprocess_segment(segment)
+        else:
+            source_segment = segment
         # an mtrain.engine.TranslatedSegment object is returned
         translated_segment = self._engine.translate_segment(segment)
         translation = translated_segment.translation
         
-        return self._postprocess_segment(translation, lowercase, detokenize, mapping)
+        return self._postprocess_segment(source_segment, translation, lowercase, detokenize,
+                                         mask_mapping, xml_mapping)

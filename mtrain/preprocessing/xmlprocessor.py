@@ -88,7 +88,7 @@ class XmlProcessor(object):
             on the markup strategy.
         '''
         if self._xml_strategy in (XML_STRIP, XML_STRIP_REINSERT):
-            return self._strip_markup(segment)
+            return self._strip_markup(segment), None
         elif self._xml_strategy == XML_MASK:
             return self._mask_markup(segment)
 
