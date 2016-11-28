@@ -8,6 +8,7 @@ reversing this process.
 from mtrain.constants import *
 from mtrain.preprocessing import cleaner
 
+import sys
 import re
 
 class _Replacement(object):
@@ -19,6 +20,10 @@ class _Replacement(object):
         self.replacement = replacement
         self.occurrences = []
         self.with_id = with_id
+
+        # if no patterns are defined that could be masked
+        if not PROTECTED_PATTERNS:
+          sys.exit('Masking is not possible because no patterns are defined in PROTECTED_PATTERNS in mtrain/constants.py.')  
 
     def __call__(self, match):
         matched = match.group(0)
