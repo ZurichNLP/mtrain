@@ -73,7 +73,8 @@ class Detokenizer(object):
         if uppercase_first_letter:
             arguments.append('-u')
         self._processor = ExternalProcessor(
-            command=" ".join([MOSES_DETOKENIZER] + arguments)
+            command=" ".join([MOSES_DETOKENIZER] + arguments),
+            stream_stderr=True
         )
 
     def close(self):

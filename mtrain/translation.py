@@ -113,24 +113,26 @@ class TranslationEngine(object):
             mask_mapping = None
         if self._xml_strategy is not None:
             segment, xml_mapping = self._xml_processor.preprocess_markup(segment)
+        else:
+            xml_mapping = None
         return source_segment, segment, mask_mapping, xml_mapping
 
     def _postprocess_segment(self, source_segment, target_segment, lowercase=False,
                              detokenize=True, mask_mapping=None, xml_mapping=None):
         if self._masking_strategy is not None:
-            segment = self._masker.unmask_segment(segment, mask_mapping)
+            target_segment = self._masker.unmask_segment(target_segment, mask_mapping)
         if self._xml_strategy is not None:
-            segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping)
+            target_segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping)
         if lowercase:
-            segment = lowercaser.lowercase_string(segment)
+            target_segment = lowercaser.lowercase_string(target_segment)
         else:
             if self._casing_strategy == RECASING:
-                segment = self._recaser.recase(segment)
+                target_segment = self._recaser.recase(target_segment)
         if detokenize:
-            output_tokens = segment.split(" ")
+            output_tokens = target_segment.split(" ")
             return self._detokenizer.detokenize(output_tokens)
         else:
-            return segment
+            return target_segment
 
     def close(self):
         del self._engine
@@ -155,6 +157,8 @@ class TranslationEngine(object):
             source_segment, segment, mask_mapping, xml_mapping = self._preprocess_segment(segment)
         else:
             source_segment = segment
+            mask_mapping = None
+            xml_mapping = None
         # an mtrain.engine.TranslatedSegment object is returned
         translated_segment = self._engine.translate_segment(segment)
         translation = translated_segment.translation

@@ -32,15 +32,18 @@ class Engine(object):
             '-v 0', # as quiet as possible
             '-xml-input constraint' # allow forced translations and zones
         ]
+        trailing_output = False
+
         if self._report_alignment:
             arguments.append('-print-alignment-info')
+            trailing_output = True
         if self._report_segmentation:
             arguments.append('-report-segmentation')
         
         self._processor = ExternalProcessor(
             command=" ".join([MOSES] + arguments),
             stream_stderr=True,
-            trailing_output=True
+            trailing_output=trailing_output
         )
 
     def close(self):

@@ -135,7 +135,6 @@ class Training(object):
                 protected_patterns_path=protected_patterns_path,
                 escape=False
             )
-            self._masker = Masker(self._masking_strategy, escape=True)
         else:
             self._tokenizer_source = Tokenizer(self._src_lang)
             self._tokenizer_target = Tokenizer(self._trg_lang)
@@ -340,12 +339,12 @@ class Training(object):
             discarded.
         '''
         segment = segment.strip()
+        if process_xml:
+            segment, _ = self._xml_processor.preprocess_markup(segment)
         if tokenize:
             segment = tokenizer.tokenize(segment, split=False)
         if mask:
             segment, mapping = self._masker.mask_segment(segment)
-        elif process_xml:
-            segment, _ = self._xml_processor.preprocess_markup(segment)
         # check length of segment after masking and xml processing, otherwise
         # the counts will not be meaningful
         tokens = [token for token in segment.split(" ") if token != '']
