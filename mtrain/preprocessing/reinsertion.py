@@ -460,6 +460,8 @@ class _NodesToListHandler(xml.sax.ContentHandler):
     """
     Content handler for a SAX parser that transforms SAX events (callbacks)
     into a list of strings.
+    This code is based on the saxutils XMLGenerator:
+    https://hg.python.org/cpython/file/3.5/Lib/xml/sax/saxutils.py
     """
     def __init__(self):
         xml.sax.ContentHandler.__init__(self)
@@ -502,14 +504,16 @@ class _NodesToListHandler(xml.sax.ContentHandler):
             self._finish_pending_start_element()
             if not isinstance(content, str):
                 content = str(content)
-            tokens = [xml.sax.saxutils.escape(token) for token in content.strip().split(" ")]
+            tokens = [xml.sax.saxutils.escape(token) for token in content.split(" ")]
             self._nodes.extend(tokens)
 
     def ignorableWhitespace(self, whitespace):
-        self._nodes.append(whitespace)
+        pass
+        # this means that whitespace between elements cannot be transferred to the target
+        # self._nodes.append(whitespace)
 
     def return_nodes(self):
-        return self._nodes
+        return [ node for node in self._nodes if node.strip() != '']
 
 def _get_string_from_attrs(attrs):
     """
@@ -517,7 +521,7 @@ def _get_string_from_attrs(attrs):
     for writing and serialization.
     """
     return " ".join(
-        ['%s="%s"' % (key, quoteattr(value)) for key, value in attrs.items()]
+        ['%s=%s' % (key, xml.sax.saxutils.quoteattr(value)) for key, value in attrs.items()]
     )
 
 def tokenize_keep_markup(string):
