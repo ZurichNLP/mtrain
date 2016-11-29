@@ -9,8 +9,8 @@ from mtrain.preprocessing.reinsertion import Reinserter
 from mtrain.constants import *
 
 import re
+import xml.sax.saxutils
 from lxml import etree
-from xml.sax import saxutils
 
 class XmlProcessor(object):
     '''
@@ -42,7 +42,7 @@ class XmlProcessor(object):
         if '<' in segment and not keep_escaped_markup:        
             segment = re.sub('<[^>]*>', '', segment)
         else:
-            segment = saxutils.escape(segment)
+            segment = xml.sax.saxutils.escape(segment)
 
         return re.sub(' +', ' ', segment).strip()
 
@@ -108,3 +108,4 @@ class XmlProcessor(object):
             return self._unmask_markup(target_segment, mapping)
         elif self._xml_strategy == XML_PASS_THROUGH:
             return segment # then return segment unchanged
+

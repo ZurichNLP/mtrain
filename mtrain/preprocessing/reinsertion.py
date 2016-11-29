@@ -4,6 +4,8 @@ from mtrain.constants import *
 
 from collections import defaultdict
 from lxml import etree
+
+import xml.sax
 import re
 
 '''
@@ -139,8 +141,8 @@ class Reinserter(object):
         @param alignment word alignment information reported by Moses, a
             dictionary where source tokens are keys
         '''
-        source_tokens = _split_keep_elements_together(source_segment)
-        target_tokens = _split_keep_elements_together(target_segment)
+        source_tokens = tokenize_keep_markup(source_segment)
+        target_tokens = target_segment.split(" ")
 
         changes = []
         
@@ -231,8 +233,8 @@ class Reinserter(object):
         @param force_all whether all tags found in the source must by all means be
             inserted into the target segment, even if there is no conclusive evidence
         '''
-        source_tokens = _split_keep_elements_together(source_segment)
-        target_tokens = _split_keep_elements_together(target_segment)
+        source_tokens = tokenize_keep_markup(source_segment)
+        target_tokens = target_segment.split(" ")
         output_tokens = []
 
         # gather info from segmentation
@@ -303,8 +305,8 @@ class Reinserter(object):
         '''
         output_tokens = []
 
-        source_tokens = _split_keep_elements_together(source_segment)
-        target_tokens = _split_keep_elements_together(target_segment)
+        source_tokens = tokenize_keep_markup(source_segment)
+        target_tokens = target_segment.split(" ")
 
         # gather info from source segment
         opening_elements_by_position, closing_elements_by_position = _tag_indexes_from_tokens(source_tokens)
@@ -454,29 +456,76 @@ def _tag_indexes_from_tokens(source_tokens):
 
     return opening_elements_by_position, closing_elements_by_position
 
-def _split_keep_elements_together(segment):
-    '''
-    Splits a string into tokens but keeps together element names and their attributes.
-    '''
-    
-    # opening element as the separator
-    tokens_1 = re.split(r"(<[a-zA-Z_][^\/<>]*>)", segment)
+class _NodesToListHandler(xml.sax.ContentHandler):
+    """
+    Content handler for a SAX parser that transforms SAX events (callbacks)
+    into a list of strings.
+    """
+    def __init__(self):
+        xml.sax.ContentHandler.__init__(self)
+        self._pending_start_element = False
+        self._nodes = []
 
-    tokens_2 = []
-    tokens_3 = []
-    tokens_4 = []
+    def startDocument(self):
+        """
+        In case the same handler instance is used for several documents,
+        all instance variables are reset at the start of a document.
+        """
+        self._nodes = []
+        self._pending_start_element = False
 
-    for token in tokens_1:
-        tokens_2.extend(re.split(r"(<\/[a-zA-Z_][^\/<>]*>)", token))
+    def startElement(self, name, attrs):
+        self._finish_pending_start_element()
+        if attrs:
+            attribute_string = _get_string_from_attrs(attrs)
+            self._nodes.append(
+                "<%s %s" % (name, attribute_string)
+            )
+        else:
+            self._nodes.append("<%s" % name)
+        self._pending_start_element = True
 
-    for token in tokens_2:
-        tokens_3.extend(re.split(r"(<[a-zA-Z_][^\/<>]*\/>)", token))
+    def _finish_pending_start_element(self):
+        if self._pending_start_element:
+            self._nodes[-1] += ">"
+            self._pending_start_element = False
 
-    for token in tokens_3:
-        if token:
-            if _is_opening_tag(token) or _is_closing_tag(token) or _is_selfclosing_tag(token):
-                tokens_4.append(token)
-            else:
-                tokens_4.extend(token.split(" "))
+    def endElement(self, name):
+        if self._pending_start_element:
+            self._nodes[-1] += "/>"
+            self._pending_start_element = False
+        else:
+            self._nodes.append("</%s>" % name)
 
-    return [token for token in tokens_4 if token]
+    def characters(self, content):
+        if content:
+            self._finish_pending_start_element()
+            if not isinstance(content, str):
+                content = str(content)
+            self._nodes.append(xml.sax.saxutils.escape(content))
+
+    def ignorableWhitespace(self, whitespace):
+        self._nodes.append(whitespace)
+
+    def return_nodes(self):
+        return self._nodes
+
+def _get_string_from_attrs(attrs):
+    """
+    Formats a dictionary with keys and values from parsed XML attributes
+    for writing and serialization.
+    """
+    return " ".join(
+        ['%s="%s"' % (key, quoteattr(value)) for key, value in attrs.items()]
+    )
+
+def tokenize_keep_markup(string):
+    """
+    Splits a string into a list of tokens, but do not split at whitespace if the space
+    is inside an XML element tag.
+    """
+    handler = _NodesToListHandler()
+    wrapped_string = "<root>" + string + "</root>"
+
+    xml.sax.parseString(wrapped_string, handler)
+    return handler.return_nodes()[1:-1]

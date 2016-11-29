@@ -107,21 +107,28 @@ class Training(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    def _get_path_masking_patterns(self):
+    def _get_path_masking_patterns(self, strategy):
         '''
         Make sure a masking directory and masking strategy subfolder exist,
         @return the path to the masking patterns file
         '''
-        protected_patterns_dir = os.sep.join([self._get_path('engine'), MASKING, self._masking_strategy])
+        protected_patterns_dir = os.sep.join([self._get_path('engine'), MASKING, strategy])
         if not assertions.dir_exists(protected_patterns_dir):
             os.makedirs(protected_patterns_dir, exist_ok=True)
         return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
 
     def _load_tokenizer(self):
         # create tokenizers: masking strategy has an impact on tokenizer behaviour
+        tokenizer_protects = False
         if self._masking_strategy:
-            protected_patterns_path = self._get_path_masking_patterns()
-            write_masking_patterns(protected_patterns_path)
+            tokenizer_protects = True
+            protected_patterns_path = self._get_path_masking_patterns(strategy=self._masking_strategy)
+        elif self._xml_strategy == XML_MASK:
+            tokenizer_protects = True
+            protected_patterns_path = self._get_path_masking_patterns(strategy=XML_STRATEGIES_DEFAULTS[XML_MASK])
+
+        if tokenizer_protects:
+            write_masking_patterns(protected_patterns_path, markup_only=self._xml_strategy == XML_MASK)
             
             self._tokenizer_source = Tokenizer(
                 self._src_lang,
@@ -332,17 +339,17 @@ class Training(object):
                             tokenizer=None, mask=False, process_xml=False, return_mapping=False):
         '''
         Tokenizes a bisegment, escapes special characters, introduces mask tokens or
-            processes markup found in the segment.vAlso checks for minimum and
+            processes markup found in the segment. Also checks for minimum and
             maximum number of tokens.
 
         @return the preprocessed segment. None means that the segment should be
             discarded.
         '''
         segment = segment.strip()
-        if process_xml:
-            segment, _ = self._xml_processor.preprocess_markup(segment)
         if tokenize:
             segment = tokenizer.tokenize(segment, split=False)
+        if process_xml:
+            segment, _ = self._xml_processor.preprocess_markup(segment)
         if mask:
             segment, mapping = self._masker.mask_segment(segment)
         # check length of segment after masking and xml processing, otherwise
