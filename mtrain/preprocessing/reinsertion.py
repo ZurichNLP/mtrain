@@ -502,7 +502,8 @@ class _NodesToListHandler(xml.sax.ContentHandler):
             self._finish_pending_start_element()
             if not isinstance(content, str):
                 content = str(content)
-            self._nodes.append(xml.sax.saxutils.escape(content))
+            tokens = [xml.sax.saxutils.escape(token) for token in content.strip().split(" ")]
+            self._nodes.extend(tokens)
 
     def ignorableWhitespace(self, whitespace):
         self._nodes.append(whitespace)
