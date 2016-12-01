@@ -129,7 +129,7 @@ class Training(object):
 
         if tokenizer_protects:
             write_masking_patterns(protected_patterns_path, markup_only=self._xml_strategy == XML_MASK)
-            
+
             self._tokenizer_source = Tokenizer(
                 self._src_lang,
                 protect=True,
@@ -145,7 +145,7 @@ class Training(object):
         else:
             self._tokenizer_source = Tokenizer(self._src_lang)
             self._tokenizer_target = Tokenizer(self._trg_lang)
-    
+
     def _load_masker(self):
         if self._masking_strategy:
             self._masker = Masker(self._masking_strategy, escape=True)
@@ -749,7 +749,7 @@ class Training(object):
 
     def _MERT(self, num_threads):
         '''
-        Tunes the system through Maximum Error Rate Trainign (MERT)
+        Tunes the system through Minimum Error Rate Trainign (MERT)
         '''
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
@@ -769,7 +769,7 @@ class Training(object):
             base_dir_mert=base_dir_mert,
             num_threads=num_threads
         )
-        commander.run(mert_command, "Tuning engine through Maximum Error Rate Training (MERT)")
+        commander.run(mert_command, "Tuning engine through Minimum Error Rate Training (MERT)")
 
     def _multeval(self, num_threads, lowercase=False):
         '''
@@ -788,7 +788,7 @@ class Training(object):
         # translate source side of test corpus
         logging.info("Translating evaluation corpus")
         engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang)
-        
+
         if lowercase:
             logging.info("Evaluating lowercased text")
             path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.lowercased.' + self._trg_lang
