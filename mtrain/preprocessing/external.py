@@ -27,10 +27,10 @@ class ExternalProcessor(object):
         @param trailing_output whether the external process outputs trailing
             lines after the actual, single, output line
         '''
+        
         self.command = command
         self._stream_stderr = stream_stderr
         self._trailing_output = trailing_output
-
         logging.debug("Executing %s", self.command)
         self._process = Popen(
             self.command,

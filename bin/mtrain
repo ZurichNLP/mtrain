@@ -79,12 +79,19 @@ def get_argument_parser():
         action='store_true'
     )
     parser.add_argument(
-        "--tokenize_external",
-        help="tokenize external tuning and evaluation corpora. Don't use if " +
+        "--preprocess_external",
+        help="preprocess external tuning and evaluation corpora. Don't use if " +
             "the external files provided in --tune and --eval are already " +
-            "tokenized.",
+            "preprocessed.",
         default=False,
         action='store_true'
+    )
+    parser.add_argument(
+        "--masking",
+        help="enable masking. Valid strategies are: " +
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in MASKING_STRATEGIES.items()]),
+        choices=MASKING_STRATEGIES.keys(),
+        default=None
     )
     parser.add_argument(
         "-n", "--n_gram_order",
@@ -124,9 +131,18 @@ def get_argument_parser():
     )
     parser.add_argument(
         "--logging",
-        help="logging level in stderr",
+        help="logging level in STDERR",
         choices=LOGGING_LEVELS.keys(),
         default="INFO"
+    )
+    parser.add_argument(
+        "--xml_input",
+        type=str,
+        help="decide how XML fragments in the input segments should " +
+            "be dealt with. Valid choices are: " +
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES_TRAINING.items()]),
+        choices=XML_STRATEGIES_TRAINING.keys(),
+        default="strip"
     )
     return parser
 
@@ -157,12 +173,14 @@ def main():
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
-    # training
+    # make instance of Training class
     training = Training(
         basepath=args.output_dir,
         src_lang=args.src_lang,
         trg_lang=args.trg_lang,
         casing_strategy=args.caser,
+        masking_strategy=args.masking,
+        xml_strategy=args.xml_input,
         tuning=args.tune,
         evaluation=args.eval
     )
@@ -170,7 +188,9 @@ def main():
         base_corpus_path=args.basepath,
         min_tokens=args.min_tokens,
         max_tokens=args.max_tokens,
-        tokenize_external=args.tokenize_external
+        mask=bool(args.masking),
+        preprocess_external=args.preprocess_external,
+        process_xml=bool(args.xml_input)
     )
     if args.caser == TRUECASING:
         training.train_truecaser()

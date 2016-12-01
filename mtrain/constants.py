@@ -6,6 +6,7 @@ Stores the constants needed to execute commands.
 
 import logging
 import os
+import re
 from collections import OrderedDict
 
 # Paths to 3rd party packages
@@ -50,6 +51,14 @@ MOSES_SPECIAL_CHARS["'"] = "&apos;"
 MOSES_SPECIAL_CHARS["["] = "&#91;"
 MOSES_SPECIAL_CHARS["]"] = "&#93;"
 
+# Protected patterns relevant for tokenization and masking
+# Dictionary[mask token] = 'regular expression'
+PROTECTED_PATTERNS_FILE_NAME = 'protected-patterns.dat'
+PROTECTED_PATTERNS = {}
+PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'
+PROTECTED_PATTERNS['email'] = r'[\w\-\_\.]+\@([\w\-\_]+\.)+[a-zA-Z]{2,}'
+PROTECTED_PATTERNS['url'] = r'(?:(?:https?|ftp)://)(?:\S+(?::\S*)?@)?(?:(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:/[^\s]*)?'
+
 # Relative paths to components inside working directory
 PATH_COMPONENT = {
     # Maps components to their base directory name
@@ -64,6 +73,7 @@ BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
 BASENAME_EVALUATION_CORPUS = 'test'
 SUFFIX_TOKENIZED = 'tokenized'
+SUFFIX_MASKED = 'masked'
 SUFFIX_CLEANED = 'cleaned'
 SUFFIX_LOWERCASED = 'lowercased'
 SUFFIX_TRUECASED = 'truecased'
@@ -127,7 +137,74 @@ CASING_STRATEGIES = {
     TRUECASING: "the decoder is trained on truecased input and output " +
         "(trains a separate truecasing model)",
     RECASING: "the decoder is trained on lowercased input and output " +
-        "(trains a separate recasing model)",
+        "(trains a separate recasing model)"
+}
+
+# Masking
+MASKING = "masking"
+# Valid masking strategies
+MASKING_ALIGNMENT = 'alignment'
+MASKING_IDENTITY = "identity"
+MASKING_STRATEGIES = {
+    MASKING_ALIGNMENT: "mask tokens are not unique, content is restored based on " +
+        "the source segment and word alignment",
+    MASKING_IDENTITY: "all mask tokens in a segment have unique IDs, content " +
+        "is restored based solely on mapping information",
+}
+# More fine-grained defaults for masking
+FORCE_MASK_TRANSLATION = False # constraint decoding for the mask token
+
+# Markup reinsertion
+REINSERTION = 'reinsertion'
+# Valid reinsertion strategies
+REINSERTION_FULL = 'full'
+REINSERTION_SEGMENTATION = 'segmentation'
+REINSERTION_ALIGNMENT = 'alignment'
+REINSERTION_STRATEGIES = {
+    REINSERTION_FULL: "reinsert markup with a hybrid method that uses both " +
+        "phrase segmentation and alignment information",
+    REINSERTION_SEGMENTATION: "reinsert markup based solely on information " +
+        "about phrase segmentation",
+    REINSERTION_ALIGNMENT: "reinsert markup based solely on information " +
+        "about word alignments"
+}
+# More fine-grained defaults for reinsertion
+FORCE_REINSERT_ALL = False # whether unplaceable markup should be inserted anyway
+
+# XML processing
+XML_PASS_THROUGH = 'pass-through'
+XML_STRIP = 'strip' # for training
+XML_STRIP_REINSERT = 'strip-reinsert' # for translation
+XML_MASK = 'mask'
+# Valid strategies for training
+XML_STRATEGIES_TRAINING = {
+    XML_PASS_THROUGH: "do nothing, except for properly escaping special " +
+        "characters before training the models (not recommended if your " +
+        "input contains markup)",
+    XML_STRIP: "remove markup from all segments before training, and do " +
+        "not store the markup anywhere",
+    XML_MASK: "replace stretches of markup with mask tokens before " +
+        "training. Then train the models with segments that contain " +
+        "mask tokens"
+}
+# valid strategies for translation
+XML_STRATEGIES_TRANSLATION = {
+    XML_PASS_THROUGH: "do nothing, except for properly escaping special " +
+        "characters before translation and undoing this afterwards " +
+        "(not recommended if your input contains markup)",
+    XML_STRIP: "remove markup from all input segments before translation " +
+        "and do not reinsert afterwards",
+    XML_STRIP_REINSERT: "remove markup from all segments before translation " +
+        "and reinsert into the translated segment afterwards",
+    XML_MASK: "replace stretches of markup with mask tokens before " +
+        "translation. After translation, reverse this process, replace " +
+        "the mask tokens with the original content"
+}
+# More fine-grained defaults for XML processing
+XML_STRATEGIES_DEFAULTS = {
+    XML_STRIP: REINSERTION_ALIGNMENT,
+    XML_STRIP_REINSERT: REINSERTION_ALIGNMENT,
+    XML_MASK: MASKING_IDENTITY
 }
 
 # Python logging levels

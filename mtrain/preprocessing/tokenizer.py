@@ -13,14 +13,30 @@ class Tokenizer(object):
     interaction with a Moses tokenizer process kept in memory.
     '''
 
-    def __init__(self, lang_code):
+    def __init__(self, lang_code, protect=False, protected_patterns_path=None, escape=True):
+        '''
+        @param lang_code language identifier
+        @param protect whether the tokenizer should respect patterns that should not be tokenized
+        @param protected_patterns_path path to file with protected patterns
+        @param whether characters critical to the decoder should be escaped
+        '''
         arguments = [
             '-l %s' % lang_code,
             '-b', #disable Perl buffering
             '-q', #don't report version
-            '-X', #skip XML
             '-a', #aggressive mode
         ]
+
+        if protect:
+            arguments.append(
+                '-protected %s' % protected_patterns_path, # protect e.g. inline XML, URLs and email
+            )
+
+        if not escape:
+            arguments.append(
+                '-no-escape' # do not escape reserved characters in Moses
+            )
+        
         self._processor = ExternalProcessor(
             command=" ".join([MOSES_TOKENIZER] + arguments)
         )
@@ -28,16 +44,20 @@ class Tokenizer(object):
     def close(self):
         del self._processor
 
-    def tokenize(self, segment):
+    def tokenize(self, segment, split=True):
         '''
         Tokenizes a single segment.
         '''
-        return self._processor.process(segment).split(" ")
+        tokenized_segment = self._processor.process(segment)
+        if split:
+            return tokenized_segment.split(" ")
+        else:
+            return tokenized_segment
 
 class Detokenizer(object):
     '''
     Creates a detokenizer which detokenizes lists of tokens on-the-fly, i.e.,
-    allowing interaction with a Moses detokeinzer process kept in memory.
+    allowing interaction with a Moses detokenizer process kept in memory.
     '''
 
     def __init__(self, lang_code, uppercase_first_letter=False):
@@ -53,7 +73,8 @@ class Detokenizer(object):
         if uppercase_first_letter:
             arguments.append('-u')
         self._processor = ExternalProcessor(
-            command=" ".join([MOSES_DETOKENIZER] + arguments)
+            command=" ".join([MOSES_DETOKENIZER] + arguments),
+            stream_stderr=True
         )
 
     def close(self):

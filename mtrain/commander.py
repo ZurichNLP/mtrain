@@ -53,6 +53,8 @@ def _is_relevant_for_log(line):
     '''
     if line.strip() == 'Initializing LexicalReordering..': # line from Moses decoding, erroneously printed regardless of logging level
         return False
+    elif "Warning: No built-in rules for language" in line: # line from Detokenizer that does not respect quiet mode
+        return True
     elif line == '': # do not log empty lines
         return False
     else:

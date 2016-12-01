@@ -26,7 +26,7 @@ def get_argument_parser():
             "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
             "`",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' #overrides ugnly double-listing of available choices in --help
+        metavar='src_lang' #overrides ugly double-listing of available choices in --help
     )
     parser.add_argument(
         "trg_lang",
@@ -59,6 +59,14 @@ def get_argument_parser():
         default=False,
         action="store_true"
     )
+    parser.add_argument(
+        "--xml_input",
+        type=str,
+        help="decide how XML fragments in the input segments should " +
+            "be dealt with. Valid choices are: " +
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES_TRANSLATION.items()]),
+        choices=XML_STRATEGIES_TRANSLATION.keys()
+    )
     return parser
 
 def main():
@@ -71,11 +79,16 @@ def main():
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
     # translation
-    engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang)
+    engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
     for line in sys.stdin: # read stdin
         source_segment = line.strip()
         if source_segment != '':
-            translation = engine.translate(source_segment, preprocess=not(args.skip_preprocess), lowercase=args.lowercase, detokenize=not(args.skip_detokenize))
+            translation = engine.translate(
+                source_segment,
+                preprocess=not(args.skip_preprocess),
+                lowercase=args.lowercase,
+                detokenize=not(args.skip_detokenize)
+            )
             # uppercase translation's first letter if first letter in source_segment is uppercased
             if not args.lowercase and source_segment[0].isupper():
                 translation = translation[0].upper() + translation[1:]

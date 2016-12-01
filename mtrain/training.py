@@ -10,6 +10,8 @@ import re
 
 from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
+from mtrain.preprocessing.masking import Masker, write_masking_patterns
+from mtrain.preprocessing.xmlprocessor import XmlProcessor
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
 from mtrain.translation import TranslationEngine
@@ -22,7 +24,7 @@ class Training(object):
     '''
 
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy,
-                 tuning, evaluation):
+                 masking_strategy, xml_strategy, tuning, evaluation):
         '''
         Creates a new project structure at @param basepath.
 
@@ -31,27 +33,34 @@ class Training(object):
             directory; existing files will be overwritten
         @param src_lang the language code of the source language, e.g., `en`
         @param trg_lang the language code of the target language, e.g., `fr`
+        @param casing_strategy how case should be handled in preprocessing
+        @param masking_strategy whether and how mask tokens should be
+            introduced into segments
+        @param xml_strategy whether fragments of markup in the data should be
+            passed through, removed or masked
         @param tuning the tuning set to be used. The options are
-            NONE:   do not tune (not recommended)
+            None:   do not tune (not recommended)
             INT:    select INT random lines from the base corpus for tuning
             STR:    use the parallel tuning corpus located at STR (base path
                     without language code suffixes)
         @param evaluation the evaluation set to be used. The same options as in
             @param tuning apply.
-        @param log_level the logging level to be written to @param log_file
-        @param log_file the file where all logged events on and above @param
-            log_level will be written to. None means all events will be written
-            to stdout.
 
         Note: @param src_lang, @param trg_lang must be language codes recognised
             by the built-in Moses tokenizer.
         '''
+        # base directory and languages
         self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
-        self._tokenizer_source = Tokenizer(self._src_lang)
-        self._tokenizer_target = Tokenizer(self._trg_lang)
+        # set strategies
+        self._masking_strategy = masking_strategy
         self._casing_strategy = casing_strategy
+        self._xml_strategy = xml_strategy
+        # load components
+        self._load_tokenizer()
+        self._load_masker()
+        self._load_xmlprocessor()
         self._tuning = tuning
         self._evaluation = evaluation
         # create base directory
@@ -98,7 +107,53 @@ class Training(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    def preprocess(self, base_corpus_path, min_tokens, max_tokens, tokenize_external):
+    def _get_path_masking_patterns(self, strategy):
+        '''
+        Make sure a masking directory and masking strategy subfolder exist,
+        @return the path to the masking patterns file
+        '''
+        protected_patterns_dir = os.sep.join([self._get_path('engine'), MASKING, strategy])
+        if not assertions.dir_exists(protected_patterns_dir):
+            os.makedirs(protected_patterns_dir, exist_ok=True)
+        return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
+
+    def _load_tokenizer(self):
+        # create tokenizers: masking strategy has an impact on tokenizer behaviour
+        tokenizer_protects = False
+        if self._masking_strategy:
+            tokenizer_protects = True
+            protected_patterns_path = self._get_path_masking_patterns(strategy=self._masking_strategy)
+        elif self._xml_strategy == XML_MASK:
+            tokenizer_protects = True
+            protected_patterns_path = self._get_path_masking_patterns(strategy=XML_STRATEGIES_DEFAULTS[XML_MASK])
+
+        if tokenizer_protects:
+            write_masking_patterns(protected_patterns_path, markup_only=self._xml_strategy == XML_MASK)
+            
+            self._tokenizer_source = Tokenizer(
+                self._src_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
+            self._tokenizer_target = Tokenizer(
+                self._trg_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
+        else:
+            self._tokenizer_source = Tokenizer(self._src_lang)
+            self._tokenizer_target = Tokenizer(self._trg_lang)
+    
+    def _load_masker(self):
+        if self._masking_strategy:
+            self._masker = Masker(self._masking_strategy, escape=True)
+
+    def _load_xmlprocessor(self):
+        self._xml_processor = XmlProcessor(self._xml_strategy)
+
+    def preprocess(self, base_corpus_path, min_tokens, max_tokens, mask, preprocess_external, process_xml):
         '''
         Preprocesses the given parallel corpus.
 
@@ -108,8 +163,11 @@ class Training(object):
             with less tokens will be discarded
         @param max_tokens the maximum number of tokens in a segment. Segments
             with more tokens will be discarded
-        @param tokenize_external whether or not external corpora (tune, eval)
-            should be tokenized
+        @param mask whether or not segments should be masked
+        @param preprocess_external whether or not external corpora (tune, eval)
+            should be preprocessed (tokenized, masked and markup processing)
+        @param process_xml whether or not the XML processing strategy should be
+            applied to segments or not
 
         Note: The source and target side files of the parallel corpus are
             induced from concatenating @param corpus_base_path with
@@ -118,16 +176,16 @@ class Training(object):
             `/foo/corpus.fr`.
         '''
         logging.info("Processing parallel corpus")
-        # tokenize, clean, and split base corpus
-        self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens)
-        # tokenize and clean separate tuning and training corpora (if applicable)
+        # tokenize, clean, mask and split base corpus
+        self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens, mask, process_xml)
+        # tokenize, clean, mask and xml-process separate tuning and training corpora (if applicable)
         if isinstance(self._tuning, str):
             self._preprocess_external_corpus(
                 self._tuning,
                 BASENAME_TUNING_CORPUS,
                 min_tokens,
                 max_tokens,
-                tokenize_external
+                preprocess_external
             )
         if isinstance(self._evaluation, str):
             self._preprocess_external_corpus(
@@ -135,7 +193,7 @@ class Training(object):
                 BASENAME_EVALUATION_CORPUS,
                 min_tokens,
                 max_tokens,
-                tokenize_external
+                preprocess_external
             )
         # lowercase as needed
         self._lowercase()
@@ -277,25 +335,35 @@ class Training(object):
         '''
         self._multeval(num_threads, lowercase=lowercase)
 
-    def _preprocess_segment(self, segment, tokenizer, min_tokens, max_tokens,
-                            tokenize=True):
+    def _preprocess_segment(self, segment, min_tokens, max_tokens, tokenize=True,
+                            tokenizer=None, mask=False, process_xml=False, return_mapping=False):
         '''
-        Tokenizes a bisegment and removes special charcters for use in Moses.
-        Also checks for minimum/maximum number of tokens.
+        Tokenizes a bisegment, escapes special characters, introduces mask tokens or
+            processes markup found in the segment. Also checks for minimum and
+            maximum number of tokens.
 
         @return the preprocessed segment. None means that the segment should be
             discarded.
         '''
         segment = segment.strip()
         if tokenize:
-            tokens = [t for t in tokenizer.tokenize(segment) if t != '']
-            if len(tokens) < min_tokens or len(tokens) > max_tokens:
-                return None # means segment should be discarded
-            else:
-                segment = " ".join(tokens)
-        return cleaner.clean(segment)
+            segment = tokenizer.tokenize(segment, split=False)
+        if process_xml:
+            segment, _ = self._xml_processor.preprocess_markup(segment)
+        if mask:
+            segment, mapping = self._masker.mask_segment(segment)
+        # check length of segment after masking and xml processing, otherwise
+        # the counts will not be meaningful
+        tokens = [token for token in segment.split(" ") if token != '']
+        if len(tokens) < min_tokens or len(tokens) > max_tokens:
+            return None # means segment should be discarded
+        segment = cleaner.clean(segment)
+        if return_mapping:
+            return segment, mapping
+        else:
+            return segment
 
-    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
         '''
         Splits @param corpus_base_path into training, tuning, and evaluation
         sections (as applicable). Outputs are stored in /corpus.
@@ -324,9 +392,12 @@ class Training(object):
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
-            # clean segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens)
-            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens)
+            # tokenize, clean (among other things, remove trailing \n) and otherwise process segments
+            segment_source = self._preprocess_segment(segment_source, min_tokens, max_tokens,
+                                  tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
+            segment_target = self._preprocess_segment(segment_target, min_tokens, max_tokens,
+                                  tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
+
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             # reservoir sampling (Algorithm R)
@@ -359,7 +430,7 @@ class Training(object):
             logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, tokenize_external):
+                                    min_tokens, max_tokens, preprocess_segments):
         '''
         Pre-processes an external corpus into /corpus.
 
@@ -367,9 +438,11 @@ class Training(object):
             is located, without language code suffixes. Example: `/foo/bar/eval`
             will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
             an EN to FR training
-        @param the basename of the external corpus in the context of this
+        @param basename the basename of the external corpus in the context of this
             training, e.g., `test`
         '''
+        mask = bool(self._masking_strategy)
+        process_xml = False if self._xml_strategy == XML_PASS_THROUGH else True
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang)
@@ -378,9 +451,11 @@ class Training(object):
         corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
         corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
         for segment_source, segment_target in zip(corpus_source, corpus_target):
-            # clean segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, self._tokenizer_source, min_tokens, max_tokens, tokenize_external)
-            segment_target = self._preprocess_segment(segment_target, self._tokenizer_target, min_tokens, max_tokens, tokenize_external)
+            # tokenize, clean and mask segments (most importantly, remove trailing \n)
+            segment_source = self._preprocess_segment(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
+            segment_target = self._preprocess_segment(segment_target, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_target, mask=mask, process_xml=process_xml)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             else:
