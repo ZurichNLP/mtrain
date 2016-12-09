@@ -21,10 +21,6 @@ class _Replacement(object):
         self.occurrences = []
         self.with_id = with_id
 
-        # if no patterns are defined that could be masked
-        if not PROTECTED_PATTERNS:
-          sys.exit('Masking is not possible because no patterns are defined in PROTECTED_PATTERNS in mtrain/constants.py.')  
-
     def __call__(self, match):
         matched = match.group(0)
         if self.with_id:
@@ -40,13 +36,23 @@ class _Replacement(object):
 
 class Masker(object):
     
-    def __init__(self, strategy, escape=True):
+    def __init__(self, strategy, escape=True, force_all=False, remove_all=False):
         '''
         @param strategy valid masking strategy
         @param escape whether characters reserved in Moses should be escaped
+        @param force_all in unmasking, use all the entries in the mapping, even
+            if their mask tokens do not appear in the target segment
+        @param remove_all in unmasking, remove all mask tokens from the target
+            segment, even if they do not correspond to a mapping entry
         '''
         self._strategy = strategy
         self._escape = escape
+        self._force_all = force_all
+        self._remove_all = remove_all
+
+        # if no patterns are defined that could be masked
+        if not PROTECTED_PATTERNS:
+            sys.exit('Masking is not possible because no patterns are defined in PROTECTED_PATTERNS in mtrain/constants.py.')
 
     def mask_segment(self, segment):
         '''
@@ -87,13 +93,21 @@ class Masker(object):
             if self._is_mask_token(token):
                 return True
 
+    def _mask_in_list(self, list):
+        '''
+        Determines whether at least one of the item in @param list
+            is a mask token.
+        '''
+        for item in list:
+            if self._is_mask_token(item):
+                return True
+
     def _is_mask_token(self, token):
         '''
         Determines whether an input @param token is a mask or not.
         '''
         # make sure token is a string
-        token = str(token)
-        
+        token = str(token)        
         
         for mask in PROTECTED_PATTERNS.keys():
             if self._strategy == MASKING_IDENTITY:
@@ -115,13 +129,39 @@ class Masker(object):
             if token == mask:
                 return original, index
 
+    def _remove_mask_tokens(self, segment):
+        '''
+        Removes all mask tokens from a string.
+        '''
+        normal_tokens = []
+
+        for token in segment.split(" "):    
+            if not self._is_mask_token(token):
+                normal_tokens.append(token)
+
+        return " ".join(normal_tokens)
+
     def _unmask_segment_identity(self, target_segment, mapping):
         '''
         Replaces mask tokens in @param target_segment using unique mask
             tokens in @param mapping.
         '''
+        unused_originals = []
+
         for mask_token, original in mapping:
-            target_segment = target_segment.replace(mask_token, original, 1)
+            unmasked_segment = target_segment.replace(mask_token, original, 1)
+            
+            # find out if mask token was replaced or not
+            if unmasked_segment == target_segment:
+                unused_originals.append(original)
+            target_segment = unmasked_segment
+
+        if self._remove_all and self._mask_in_string(target_segment):
+            target_segment = self._remove_mask_tokens(target_segment)
+
+        if self._force_all and unused_originals:
+            for original in unused_originals:
+                target_segment = " ".join( [target_segment, original] )
 
         return target_segment
 
@@ -142,7 +182,6 @@ class Masker(object):
             # go through source tokens
             for source_index, source_token in enumerate(source_tokens):
                 if self._is_mask_token(source_token):
-                    found_match = False
                     # follow alignment to target token(s)
                     for candidate_index in alignment[source_index]:
                         # determine aligned token in target phrase
@@ -152,20 +191,18 @@ class Masker(object):
                             target_tokens[candidate_index], remove_index = self._first_original(source_token, mapping)
                             del mapping[remove_index]
 
-                            found_match = True
                             # immediately break out, do not check other aligned candidates in the target phrase
                             break
 
-                    if not found_match:
-                        logging.debug(
-                            "Unmasking for source mask %s failed. " % source_token
-                            + "Mask is missing in the target phrase or in mapping."
-                        )
+            # if there are still mask tokens in the target segment
+            if self._remove_all and self._mask_in_list(target_tokens):
+                  for index, token in reversed(list(enumerate(target_tokens))):
+                    if self._is_mask_token(token):
+                        del target_tokens[index]
             # and if masks are left in the mapping that could not be assigned
-            if mapping:
-                logging.debug(
-                    "One or more masks in the mapping were not used for unmasking: %s" % str(mapping)
-                )
+            if self._force_all and mapping:
+                for _, original in mapping:
+                    target_tokens.append(original)
         
             target_segment = " ".join(target_tokens)
 
