@@ -382,17 +382,34 @@ class Training(object):
         corpus_train = ParallelCorpus(
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
-            max_size=None
+            max_size=None,
+            preprocess=True,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=mask,
+            masker=self._masker if self._masking_strategy else None,
+            process_xml=process_xml,
+            xml_processor=self._xml_processor if self._xml_strategy else None
         )
         corpus_tune = ParallelCorpus(
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
-            max_size=num_tune
+            max_size=num_tune,
+            preprocess=True,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=mask,
+            masker=self._masker if self._masking_strategy else None,
+            process_xml=process_xml,
+            xml_processor=self._xml_processor if self._xml_strategy else None
         )
         corpus_eval = ParallelCorpus(
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            max_size=num_eval
+            max_size=num_eval,
+            preprocess=False
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
@@ -419,24 +436,8 @@ class Training(object):
         corpus_target.close()
         corpus_train.close()
         # preprocess segments, then write to disk, the close file handle
-        corpus_tune.close(
-            tokenize=True,
-            tokenizer_src=self._tokenizer_source,
-            tokenizer_trg=self._tokenizer_target,
-            mask=mask,
-            masker=self._masker if mask else None,
-            process_xml=process_xml,
-            xml_processor=self._xml_processor if process_xml else None
-        )
-        corpus_eval.close(
-            tokenize=True,
-            tokenizer_src=self._tokenizer_source,
-            tokenizer_trg=self._tokenizer_target,
-            mask=mask,
-            masker=self._masker if mask else None,
-            process_xml=process_xml,
-            xml_processor=self._xml_processor if process_xml else None
-        )
+        corpus_tune.close()
+        corpus_eval.close()
         # logging
         logging.info("Training corpus: %s segments", corpus_train.get_size())
         # delete empty corpora, if any
