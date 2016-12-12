@@ -339,7 +339,7 @@ class Training(object):
         '''
         self._evaluator = evaluator.Evaluator(
             basepath=self._basepath,
-            eval_corpus_path=self._get_path('evaluation'),
+            eval_corpus_path=self._get_path('corpus'),
             src_lang=self._src_lang,
             trg_lang=self._trg_lang,
             xml_strategy=self._xml_strategy,

@@ -54,5 +54,5 @@ def get_masking_strategy(basepath):
         masking_strategy = MASKING_ALIGNMENT
     elif assertions.dir_exists(path_identity_masking):
         masking_strategy = MASKING_IDENTITY
-    logging.info("Casing strategy: %s", masking_strategy)
+    logging.info("Masking strategy: %s", masking_strategy)
     return masking_strategy

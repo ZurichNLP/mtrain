@@ -54,7 +54,7 @@ class Evaluator(object):
         if not assertions.dir_exists(self._base_dir_evaluation):
             os.mkdir(self._base_dir_evaluation)
         if self._eval_tool == MULTEVAL_TOOL:
-            self._base_dir_multeval = self._base_dir_evaluation + os.sep + MULTEVAL_TOOL
+            self._base_dir_multeval = self._base_dir_evaluation + os.sep + MULTEVAL_TOOL.lower()
             if not assertions.dir_exists(self._base_dir_multeval):
                 os.mkdir(self._base_dir_multeval)
         else:
@@ -86,8 +86,13 @@ class Evaluator(object):
         Translates sentences from an evaluation corpus.
         '''
         logging.info("Translating evaluation corpus")
-        self._engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang, xml_strategy=self._xml_strategy)
-
+        self._engine = TranslationEngine(
+            self._basepath,
+            self._src_lang,
+            self._trg_lang,
+            uppercase_first_letter=self._detokenize_eval,
+            xml_strategy=self._xml_strategy
+        )
         # determine paths to relevant files
         corpus_eval_src = self._get_path_eval(self._src_lang)
         hypothesis_path = self._get_path_hypothesis()
@@ -114,7 +119,7 @@ class Evaluator(object):
         Returns the path to a side of the reference corpus.
         @param lang language of the source or target side
         '''
-        return self._eval_corpus_path + os.sep + '.'.join(BASENAME_EVALUATION_CORPUS, lang)
+        return self._eval_corpus_path + os.sep + '.'.join([BASENAME_EVALUATION_CORPUS, lang])
 
     def _get_path_eval_trg_processed(self):
         '''
@@ -201,6 +206,14 @@ class Evaluator(object):
             self._eval_options.append(SUFFIX_WITH_MARKUP)
         else:
             self._eval_options.append(SUFFIX_WITHOUT_MARKUP)
+
+        display_options = [item.replace("_", " ") for item in self._eval_options]
+        logging.info(
+            'Evaluating with %s, options: %s' % (
+                self._eval_tool,
+                ', '.join(display_options[:-1]) + ' and ' + display_options[-1]
+            )
+        )
 
         self._translate_eval_corpus_src()
         self._preprocess_eval_corpus_trg()
