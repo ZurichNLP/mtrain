@@ -99,9 +99,11 @@ class Evaluator(object):
                         source_segment,
                         preprocess=True,
                         lowercase=self._lowercase_eval,
-                        detokenize=self._detokenize_eval,
-                        strip_markup=self._strip_markup_eval
+                        detokenize=self._detokenize_eval
                     )
+
+                    if self._strip_markup_eval:
+                        target_segment = self._xml_processor._strip_markup(target_segment)
                     hypothesis.write(target_segment + "\n")
 
         # remove all engine processes

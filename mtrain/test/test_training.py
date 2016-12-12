@@ -234,22 +234,6 @@ class TestTraining(TestCaseWithCleanup):
             "Number of segments in target side of external evaluation corpus must be correct"
         )
 
-    def test_preprocess_create_lowercased_eval_trg_file(self):
-        random_basedir_name = self.get_random_basename()
-        os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, 50, 20)
-        self._create_random_parallel_corpus_files(
-            path=random_basedir_name,
-            filename_source="sample-corpus.en",
-            filename_target="sample-corpus.fr",
-            num_bisegments=200
-        )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
-        self.assertTrue(
-            assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + "." + SUFFIX_LOWERCASED + ".fr"),
-            "A lowercased version of the evaluation corpus' target side must be created"
-        )
-
     def test_preprocess_min_tokens(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)

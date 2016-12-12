@@ -16,6 +16,7 @@ from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
 from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
+from mtrain import evaluator
 
 class Training(object):
     '''
@@ -327,11 +328,31 @@ class Training(object):
         '''
         self._MERT(num_threads)
 
-    def evaluate(self, num_threads=1, lowercase=False):
+    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
+                 strip_markup_eval=False):
         '''
-        Evaluates the engine by translating and scoring an  evaluation set
+        Evaluates the engine by translating and scoring an evaluation set.
+        @param num_threads the maximum number of threads to be used
+        @param lowercase_eval whether to lowercase all segments before evaluation
+        @param detokenize_eval whether to detokenize all segments before evaluation
+        @param strip_markup_eval whether all markup should be removed before evaluation
         '''
-        self._multeval(num_threads, lowercase=lowercase)
+        self._evaluator = evaluator.Evaluator(
+            basepath=self._basepath,
+            eval_corpus_path=self._get_path('evaluation'),
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang,
+            xml_strategy=self._xml_strategy,
+            num_threads=num_threads,
+            eval_tool=MULTEVAL_TOOL,
+            tokenizer_trg=self._tokenizer_target,
+            xml_processor=self._xml_processor
+        )
+        self._evaluator.evaluate(
+            lowercase=lowercase_eval,
+            detokenize=detokenize_eval,
+            strip_markup=strip_markup_eval
+        )
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
@@ -500,12 +521,9 @@ class Training(object):
 
     def _lowercase(self):
         '''
-        Lowercases the training, tuning, and evaluation corpus.
+        Lowercases the training and tuning corpora.
         '''
         files_to_be_lowercased = []
-        if self._evaluation:
-            # always include target-side of eval corpus for case-insensitive evaluation
-            files_to_be_lowercased.append((BASENAME_EVALUATION_CORPUS, self._trg_lang))
         if self._casing_strategy == SELFCASING:
             files_to_be_lowercased.append(
                 (BASENAME_TRAINING_CORPUS, self._src_lang)
@@ -513,10 +531,6 @@ class Training(object):
             if self._tuning:
                 files_to_be_lowercased.append(
                     (BASENAME_TUNING_CORPUS, self._src_lang)
-                )
-            if self._evaluation:
-                files_to_be_lowercased.append(
-                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
                 )
         elif self._casing_strategy == RECASING:
             files_to_be_lowercased.append(
@@ -531,10 +545,6 @@ class Training(object):
                 )
                 files_to_be_lowercased.append(
                     (BASENAME_TUNING_CORPUS, self._trg_lang)
-                )
-            if self._evaluation:
-                files_to_be_lowercased.append(
-                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
                 )
         elif self._casing_strategy == TRUECASING:
             pass
@@ -569,23 +579,18 @@ class Training(object):
             # lowercased input side, unmodified output side
             add_suffix('train', 'src', SUFFIX_LOWERCASED)
             add_suffix('tune', 'src', SUFFIX_LOWERCASED)
-            add_suffix('test', 'src', SUFFIX_LOWERCASED)
         elif self._casing_strategy == TRUECASING:
             # truecased input side, truecased output side
             add_suffix('train', 'src', SUFFIX_TRUECASED)
             add_suffix('train', 'trg', SUFFIX_TRUECASED)
             add_suffix('tune', 'src', SUFFIX_TRUECASED)
             add_suffix('tune', 'trg', SUFFIX_TRUECASED)
-            add_suffix('test', 'src', SUFFIX_TRUECASED)
-            add_suffix('test', 'trg', SUFFIX_TRUECASED)
         elif self._casing_strategy == RECASING:
             # truecased input side, truecased output side
             add_suffix('train', 'src', SUFFIX_LOWERCASED)
             add_suffix('train', 'trg', SUFFIX_LOWERCASED)
             add_suffix('tune', 'src', SUFFIX_LOWERCASED)
             add_suffix('tune', 'trg', SUFFIX_LOWERCASED)
-            add_suffix('test', 'src', SUFFIX_LOWERCASED)
-            add_suffix('test', 'trg', SUFFIX_LOWERCASED)
         # create symlinks
         def symlink_path(basename, lang):
             return self._get_path_corpus([basename, SUFFIX_FINAL], lang)
@@ -799,60 +804,6 @@ class Training(object):
             num_threads=num_threads
         )
         commander.run(mert_command, "Tuning engine through Minimum Error Rate Training (MERT)")
-
-    def _multeval(self, num_threads, lowercase=False):
-        '''
-        Evaluates the engine using MultEval.
-        @param num_threads max number of threads used
-        @param lowercase whether to lowercase the translated segments before evaluation
-        '''
-        # create target directories
-        base_dir_evaluation = self._get_path('evaluation')
-        if not assertions.dir_exists(base_dir_evaluation):
-            os.mkdir(base_dir_evaluation)
-        base_dir_multeval = base_dir_evaluation + os.sep + 'multeval'
-        if not assertions.dir_exists(base_dir_multeval):
-            os.mkdir(base_dir_multeval)
-
-        # translate source side of test corpus
-        logging.info("Translating evaluation corpus")
-        engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang)
-
-        if lowercase:
-            logging.info("Evaluating lowercased text")
-            path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.lowercased.' + self._trg_lang
-            path_reference = self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang)
-        else:
-            logging.info("Evaluating cased text")
-            path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.' + self._trg_lang
-            path_reference = self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang)
-
-        with open(path_reference, 'r') as corpus_evaluation_src:
-            with open(path_hypothesis, 'w') as hypothesis:
-                for segment_source in corpus_evaluation_src:
-                    segment_source = segment_source.strip()
-                    translated_segment = engine.translate(segment_source, preprocess=False, lowercase=lowercase, detokenize=False)
-                    hypothesis.write(translated_segment + '\n')
-
-        # remove all engine processes
-        engine.close()
-
-        # evaluate with multeval
-        output_file = base_dir_multeval + os.sep + 'hypothesis' + ('.lowercased' if lowercase else '') + '.multeval'
-        meteor_argument = '--meteor.language "%s"' % self._trg_lang
-        if self._trg_lang not in METEOR_LANG_CODES.keys():
-            logging.warning("Target language not supported by METEOR library. Evaluation will not include METEOR scores.")
-            meteor_argument = '--metrics bleu,ter,length'
-
-        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" {meteor_argument} --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_file}"'.format(
-            script=MULTEVAL,
-            num_threads=num_threads,
-            meteor_argument=meteor_argument,
-            corpus_evaluation_trg=self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            hypothesis=path_hypothesis,
-            output_file=output_file
-        )
-        commander.run(multeval_command, "Evaluating engine with MultEval")
 
     def write_final_ini(self):
         '''
