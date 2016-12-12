@@ -185,7 +185,7 @@ class Training(object):
                 BASENAME_TUNING_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external
+                preprocess_external=True
             )
         if isinstance(self._evaluation, str):
             self._preprocess_external_corpus(
@@ -193,12 +193,10 @@ class Training(object):
                 BASENAME_EVALUATION_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external
+                preprocess_external=False
             )
         # lowercase as needed
         self._lowercase()
-        # create casing models
-        #todo
         # mark final files (.final symlinks)
         self._mark_final_files()
         # close subprocesses
@@ -416,7 +414,7 @@ class Training(object):
             # check lengths of segments
             segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
                 tokenizer=self._tokenizer_source, accurate=True)
-            segment_target = self._check_segment_length(segment_source, min_tokens, max_tokens,
+            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
                 tokenizer=self._tokenizer_target, accurate=True)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
@@ -451,7 +449,7 @@ class Training(object):
             logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, preprocess_segments):
+                                    min_tokens, max_tokens, preprocess_external):
         '''
         Pre-processes an external corpus into /corpus.
 
@@ -461,22 +459,32 @@ class Training(object):
             an EN to FR training
         @param basename the basename of the external corpus in the context of this
             training, e.g., `test`
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
+        @param preprocess_external whether the segments should be preprocessed
         '''
-        mask = bool(self._masking_strategy)
-        process_xml = False if self._xml_strategy == XML_PASS_THROUGH else True
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
-            self._get_path_corpus(basename, self._trg_lang)
+            self._get_path_corpus(basename, self._trg_lang),
+            max_size=None,
+            preprocess=preprocess_external,
+            tokenize=True, # todo: maybe do not hardcode this
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=bool(self._masking_strategy),
+            masker=self._masker if self._masking_strategy else None,
+            process_xml=False if self._xml_strategy == XML_PASS_THROUGH else True,
+            xml_processor=self._xml_processor if self._xml_strategy else None
         )
         # pre-process segments
         corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
         corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
         for segment_source, segment_target in zip(corpus_source, corpus_target):
             # tokenize, clean and mask segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
-            segment_target = self._preprocess_segment(segment_target, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_target, mask=mask, process_xml=process_xml)
+            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_source, accurate=True)
+            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_target, accurate=True)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             else:

@@ -12,7 +12,7 @@ class ParallelCorpus(object):
     '''
 
     def __init__(self, filepath_source, filepath_target, max_size=None, 
-        preprocess=True, tokenize=True, tokenizer_src=None, tokenizer_trg=None,
+        preprocess=False, tokenize=True, tokenizer_src=None, tokenizer_trg=None,
         mask=False, masker=None, process_xml=False, xml_processor=None):
         '''
         Creates an empty corpus stored at @param filepath_source (source side)
@@ -117,9 +117,9 @@ class ParallelCorpus(object):
             segment, _ = self._xml_processor.preprocess_markup(segment)
         if self._mask:
             segment, _ = self._masker.mask_segment(segment)
-        return segment = cleaner.clean(segment)
+        return cleaner.clean(segment)
 
-    def _preprocess_bisegment(self, bisegment)
+    def _preprocess_bisegment(self, bisegment):
         '''
         Preprocesses a bisegment.
         '''
@@ -129,7 +129,7 @@ class ParallelCorpus(object):
 
         return segment_source, segment_target
 
-    def _write_bisegment(self, bisegment)
+    def _write_bisegment(self, bisegment):
         '''
         Writes a bisegment to file.
         @param bisegment the (source, target) segment tuple to be written to
