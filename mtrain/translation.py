@@ -118,16 +118,19 @@ class TranslationEngine(object):
         return source_segment, segment, mask_mapping, xml_mapping
 
     def _postprocess_segment(self, source_segment, target_segment, lowercase=False,
-                             detokenize=True, mask_mapping=None, xml_mapping=None):
+                             detokenize=True, mask_mapping=None, xml_mapping=None,
+                             strip_markup=False):
         if self._masking_strategy is not None:
             target_segment = self._masker.unmask_segment(target_segment, mask_mapping)
-        if self._xml_strategy is not None:
-            target_segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping)
         if lowercase:
             target_segment = lowercaser.lowercase_string(target_segment)
         else:
             if self._casing_strategy == RECASING:
                 target_segment = self._recaser.recase(target_segment)
+        if self._xml_strategy is not None:
+            target_segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping)
+        if strip_markup:
+            target_segment = self._xml_processor._strip_markup(target_segment)
         if detokenize:
             output_tokens = target_segment.split(" ")
             return self._detokenizer.detokenize(output_tokens)

@@ -10,28 +10,30 @@ from mtrain.constants import *
 from mtrain import assertions
 from mtrain import commander
 from mtrain.translation import TranslationEngine
+from mtrain.preprocessing import lowercaser
+from mtrain.preprocessing.tokenizer import Tokenizer
+from mtrain.preprocessing.xmlprocessor import XmlProcessor
 
 class Evaluator(object):
     '''
     Translates a set of test sentences and evaluates the translations with automatic
         metrics of translation quality.
     '''
-    def __init__(self, basepath, eval_corpus_path, src_lang, trg_lang, casing_strategy,
-        masking_strategy, xml_strategy, num_threads, eval_tool="MultEval"):
+    def __init__(self, basepath, eval_corpus_path, src_lang, trg_lang, xml_strategy,
+        num_threads, eval_tool=MULTEVAL_TOOL, tokenizer_trg=None, xml_processor=None):
         '''
         Creates an evaluation directory, translates test sentences and scores them.
         @param basepath a directory containing a trained engine
         @param eval_corpus_path path to the evaluation corpus
         @param src_lang the language code of the source language, e.g., `en`
         @param trg_lang the language code of the target language, e.g., `fr`
-        @param casing_strategy how case should be handled in preprocessing
-        @param masking_strategy whether and how mask tokens should be
-            introduced into segments
         @param xml_strategy whether fragments of markup in the data should be
             passed through, removed or masked
         @param num_threads max number of threads to be used by all processed
             invoked during evaluation
         @param eval_tool an external tool used for evaluation
+        @param tokenizer_trg the target language tokenizer used for the training corpus
+        @param xml_processor the XML processor used for the training corpus
         '''
         # file paths and languages
         self._basepath = basepath
@@ -39,31 +41,68 @@ class Evaluator(object):
         self._src_lang = src_lang
         self._trg_lang = trg_lang
         # strategies
-        self._masking_strategy = masking_strategy
-        self._casing_strategy = casing_strategy
         self._xml_strategy = xml_strategy
         # evaluation options
         self._num_threads = num_threads
         self._eval_tool = eval_tool
+        # processors for target side of evaluation corpus
+        self._xml_processor = xml_processor if xml_processor else XmlProcessor(self._xml_strategy)
+        self._tokenizer = tokenizer_trg
 
         # create target directories
         self._base_dir_evaluation = os.path.sep.join([self._basepath, PATH_COMPONENT['evaluation']])
         if not assertions.dir_exists(self._base_dir_evaluation):
             os.mkdir(self._base_dir_evaluation)
-        if self._eval_tool == 'MultEval':
-            self._base_dir_multeval = self._base_dir_evaluation + os.sep + EVALUATION_TOOLS['MultEval']
+        if self._eval_tool == MULTEVAL_TOOL:
+            self._base_dir_multeval = self._base_dir_evaluation + os.sep + MULTEVAL_TOOL
             if not assertions.dir_exists(self._base_dir_multeval):
                 os.mkdir(self._base_dir_multeval)
         else:
             # currently, tools other than MultEval are not supported
             raise NotImplementedError
 
-    def _translate_eval_corpus(self):
+    def _preprocess_eval_corpus_trg(self):
+        '''
+        Opens the target side of the reference corpus and applies selected
+            processing steps identical to the postprocessing steps of machine-
+            translated segments.
+        '''
+        path_eval_trg = self._get_path_eval(self._trg_lang)
+        path_eval_trg_processed = self._get_path_eval_trg_processed()
+        with open(path_eval_trg, 'r') as path_eval_trg:
+            with open(path_eval_trg_processed, 'w') as path_eval_trg_processed:
+                for target_segment in path_eval_trg:
+                    target_segment = target_segment.strip()
+                    if self._strip_markup_eval:
+                        target_segment = self._xml_processor._strip_markup(target_segment)
+                    if self._lowercase_eval:
+                        target_segment = lowercaser.lowercase_string(target_segment)
+                    if not self._detokenize_eval:
+                        target_segment = self._tokenizer.tokenize(target_segment, split=False)
+                    path_eval_trg_processed.write(target_segment + "\n")
+
+    def _translate_eval_corpus_src(self):
         '''
         Translates sentences from an evaluation corpus.
         '''
         logging.info("Translating evaluation corpus")
-        self._engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang)
+        self._engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang, xml_strategy=self._xml_strategy)
+
+        # determine paths to relevant files
+        corpus_eval_src = self._get_path_eval(self._src_lang)
+        hypothesis_path = self._get_path_hypothesis()
+
+        with open(corpus_eval_src, 'r') as corpus_eval_src:
+            with open(hypothesis_path, 'w') as hypothesis:
+                for source_segment in corpus_eval_src:
+                    target_segment = self._engine.translate(
+                        source_segment,
+                        preprocess=True,
+                        lowercase=self._lowercase_eval,
+                        detokenize=self._detokenize_eval,
+                        strip_markup=self._strip_markup_eval
+                    )
+                    hypothesis.write(target_segment + "\n")
 
         # remove all engine processes
         self._engine.close()
@@ -73,8 +112,14 @@ class Evaluator(object):
         Returns the path to a side of the reference corpus.
         @param lang language of the source or target side
         '''
-        path_corpus = os.path.sep.join([self._basepath, PATH_COMPONENT['corpus']])
-        return path_corpus + os.sep + '.'.join(BASENAME_EVALUATION_CORPUS, lang)
+        return self._eval_corpus_path + os.sep + '.'.join(BASENAME_EVALUATION_CORPUS, lang)
+
+    def _get_path_eval_trg_processed(self):
+        '''
+        Returns the path to the target side of the reference corpus, where specific
+            processing steps were applied for evaluation.
+        '''
+        return self._base_dir_multeval + os.sep + 'reference' + "." + ".".join(self._eval_options) + "." + self._trg_lang
 
     def _get_path_hypothesis(self):
         '''
@@ -86,7 +131,7 @@ class Evaluator(object):
         '''
         Returns the path to where the evaluation results should be stored.
         '''
-        return self._base_dir_multeval + os.sep + "hypothesis" + "." + ".".join(self._eval_options) + "." + EVALUATION_TOOLS['MultEval']
+        return self._base_dir_multeval + os.sep + "hypothesis" + "." + ".".join(self._eval_options) + "." + self._eval_tool.lower()
 
     def _score(self):
         '''
@@ -95,9 +140,9 @@ class Evaluator(object):
         # determine paths to relevant files
         output_path = self._get_path_eval_output()
         hypothesis_path = self._get_path_hypothesis()
-        corpus_evaluation_trg = self._get_path_eval(self._trg_lang)
+        corpus_evaluation_trg = self._get_path_eval_trg_processed()
 
-        if self._eval_tool == EVALUATION_TOOLS['MultEval']:
+        if self._eval_tool == MULTEVAL_TOOL:
             self._multeval(output_path, hypothesis_path, corpus_evaluation_trg)
         else:
             raise NotImplementedError
@@ -115,13 +160,13 @@ class Evaluator(object):
             logging.warning("Target language not supported by METEOR library. Evaluation will not include METEOR scores.")
             meteor_argument = '--metrics bleu,ter,length'
 
-        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" {meteor_argument} --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_file}"'.format(
+        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" {meteor_argument} --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_path}"'.format(
             script=MULTEVAL,
             num_threads=self._num_threads,
             meteor_argument=meteor_argument,
             corpus_evaluation_trg=corpus_evaluation_trg,
             hypothesis=hypothesis_path,
-            output_file=output_path
+            output_path=output_path
         )
         commander.run(multeval_command, "Evaluating engine with MultEval")
 
@@ -142,18 +187,20 @@ class Evaluator(object):
         # conveniently list evaluation options
         self._eval_options = []
         if self._lowercase_eval:
-            self._eval_options.append('lowercased')
+            self._eval_options.append(SUFFIX_LOWERCASED)
         else:
-            self._eval_options.append('cased')
+            self._eval_options.append(SUFFIX_CASED)
         if self._detokenize_eval:
-            self._eval_options.append('detokenized')
+            self._eval_options.append(SUFFIX_DETOKENIZED)
         else:
-            self._eval_options.append('tokenized')
+            self._eval_options.append(SUFFIX_TOKENIZED)
+        # todo: only if there is a self._xml_strategy?
         if self._strip_markup_eval:
-            self._eval_options.append('no_markup')
+            self._eval_options.append(SUFFIX_WITH_MARKUP)
         else:
-            self._eval_options.append('with_markup')
+            self._eval_options.append(SUFFIX_WITHOUT_MARKUP)
 
-        self._translate_eval_corpus()
+        self._translate_eval_corpus_src()
+        self._preprocess_eval_corpus_trg()
         self._score()
         

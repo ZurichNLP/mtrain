@@ -73,10 +73,15 @@ BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
 BASENAME_EVALUATION_CORPUS = 'test'
 SUFFIX_TOKENIZED = 'tokenized'
+SUFFIX_DETOKENIZED= 'detokenized'
 SUFFIX_MASKED = 'masked'
+SUFFIX_UNMASKED = 'unmasked'
 SUFFIX_CLEANED = 'cleaned'
 SUFFIX_LOWERCASED = 'lowercased'
+SUFFIX_CASED = 'cased'
 SUFFIX_TRUECASED = 'truecased'
+SUFFIX_WITH_MARKUP = 'with_markup'
+SUFFIX_WITHOUT_MARKUP = 'without_markup'
 SUFFIX_FINAL = 'final'
 
 # Valid language codes for Moses tokenizer
@@ -205,6 +210,13 @@ XML_STRATEGIES_DEFAULTS = {
     XML_STRIP: REINSERTION_ALIGNMENT,
     XML_STRIP_REINSERT: REINSERTION_ALIGNMENT,
     XML_MASK: MASKING_IDENTITY
+}
+
+# Evaluation
+MULTEVAL_TOOL = 'MultEval'
+EVALUATION_TOOLS = {
+    MULTEVAL_TOOL: "evaluate with MultEval, computes BLEU, TER and " +
+        "METEOR scores (the latter only if target language is supported)"
 }
 
 # Python logging levels
