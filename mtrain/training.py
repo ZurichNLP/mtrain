@@ -335,33 +335,37 @@ class Training(object):
         '''
         self._multeval(num_threads, lowercase=lowercase)
 
-    def _preprocess_segment(self, segment, min_tokens, max_tokens, tokenize=True,
-                            tokenizer=None, mask=False, process_xml=False, return_mapping=False):
+    def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
+            accurate=False):
         '''
         Tokenizes a bisegment, escapes special characters, introduces mask tokens or
             processes markup found in the segment. Also checks for minimum and
             maximum number of tokens.
-
-        @return the preprocessed segment. None means that the segment should be
+        @param segment the segment the length of which should be determined
+        @param min_tokens minimal number of tokens
+        @param max_tokens maximal number of tokens
+        @param tokenizer the right tokenizer depending on the language
+        @param whether the counting should be naive (faster) or accurate (slower)
+        @return the input segment. None means that the segment should be
             discarded.
         '''
-        segment = segment.strip()
-        if tokenize:
+        original_segment = segment
+
+        # more accurate count if preprocessing steps are applied
+        if accurate:
+            segment = segment.strip()
             segment = tokenizer.tokenize(segment, split=False)
-        if process_xml:
-            segment, _ = self._xml_processor.preprocess_markup(segment)
-        if mask:
-            segment, mapping = self._masker.mask_segment(segment)
-        # check length of segment after masking and xml processing, otherwise
-        # the counts will not be meaningful
+            if self._xml_strategy:
+                segment = self._xml_processor._strip_markup(segment)
+            if self._masking_strategy:
+                segment, _ = self._masker.mask_segment(segment)
+
         tokens = [token for token in segment.split(" ") if token != '']
         if len(tokens) < min_tokens or len(tokens) > max_tokens:
-            return None # means segment should be discarded
-        segment = cleaner.clean(segment)
-        if return_mapping:
-            return segment, mapping
-        else:
-            return segment
+            # None means segment should be discarded
+            return None
+
+        return original_segment        
 
     def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
         '''
@@ -392,12 +396,11 @@ class Training(object):
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
-            # tokenize, clean (among other things, remove trailing \n) and otherwise process segments
-            segment_source = self._preprocess_segment(segment_source, min_tokens, max_tokens,
-                                  tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
-            segment_target = self._preprocess_segment(segment_target, min_tokens, max_tokens,
-                                  tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
-
+            # check lengths of segments
+            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_source, accurate=True)
+            segment_target = self._check_segment_length(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_target, accurate=True)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             # reservoir sampling (Algorithm R)
@@ -415,8 +418,25 @@ class Training(object):
         corpus_source.close()
         corpus_target.close()
         corpus_train.close()
-        corpus_tune.close()
-        corpus_eval.close()
+        # preprocess segments, then write to disk, the close file handle
+        corpus_tune.close(
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=mask,
+            masker=self._masker if mask else None,
+            process_xml=process_xml,
+            xml_processor=self._xml_processor if process_xml else None
+        )
+        corpus_eval.close(
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=mask,
+            masker=self._masker if mask else None,
+            process_xml=process_xml,
+            xml_processor=self._xml_processor if process_xml else None
+        )
         # logging
         logging.info("Training corpus: %s segments", corpus_train.get_size())
         # delete empty corpora, if any
