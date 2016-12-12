@@ -117,18 +117,18 @@ class TranslationEngine(object):
             xml_mapping = None
         return source_segment, segment, mask_mapping, xml_mapping
 
-    def _postprocess_segment(self, source_segment, target_segment, lowercase=False,
-                             detokenize=True, mask_mapping=None, xml_mapping=None,
-                             strip_markup=False):
+    def _postprocess_segment(self, source_segment, target_segment, masked_source_segment=None,
+                             lowercase=False, detokenize=True, mask_mapping=None,
+                             xml_mapping=None, strip_markup=False):
         if self._masking_strategy is not None:
-            target_segment = self._masker.unmask_segment(target_segment, mask_mapping)
+            target_segment = self._masker.unmask_segment(masked_source_segment, target_segment, mask_mapping)
         if lowercase:
             target_segment = lowercaser.lowercase_string(target_segment)
         else:
             if self._casing_strategy == RECASING:
                 target_segment = self._recaser.recase(target_segment)
         if self._xml_strategy is not None:
-            target_segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping)
+            target_segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping, masked_source_segment)
         if strip_markup:
             target_segment = self._xml_processor._strip_markup(target_segment)
         if detokenize:
@@ -166,5 +166,12 @@ class TranslationEngine(object):
         translated_segment = self._engine.translate_segment(segment)
         translation = translated_segment.translation
         
-        return self._postprocess_segment(source_segment, translation, lowercase, detokenize,
-                                         mask_mapping, xml_mapping)
+        return self._postprocess_segment(
+            source_segment=source_segment,
+            masked_source_segment=segment,
+            target_segment=translation,
+            lowercase=lowercase,
+            detokenize=detokenize,
+            mask_mapping=mask_mapping,
+            xml_mapping=xml_mapping
+        )

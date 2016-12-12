@@ -10,6 +10,7 @@ from mtrain.constants import *
 from mtrain import assertions
 from mtrain import commander
 from mtrain.translation import TranslationEngine
+from mtrain.preprocessing import cleaner
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
@@ -109,6 +110,9 @@ class Evaluator(object):
 
                     if self._strip_markup_eval:
                         target_segment = self._xml_processor._strip_markup(target_segment)
+                    # make sure deescaping works if detokenization requested
+                    if self._detokenize_eval:
+                        target_segment = cleaner.deescape_special_chars(target_segment)
                     hypothesis.write(target_segment + "\n")
 
         # remove all engine processes
@@ -185,6 +189,9 @@ class Evaluator(object):
         @param lowercase whether to lowercase all segments before evaluation
         @param detokenize whether to detokenize all segments before evaluation
         @param strip_markup whether all markup should be removed before evaluation
+
+        Note: tokenized evaluation implies escaped evaluation, detokenized
+            evaluation implies deescaped evaluation
         '''
         # reset evaluation options for each invocation of the method
         self._lowercase_eval = lowercase
@@ -203,14 +210,13 @@ class Evaluator(object):
             self._eval_options.append(SUFFIX_TOKENIZED)
         # todo: only if there is a self._xml_strategy?
         if self._strip_markup_eval:
-            self._eval_options.append(SUFFIX_WITH_MARKUP)
-        else:
             self._eval_options.append(SUFFIX_WITHOUT_MARKUP)
+        else:
+            self._eval_options.append(SUFFIX_WITH_MARKUP)
 
         display_options = [item.replace("_", " ") for item in self._eval_options]
         logging.info(
-            'Evaluating with %s, options: %s' % (
-                self._eval_tool,
+            'Evaluation options: %s' % (
                 ', '.join(display_options[:-1]) + ' and ' + display_options[-1]
             )
         )

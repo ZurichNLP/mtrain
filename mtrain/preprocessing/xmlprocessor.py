@@ -55,15 +55,16 @@ class XmlProcessor(object):
         '''
         return self._masker.mask_segment(segment)
 
-    def _unmask_markup(self, segment, mapping):
+    def _unmask_markup(self, masked_source_segment, target_segment, mapping):
         '''
         When a mask token is found, reinsert the original
             XML markup content.
-        @param segment a segment with mask tokens
+        @param masked_source_segment a source language segment with mask tokens
+        @param target_segment a translation with mask tokens
         @param mapping a dictionary containing the mask tokens
             and the original content
         '''
-        return self._masker.unmask_segment(segment, mapping)
+        return self._masker.unmask_segment(masked_source_segment, target_segment, mapping)
 
     def _reinsert_markup(self, source_segment, target_segment):
         '''
@@ -92,9 +93,10 @@ class XmlProcessor(object):
         elif self._xml_strategy == XML_MASK:
             return self._mask_markup(segment)
         elif self._xml_strategy == XML_PASS_THROUGH:
-            return segment # then return segment unchanged
+            return segment, None # then return segment unchanged
 
-    def postprocess_markup(self, source_segment, target_segment, mapping=None):
+    def postprocess_markup(self, source_segment, target_segment,
+                           mapping=None, masked_source_segment=None):
         '''
         Unmasks or restores XML markup after translation, depending
             on the markup strategy.
@@ -102,10 +104,10 @@ class XmlProcessor(object):
         if self._xml_strategy == XML_STRIP_REINSERT:
             return self._reinsert_markup(source_segment, target_segment)
         elif self._xml_strategy == XML_STRIP:
-            # in this case, do nothing
+            # in this case, do nothing / todo: well, remove markup if any?
             return target_segment 
         elif self._xml_strategy == XML_MASK:
-            return self._unmask_markup(target_segment, mapping)
+            return self._unmask_markup(masked_source_segment, target_segment, mapping)
         elif self._xml_strategy == XML_PASS_THROUGH:
             return segment # then return segment unchanged
 

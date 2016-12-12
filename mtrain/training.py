@@ -375,7 +375,7 @@ class Training(object):
             segment = segment.strip()
             segment = tokenizer.tokenize(segment, split=False)
             if self._xml_strategy:
-                segment = self._xml_processor._strip_markup(segment)
+                segment, _ = self._xml_processor.preprocess_markup(segment)
             if self._masking_strategy:
                 segment, _ = self._masker.mask_segment(segment)
 
