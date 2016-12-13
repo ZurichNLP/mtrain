@@ -7,6 +7,7 @@ Class for handling XML markup during training and translation
 from mtrain.preprocessing.masking import Masker
 from mtrain.preprocessing.reinsertion import Reinserter
 from mtrain.constants import *
+from mtrain.preprocessing import cleaner
 
 import re
 import xml.sax.saxutils
@@ -43,8 +44,9 @@ class XmlProcessor(object):
             segment = re.sub('<[^>]*>', '', segment)
         else:
             segment = xml.sax.saxutils.escape(segment)
-
-        return re.sub(' +', ' ', segment).strip()
+        # normalize whitespace
+        segment = re.sub(' +', ' ', segment).strip()
+        return cleaner.escape_special_chars(segment)
 
     def _mask_markup(self, segment):
         '''

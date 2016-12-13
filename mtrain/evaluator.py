@@ -110,9 +110,6 @@ class Evaluator(object):
 
                     if self._strip_markup_eval:
                         target_segment = self._xml_processor._strip_markup(target_segment)
-                    # make sure deescaping works if detokenization requested
-                    if self._detokenize_eval:
-                        target_segment = cleaner.deescape_special_chars(target_segment)
                     hypothesis.write(target_segment + "\n")
 
         # remove all engine processes

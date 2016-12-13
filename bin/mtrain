@@ -140,9 +140,9 @@ def get_argument_parser():
         type=str,
         help="decide how XML fragments in the input segments should " +
             "be dealt with. Valid choices are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES_TRAINING.items()]),
-        choices=XML_STRATEGIES_TRAINING.keys(),
-        default="strip"
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES.items()]),
+        choices=XML_STRATEGIES.keys(),
+        default=None
     )
     return parser
 

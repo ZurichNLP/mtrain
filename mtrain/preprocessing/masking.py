@@ -10,6 +10,7 @@ from mtrain.preprocessing import cleaner
 
 import sys
 import re
+import logging
 
 class _Replacement(object):
     '''

@@ -64,8 +64,8 @@ def get_argument_parser():
         type=str,
         help="decide how XML fragments in the input segments should " +
             "be dealt with. Valid choices are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES_TRANSLATION.items()]),
-        choices=XML_STRATEGIES_TRANSLATION.keys()
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES.items()]),
+        choices=XML_STRATEGIES.keys()
     )
     return parser
 

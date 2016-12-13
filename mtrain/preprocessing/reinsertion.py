@@ -322,23 +322,28 @@ class Reinserter(object):
     
             open_now = []
             close_now = []
-            source_index = target_to_source_alignment[target_index]
+            try:
+                source_index = target_to_source_alignment[target_index]
+            except KeyError:
+                # no alignment to the source
+                source_index = None
             
-            # check if elements need to be opened here
-            if source_index in opening_elements_by_position:
-                open_now.extend(opening_elements_by_position[source_index])
-                del opening_elements_by_position[source_index]
-            # check if elements need to be closed here
-            if source_index in closing_elements_by_position:
-                close_now.extend(closing_elements_by_position[source_index])
-                del closing_elements_by_position[source_index]
+            if source_index:
+                # check if elements need to be opened here
+                if source_index in opening_elements_by_position:
+                    open_now.extend(opening_elements_by_position[source_index])
+                    del opening_elements_by_position[source_index]
+                # check if elements need to be closed here
+                if source_index in closing_elements_by_position:
+                    close_now.extend(closing_elements_by_position[source_index])
+                    del closing_elements_by_position[source_index]
 
-            # actually open elements
-            output_tokens.extend(open_now)
-            # output actual phrase
-            output_tokens.append(target_token)
-            # actually close elements
-            output_tokens.extend(close_now)
+                # actually open elements
+                output_tokens.extend(open_now)
+                # output actual phrase
+                output_tokens.append(target_token)
+                # actually close elements
+                output_tokens.extend(close_now)
 
         if force_all:
             # if there are remaining opening tags

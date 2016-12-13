@@ -27,11 +27,14 @@ class TranslationEngine(object):
         # set strategies
         self._casing_strategy = inspector.get_casing_strategy(self._basepath)
         self._masking_strategy = inspector.get_masking_strategy(self._basepath)
-        self._xml_strategy = xml_strategy
+        # if no XML strategy, guess from directory
+        if xml_strategy:
+            self._xml_strategy = xml_strategy
+        else:
+            self._xml_strategy = inspector.get_xml_strategy(self._basepath)
         # load components
         self._load_tokenizer()
         self._detokenizer = Detokenizer(trg_lang, uppercase_first_letter)
-        self._load_engine()
         if self._casing_strategy == TRUECASING:
             self._load_truecaser()
         elif self._casing_strategy == RECASING:
@@ -40,6 +43,11 @@ class TranslationEngine(object):
             self._load_masker()
         if self._xml_strategy:
             self._load_xml_processor()
+        # load engine
+        if self._masking_strategy or self._xml_strategy:
+            self._load_engine(report_alignment=True, report_segmentation=True)
+        else:
+            self._load_engine
 
     def _load_engine(self, report_alignment=False, report_segmentation=False):
         '''
@@ -60,15 +68,27 @@ class TranslationEngine(object):
         )
 
     def _load_tokenizer(self):
-        if self._masking_strategy is not None:
+        '''
+        Loads a tokenizer depending on the masking and XML strategies
+        guessed from the engine directory.
+        '''
+        if self._masking_strategy:
+            tokenizer_protects = True
+            overall_strategy = MASKING
+            detailed_strategy = self._masking_strategy
+        elif self._xml_strategy:
+            tokenizer_protects = True
+            overall_strategy = self._xml_strategy
+            detailed_strategy = XML_STRATEGIES_DEFAULTS[self._xml_strategy]            
+
+        if tokenizer_protects:
             patterns_path = os.sep.join([
                 self._basepath,
                 PATH_COMPONENT['engine'],
-                MASKING,
-                self._masking_strategy,
+                overall_strategy,
+                detailed_strategy,
                 PROTECTED_PATTERNS_FILE_NAME
             ])
-            
             self._tokenizer = Tokenizer(self._src_lang, protect=True, protected_patterns_path=patterns_path, escape=False)
         else:
             self._tokenizer = Tokenizer(self._src_lang)
@@ -121,21 +141,21 @@ class TranslationEngine(object):
                              lowercase=False, detokenize=True, mask_mapping=None,
                              xml_mapping=None, strip_markup=False):
         if self._masking_strategy is not None:
-            target_segment = self._masker.unmask_segment(masked_source_segment, target_segment, mask_mapping)
+            target_segment.translation = self._masker.unmask_segment(masked_source_segment, target_segment.translation, mask_mapping)
         if lowercase:
-            target_segment = lowercaser.lowercase_string(target_segment)
+            target_segment.translation = lowercaser.lowercase_string(target_segment.translation)
         else:
             if self._casing_strategy == RECASING:
-                target_segment = self._recaser.recase(target_segment)
+                target_segment.translation = self._recaser.recase(target_segment.translation)
         if self._xml_strategy is not None:
-            target_segment = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping, masked_source_segment)
+            target_segment.translation = self._xml_processor.postprocess_markup(source_segment, target_segment, xml_mapping, masked_source_segment)
         if strip_markup:
-            target_segment = self._xml_processor._strip_markup(target_segment)
+            target_segment.translation = self._xml_processor._strip_markup(target_segment.translation)
         if detokenize:
-            output_tokens = target_segment.split(" ")
+            output_tokens = target_segment.translation.split(" ")
             return self._detokenizer.detokenize(output_tokens)
         else:
-            return target_segment
+            return target_segment.translation
 
     def close(self):
         del self._engine
@@ -169,7 +189,7 @@ class TranslationEngine(object):
         return self._postprocess_segment(
             source_segment=source_segment,
             masked_source_segment=segment,
-            target_segment=translation,
+            target_segment=translated_segment,
             lowercase=lowercase,
             detokenize=detokenize,
             mask_mapping=mask_mapping,

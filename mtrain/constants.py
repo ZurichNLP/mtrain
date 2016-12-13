@@ -182,28 +182,17 @@ XML_STRIP = 'strip' # for training
 XML_STRIP_REINSERT = 'strip-reinsert' # for translation
 XML_MASK = 'mask'
 # Valid strategies for training
-XML_STRATEGIES_TRAINING = {
+XML_STRATEGIES = {
     XML_PASS_THROUGH: "do nothing, except for properly escaping special " +
         "characters before training the models (not recommended if your " +
         "input contains markup)",
     XML_STRIP: "remove markup from all segments before training, and do " +
         "not store the markup anywhere",
-    XML_MASK: "replace stretches of markup with mask tokens before " +
-        "training. Then train the models with segments that contain " +
-        "mask tokens"
-}
-# valid strategies for translation
-XML_STRATEGIES_TRANSLATION = {
-    XML_PASS_THROUGH: "do nothing, except for properly escaping special " +
-        "characters before translation and undoing this afterwards " +
-        "(not recommended if your input contains markup)",
-    XML_STRIP: "remove markup from all input segments before translation " +
-        "and do not reinsert afterwards",
     XML_STRIP_REINSERT: "remove markup from all segments before translation " +
         "and reinsert into the translated segment afterwards",
     XML_MASK: "replace stretches of markup with mask tokens before " +
-        "translation. After translation, reverse this process, replace " +
-        "the mask tokens with the original content"
+        "training. Then train the models with segments that contain " +
+        "mask tokens"
 }
 # More fine-grained defaults for XML processing
 XML_STRATEGIES_DEFAULTS = {

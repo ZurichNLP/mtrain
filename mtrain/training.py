@@ -108,12 +108,14 @@ class Training(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    def _get_path_masking_patterns(self, strategy):
+    def _get_path_masking_patterns(self, overall_strategy, detailed_strategy):
         '''
         Make sure a masking directory and masking strategy subfolder exist,
-        @return the path to the masking patterns file
+        @return the path to the masking patterns file.
+        @param overall_strategy coarse-grained masking or XML strategy
+        @param detailed_strategy fine-grained masking or XML strategy
         '''
-        protected_patterns_dir = os.sep.join([self._get_path('engine'), MASKING, strategy])
+        protected_patterns_dir = os.sep.join([self._get_path('engine'), overall_strategy, detailed_strategy])
         if not assertions.dir_exists(protected_patterns_dir):
             os.makedirs(protected_patterns_dir, exist_ok=True)
         return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
@@ -123,13 +125,28 @@ class Training(object):
         tokenizer_protects = False
         if self._masking_strategy:
             tokenizer_protects = True
-            protected_patterns_path = self._get_path_masking_patterns(strategy=self._masking_strategy)
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=MASK,
+                detailed_strategy=self._masking_strategy
+            )
         elif self._xml_strategy == XML_MASK:
             tokenizer_protects = True
-            protected_patterns_path = self._get_path_masking_patterns(strategy=XML_STRATEGIES_DEFAULTS[XML_MASK])
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=XML_MASK,
+                detailed_strategy=XML_STRATEGIES_DEFAULTS[XML_MASK]
+            )
+        elif self._xml_strategy == XML_STRIP or self._xml_strategy == XML_STRIP_REINSERT:
+            tokenizer_protects=True
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=self._xml_strategy,
+                detailed_strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy]
+            )
 
         if tokenizer_protects:
-            write_masking_patterns(protected_patterns_path, markup_only=self._xml_strategy == XML_MASK)
+            write_masking_patterns(
+                protected_patterns_path,
+                markup_only=bool(self._xml_strategy)
+            )
 
             self._tokenizer_source = Tokenizer(
                 self._src_lang,
