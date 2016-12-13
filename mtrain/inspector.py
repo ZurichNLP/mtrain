@@ -23,10 +23,11 @@ def is_mtrain_engine(basepath):
             return False
     return True
 
-def get_casing_strategy(basepath):
+def get_casing_strategy(basepath, quiet=False):
     '''
     Returns the casing strategy used to train the engine located at @param
     basepath
+    @param quiet if quiet, do not INFO log the strategy that was found
     '''
     if not is_mtrain_engine(basepath):
         logging.warning("%s doesn't seem to be the base directory of an engine trained through `mtrain`", basepath)
@@ -37,13 +38,17 @@ def get_casing_strategy(basepath):
         casing_strategy = RECASING
     elif assertions.dir_exists(path_truecaser):
         casing_strategy = TRUECASING
-    logging.info("Casing strategy: %s", casing_strategy)
+    if quiet:
+        logging.debug("Casing strategy: %s", casing_strategy)
+    else:
+        logging.info("Casing strategy: %s", casing_strategy)
     return casing_strategy
 
-def get_xml_strategy(basepath):
+def get_xml_strategy(basepath, quiet=False):
     '''
     Returns the XMl strategy used to train the engine located at @param
     basepath
+    @param quiet if quiet, do not INFO log the strategy that was found
 
     Note: does not guess the fine-grained XML strategy from the engine directory,
     the fine-grained strategy is taken from mtrain.constants later on
@@ -58,20 +63,24 @@ def get_xml_strategy(basepath):
     # default
     xml_strategy = None
 
-    if assertions.dir_exsists(path_xml_masking):
+    if assertions.dir_exists(path_xml_masking):
         xml_strategy = XML_MASK
-    elif assertions.dir_exsists(path_xml_strip):
+    elif assertions.dir_exists(path_xml_strip):
         xml_strategy = XML_STRIP
-    elif assertions.dir_exsists(path_xml_reinsertion):
+    elif assertions.dir_exists(path_xml_reinsertion):
         xml_strategy = XML_STRIP_REINSERT
-    logging.info("XML strategy: %s", xml_strategy)
+    if quiet:
+        logging.debug("XML strategy: %s", xml_strategy)
+    else:
+        logging.info("XML strategy: %s", xml_strategy)
     return xml_strategy
     
 
-def get_masking_strategy(basepath):
+def get_masking_strategy(basepath, quiet=False):
     '''
     Returns the masking strategy used to train the engine located at @param
     basepath
+    @param quiet if quiet, do not INFO log the strategy that was found
     '''
     if not is_mtrain_engine(basepath):
         logging.warning("%s doesn't seem to be the base directory of an engine trained through `mtrain`", basepath)
@@ -85,5 +94,8 @@ def get_masking_strategy(basepath):
         masking_strategy = MASKING_ALIGNMENT
     elif assertions.dir_exists(path_identity_masking):
         masking_strategy = MASKING_IDENTITY
-    logging.info("Masking strategy: %s", masking_strategy)
+    if quiet:
+        logging.debug("Masking strategy: %s", masking_strategy)
+    else:
+        logging.info("Masking strategy: %s", masking_strategy)
     return masking_strategy

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import itertools
 import logging
 import random
 import shutil
@@ -217,9 +218,6 @@ class Training(object):
         self._lowercase()
         # mark final files (.final symlinks)
         self._mark_final_files()
-        # close subprocesses
-        self._tokenizer_source.close()
-        self._tokenizer_target.close()
 
     def train_truecaser(self):
         '''
@@ -346,13 +344,17 @@ class Training(object):
         self._MERT(num_threads)
 
     def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
-                 strip_markup_eval=False):
+                 strip_markup_eval=False, extended=False):
         '''
         Evaluates the engine by translating and scoring an evaluation set.
         @param num_threads the maximum number of threads to be used
         @param lowercase_eval whether to lowercase all segments before evaluation
         @param detokenize_eval whether to detokenize all segments before evaluation
         @param strip_markup_eval whether all markup should be removed before evaluation
+        @param extended perform multiple evaluations that vary processing steps applied
+            to the test files: lowercased or not, detokenized or not, with markup or without
+
+        Source of permutation code in this function: http://stackoverflow.com/a/22929021/1987598.
         '''
         self._evaluator = evaluator.Evaluator(
             basepath=self._basepath,
@@ -363,13 +365,20 @@ class Training(object):
             num_threads=num_threads,
             eval_tool=MULTEVAL_TOOL,
             tokenizer_trg=self._tokenizer_target,
-            xml_processor=self._xml_processor
+            xml_processor=self._xml_processor,
+            extended_eval=extended
         )
-        self._evaluator.evaluate(
-            lowercase=lowercase_eval,
-            detokenize=detokenize_eval,
-            strip_markup=strip_markup_eval
-        )
+        if extended:
+            permutations = list(itertools.permutations([True, True , False], 3))
+            for permutation in permutations:
+                self._evaluator.evaluate(*permutation)
+        else:
+            self._evaluator.evaluate(
+                lowercase=lowercase_eval,
+                detokenize=detokenize_eval,
+                strip_markup=strip_markup_eval,
+                extended=False
+            )
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):

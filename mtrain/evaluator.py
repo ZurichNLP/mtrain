@@ -21,7 +21,8 @@ class Evaluator(object):
         metrics of translation quality.
     '''
     def __init__(self, basepath, eval_corpus_path, src_lang, trg_lang, xml_strategy,
-        num_threads, eval_tool=MULTEVAL_TOOL, tokenizer_trg=None, xml_processor=None):
+        num_threads, eval_tool=MULTEVAL_TOOL, tokenizer_trg=None, xml_processor=None,
+        extended_eval=False):
         '''
         Creates an evaluation directory, translates test sentences and scores them.
         @param basepath a directory containing a trained engine
@@ -35,6 +36,8 @@ class Evaluator(object):
         @param eval_tool an external tool used for evaluation
         @param tokenizer_trg the target language tokenizer used for the training corpus
         @param xml_processor the XML processor used for the training corpus
+        @param extended_eval perform multiple evaluations that vary processing
+            steps applied to the test set before each round of evaluation
         '''
         # file paths and languages
         self._basepath = basepath
@@ -46,6 +49,9 @@ class Evaluator(object):
         # evaluation options
         self._num_threads = num_threads
         self._eval_tool = eval_tool
+        self._extended_eval = extended_eval
+        if self._extended_eval:
+            self._num_rounds = 0
         # processors for target side of evaluation corpus
         self._xml_processor = xml_processor if xml_processor else XmlProcessor(self._xml_strategy)
         self._tokenizer = tokenizer_trg
@@ -86,18 +92,21 @@ class Evaluator(object):
         '''
         Translates sentences from an evaluation corpus.
         '''
-        logging.info("Translating evaluation corpus")
         self._engine = TranslationEngine(
             self._basepath,
             self._src_lang,
             self._trg_lang,
             uppercase_first_letter=self._detokenize_eval,
-            xml_strategy=self._xml_strategy
+            xml_strategy=self._xml_strategy,
+            quiet=self._extended_eval
         )
         # determine paths to relevant files
         corpus_eval_src = self._get_path_eval(self._src_lang)
         hypothesis_path = self._get_path_hypothesis()
 
+        if not self._extended_eval:
+            logging.info("Translating evaluation corpus")
+        # translate eval corpus
         with open(corpus_eval_src, 'r') as corpus_eval_src:
             with open(hypothesis_path, 'w') as hypothesis:
                 for source_segment in corpus_eval_src:
@@ -113,7 +122,8 @@ class Evaluator(object):
                     hypothesis.write(target_segment + "\n")
 
         # remove all engine processes
-        self._engine.close()
+        if not self._extended_eval:
+            self._engine.close()
 
     def _get_path_eval(self, lang):
         '''
@@ -176,7 +186,10 @@ class Evaluator(object):
             hypothesis=hypothesis_path,
             output_path=output_path
         )
-        commander.run(multeval_command, "Evaluating engine with MultEval")
+        commander.run(
+            multeval_command,
+            "Evaluating with MultEval" if not self._extended_eval else None 
+        )
 
     # only exposed method
     def evaluate(self, lowercase, detokenize, strip_markup):
@@ -211,11 +224,14 @@ class Evaluator(object):
         else:
             self._eval_options.append(SUFFIX_WITH_MARKUP)
 
+        # appropriate logging
         display_options = [item.replace("_", " ") for item in self._eval_options]
+        message = "Evaluation options:"
+        if self._extended_eval:
+            self._num_rounds += 1
+            message = "Extended evaluation round %i, options: " % self._num_rounds
         logging.info(
-            'Evaluation options: %s' % (
-                ', '.join(display_options[:-1]) + ' and ' + display_options[-1]
-            )
+            message + ', '.join(display_options[:-1]) + ' and ' + display_options[-1]
         )
 
         self._translate_eval_corpus_src()

@@ -79,10 +79,9 @@ def get_argument_parser():
         action='store_true'
     )
     parser.add_argument(
-        "--preprocess_external",
-        help="preprocess external tuning and evaluation corpora. Don't use if " +
-            "the external files provided in --tune and --eval are already " +
-            "preprocessed.",
+        "--preprocess_external_tune",
+        help="preprocess external tuning corpus. Don't use if " +
+            "the external files provided in --tune are already preprocessed.",
         default=False,
         action='store_true'
     )
@@ -144,6 +143,13 @@ def get_argument_parser():
         choices=XML_STRATEGIES.keys(),
         default=None
     )
+    parser.add_argument(
+        "--extended_eval",
+        action="store_true",
+        help="perform multiple evaluations that vary the appearance of the test files: " +
+            "lowercased or not, detokenized or not, with markup or without.",
+        default=False
+    )
     return parser
 
 def main():
@@ -173,6 +179,13 @@ def main():
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
+
+    # generic masking and XML masking currently not possible at the same time
+    if args.masking and args.xml_input == XML_MASK:
+        logging.critical("Invalid command line options. Choose either '--masking' or " +
+            "'--xml_input mask', but not both. See '-h'/'--help' for more information.")
+        sys.exit()
+
     # make instance of Training class
     training = Training(
         basepath=args.output_dir,
@@ -189,7 +202,7 @@ def main():
         min_tokens=args.min_tokens,
         max_tokens=args.max_tokens,
         mask=bool(args.masking),
-        preprocess_external=args.preprocess_external,
+        preprocess_external=args.preprocess_external_tune,
         process_xml=bool(args.xml_input)
     )
     if args.caser == TRUECASING:
@@ -221,7 +234,8 @@ def main():
             num_threads=args.threads,
             lowercase_eval=False,
             detokenize_eval=True,
-            strip_markup_eval=False
+            strip_markup_eval=False,
+            extended=args.extended_eval
         )
 
 if __name__ == '__main__':

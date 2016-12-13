@@ -15,23 +15,30 @@ class TranslationEngine(object):
     '''
     An engine trained using `mtrain`
     '''
-    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None):
+    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None,
+                 quiet=False):
         '''
         @param basepath the path to the engine, i.e., `mtrain`'s output
             directory (-o).
+        @param src_lang the source language
+        @param trg_lang the target language
+        @param uppercase_first_letter uppercase first letter of translation
+        @param xml_strategy how XML is dealt with during translation
+        @param quiet if quiet, do not INFO log events
         '''
         assert(inspector.is_mtrain_engine(basepath))
         self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
+        self._quiet = quiet
         # set strategies
-        self._casing_strategy = inspector.get_casing_strategy(self._basepath)
-        self._masking_strategy = inspector.get_masking_strategy(self._basepath)
+        self._casing_strategy = inspector.get_casing_strategy(self._basepath, quiet=self._quiet)
+        self._masking_strategy = inspector.get_masking_strategy(self._basepath, quiet=self._quiet)
         # if no XML strategy, guess from directory
         if xml_strategy:
             self._xml_strategy = xml_strategy
         else:
-            self._xml_strategy = inspector.get_xml_strategy(self._basepath)
+            self._xml_strategy = inspector.get_xml_strategy(self._basepath, quiet=self._quiet)
         # load components
         self._load_tokenizer()
         self._detokenizer = Detokenizer(trg_lang, uppercase_first_letter)
@@ -47,7 +54,7 @@ class TranslationEngine(object):
         if self._masking_strategy or self._xml_strategy:
             self._load_engine(report_alignment=True, report_segmentation=True)
         else:
-            self._load_engine
+            self._load_engine()
 
     def _load_engine(self, report_alignment=False, report_segmentation=False):
         '''
@@ -72,6 +79,7 @@ class TranslationEngine(object):
         Loads a tokenizer depending on the masking and XML strategies
         guessed from the engine directory.
         '''
+        tokenizer_protects = False
         if self._masking_strategy:
             tokenizer_protects = True
             overall_strategy = MASKING
