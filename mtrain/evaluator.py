@@ -12,7 +12,7 @@ from mtrain import commander
 from mtrain.translation import TranslationEngine
 from mtrain.preprocessing import cleaner
 from mtrain.preprocessing import lowercaser
-from mtrain.preprocessing.tokenizer import Tokenizer
+from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
 
 class Evaluator(object):
@@ -55,6 +55,7 @@ class Evaluator(object):
         # processors for target side of evaluation corpus
         self._xml_processor = xml_processor if xml_processor else XmlProcessor(self._xml_strategy)
         self._tokenizer = tokenizer_trg
+        self._detokenizer = Detokenizer(self._trg_lang, uppercase_first_letter=False)
 
         # create target directories
         self._base_dir_evaluation = os.path.sep.join([self._basepath, PATH_COMPONENT['evaluation']])
@@ -96,7 +97,7 @@ class Evaluator(object):
             self._basepath,
             self._src_lang,
             self._trg_lang,
-            uppercase_first_letter=self._detokenize_eval,
+            uppercase_first_letter=False,
             xml_strategy=self._xml_strategy,
             quiet=self._extended_eval
         )
@@ -113,12 +114,16 @@ class Evaluator(object):
                     target_segment = self._engine.translate(
                         source_segment,
                         preprocess=True,
-                        lowercase=self._lowercase_eval,
-                        detokenize=self._detokenize_eval
+                        lowercase=False,
+                        detokenize=False
                     )
 
                     if self._strip_markup_eval:
                         target_segment = self._xml_processor._strip_markup(target_segment)
+                    if self._lowercase_eval:
+                        target_segment = lowercaser.lowercase_string(target_segment)
+                    if self._detokenize_eval:
+                        target_segment = self._detokenizer.detokenize(target_segment.split(" "))
                     hypothesis.write(target_segment + "\n")
 
         # remove all engine processes

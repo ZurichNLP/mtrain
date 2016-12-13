@@ -353,8 +353,6 @@ class Training(object):
         @param strip_markup_eval whether all markup should be removed before evaluation
         @param extended perform multiple evaluations that vary processing steps applied
             to the test files: lowercased or not, detokenized or not, with markup or without
-
-        Source of permutation code in this function: http://stackoverflow.com/a/22929021/1987598.
         '''
         self._evaluator = evaluator.Evaluator(
             basepath=self._basepath,
@@ -369,7 +367,7 @@ class Training(object):
             extended_eval=extended
         )
         if extended:
-            permutations = list(itertools.permutations([True, True , False], 3))
+            permutations = list(itertools.product([True, False], repeat=3))
             for permutation in permutations:
                 self._evaluator.evaluate(*permutation)
         else:
