@@ -11,6 +11,7 @@ from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 # override protected patterns before import, since they can be modified in mtrain.constants.py:
 constants.PROTECTED_PATTERNS = {}
 constants.PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'
+constants.PROTECTED_PATTERNS['entity'] = r'&[a-zA-Z0-9#]+;'
 constants.PROTECTED_PATTERNS['email'] = r'[\w\-\_\.]+\@([\w\-\_]+\.)+[a-zA-Z]{2,}'
 constants.PROTECTED_PATTERNS['url'] = r'(https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}|www\.[^\s]+\.[^\s]{2,})'
 
@@ -162,8 +163,9 @@ class TestWritingPatterns(TestCaseWithCleanup):
     
     lines_that_should_be_read = [
         '# xml\n', '<\\/?[a-zA-Z_][a-zA-Z_.\\-0-9]*[^<>]*\\/?>\n',
-        '# email\n', '[\\w\\-\\_\\.]+\\@([\\w\\-\\_]+\\.)+[a-zA-Z]{2,}\n',
-        '# url\n', '(https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}|www\.[^\s]+\.[^\s]{2,})\n'
+        '# url\n', '(https?:\\/\\/(?:www\\.|(?!www))[^\\s\\.]+\\.[^\\s]{2,}|www\\.[^\\s]+\\.[^\\s]{2,})\n',
+        '# entity\n', '&[a-zA-Z0-9#]+;\n',
+        '# email\n', '[\\w\\-\\_\\.]+\\@([\\w\\-\\_]+\\.)+[a-zA-Z]{2,}\n'
     ]
 
     def test_write_masking_patterns_all(self):
@@ -180,7 +182,7 @@ class TestWritingPatterns(TestCaseWithCleanup):
         write_masking_patterns(random_filename, markup_only=True)
         with open(random_filename, 'r') as random_file:
             self.assertTrue(
-                random_file.read() == '# xml\n<\\/?[a-zA-Z_][a-zA-Z_.\\-0-9]*[^<>]*\\/?>\n',
+                random_file.read() == '# xml\n<\\/?[a-zA-Z_][a-zA-Z_.\\-0-9]*[^<>]*\\/?>\n# entity\n&[a-zA-Z0-9#]+;\n',
                 "If requested, only the pattern to protect markup should be written to a file"
             )
 

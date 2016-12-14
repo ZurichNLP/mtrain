@@ -64,6 +64,7 @@ class Training(object):
         self._load_xmlprocessor()
         self._tuning = tuning
         self._evaluation = evaluation
+        self._num_malformed_segments = 0
         # create base directory
         assertions.dir_exists(
             self._basepath,
@@ -397,6 +398,7 @@ class Training(object):
             except:
                 logging.debug("Segment is not well-formed: '%s'" % segment)
                 # segment is not well-formed, discard
+                self._num_malformed_segments += 1
                 return None
         else:
             tokens = [token for token in segment.split(" ") if token != '']
@@ -479,6 +481,7 @@ class Training(object):
         corpus_eval.close()
         # logging
         logging.info("Training corpus: %s segments", corpus_train.get_size())
+        logging.debug("Discarded %i segments because they were not well-formed" % self._num_malformed_segments)
         # delete empty corpora, if any
         if num_tune == 0:
             corpus_tune.delete()
