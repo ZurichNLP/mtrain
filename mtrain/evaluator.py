@@ -5,6 +5,7 @@ Automatic evaluation of a trained engine, based on the translations of an evalua
 
 import os
 import logging
+import itertools
 
 from mtrain.constants import *
 from mtrain import assertions
@@ -18,7 +19,7 @@ from mtrain.preprocessing.xmlprocessor import XmlProcessor
 class Evaluator(object):
     '''
     Translates a set of test sentences and evaluates the translations with automatic
-        metrics of translation quality.
+    metrics of translation quality.
     '''
     def __init__(self, basepath, eval_corpus_path, src_lang, trg_lang, xml_strategy,
         num_threads, eval_tool=MULTEVAL_TOOL, tokenizer_trg=None, xml_processor=None,
@@ -50,8 +51,8 @@ class Evaluator(object):
         self._num_threads = num_threads
         self._eval_tool = eval_tool
         self._extended_eval = extended_eval
-        if self._extended_eval:
-            self._num_rounds = 0
+        self._num_rounds = 0
+        self._translations = []
         # processors for target side of evaluation corpus
         self._xml_processor = xml_processor if xml_processor else XmlProcessor(self._xml_strategy)
         self._tokenizer = tokenizer_trg
@@ -72,8 +73,8 @@ class Evaluator(object):
     def _preprocess_eval_corpus_trg(self):
         '''
         Opens the target side of the reference corpus and applies selected
-            processing steps identical to the postprocessing steps of machine-
-            translated segments.
+        processing steps identical to the postprocessing steps of machine-
+        translated segments.
         '''
         path_eval_trg = self._get_path_eval(self._trg_lang)
         path_eval_trg_processed = self._get_path_eval_trg_processed()
@@ -101,9 +102,8 @@ class Evaluator(object):
             xml_strategy=self._xml_strategy,
             quiet=self._extended_eval
         )
-        # determine paths to relevant files
+        # determine path to source side of evaluation corpus
         corpus_eval_src = self._get_path_eval(self._src_lang)
-        hypothesis_path = self._get_path_hypothesis()
 
         if not self._extended_eval:
             logging.info("Translating evaluation corpus")
@@ -117,18 +117,26 @@ class Evaluator(object):
                         lowercase=False,
                         detokenize=False
                     )
-
-                    if self._strip_markup_eval:
-                        target_segment = self._xml_processor._strip_markup(target_segment)
-                    if self._lowercase_eval:
-                        target_segment = lowercaser.lowercase_string(target_segment)
-                    if self._detokenize_eval:
-                        target_segment = self._detokenizer.detokenize(target_segment.split(" "))
-                    hypothesis.write(target_segment + "\n")
+                    self._translations.append(target_segment)
 
         # remove all engine processes
-        if not self._extended_eval:
-            self._engine.close()
+        self._engine.close()
+
+    def _postprocess_translations(self):
+        '''
+        Postprocesses existing translations and writes them to file.
+        '''
+        # determine path to hypothesis file
+        hypothesis_path = self._get_path_hypothesis()
+        with open(hypothesis_path, 'w') as hypothesis:
+            for target_segment in self._translations:
+                if self._strip_markup_eval:
+                    target_segment = self._xml_processor._strip_markup(target_segment)
+                if self._lowercase_eval:
+                    target_segment = lowercaser.lowercase_string(target_segment)
+                if self._detokenize_eval:
+                    target_segment = self._detokenizer.detokenize(target_segment.split(" "))
+                hypothesis.write(target_segment + "\n")
 
     def _get_path_eval(self, lang):
         '''
@@ -196,24 +204,50 @@ class Evaluator(object):
             "Evaluating with MultEval" if not self._extended_eval else None 
         )
 
-    # only exposed method
-    def evaluate(self, lowercase, detokenize, strip_markup):
+    def _eval_round(self, lowercase, detokenize, strip_markup):
         '''
-        Translates test segment and scores them with an external tool, saves
-            results to a file.
+        One round of evaluation. Precondition: source side of the evaluation
+        corpus has been translated already.
         @param lowercase whether to lowercase all segments before evaluation
         @param detokenize whether to detokenize all segments before evaluation
         @param strip_markup whether all markup should be removed before evaluation
-
-        Note: tokenized evaluation implies escaped evaluation, detokenized
-            evaluation implies deescaped evaluation
         '''
-        # reset evaluation options for each invocation of the method
+        # reset evaluation options for each round
         self._lowercase_eval = lowercase
         self._detokenize_eval = detokenize
         self._strip_markup_eval = strip_markup
+        # collect options and log them
+        self._collect_evaluation_options()
+        self._log_evaluation_options()        
+        # preprocess target side of evaluation corpus (reference) to match the processing
+        #     applied to the translations (hypothesis) and write reference to file
+        self._preprocess_eval_corpus_trg()
+        # postprocess translations (hypothesis) and write to file
+        self._postprocess_translations()
+        # score the current pair of reference and translations files
+        self._score()
 
-        # conveniently list evaluation options
+    def _eval_rounds(self):
+        '''
+        Coordinates 1 to n rounds of evaluation. Each round preprocesses the
+        reference, postprocesses the hypothesis, writes both to file and
+        scores them.
+        '''
+        if self._extended_eval:
+            permutations = list(itertools.product([True, False], repeat=3))
+            for permutation in permutations:
+                self._eval_round(*permutation)
+        else:
+            self._eval_round(
+                lowercase=self._lowercase_eval,
+                detokenize=self._detokenize_eval,
+                strip_markup=self._strip_markup_eval
+            )
+    def _collect_evaluation_options(self):
+        '''
+        Collects the current evaluation options. Options
+        may differ between different round of evaluation.
+        '''
         self._eval_options = []
         if self._lowercase_eval:
             self._eval_options.append(SUFFIX_LOWERCASED)
@@ -229,7 +263,10 @@ class Evaluator(object):
         else:
             self._eval_options.append(SUFFIX_WITH_MARKUP)
 
-        # appropriate logging
+    def _log_evaluation_options(self):
+        '''
+        Logs evaluation options with the appropriate level.
+        '''
         display_options = [item.replace("_", " ") for item in self._eval_options]
         message = "Evaluation options:"
         if self._extended_eval:
@@ -239,7 +276,24 @@ class Evaluator(object):
             message + ', '.join(display_options[:-1]) + ' and ' + display_options[-1]
         )
 
+    # only exposed method
+    def evaluate(self, lowercase, detokenize, strip_markup):
+        '''
+        Translates test segment and scores them with an external tool, saves
+            results to a file.
+        @param lowercase whether to lowercase all segments before evaluation
+        @param detokenize whether to detokenize all segments before evaluation
+        @param strip_markup whether all markup should be removed before evaluation
+
+        Note: tokenized evaluation implies escaped evaluation, detokenized
+            evaluation implies deescaped evaluation
+        '''
+        # set object attributes
+        self._lowercase_eval = lowercase
+        self._detokenize_eval = detokenize
+        self._strip_markup_eval = strip_markup
+        # perform translation once
         self._translate_eval_corpus_src()
-        self._preprocess_eval_corpus_trg()
-        self._score()
+        # possibly perform several rounds of evaluation
+        self._eval_rounds()
         
