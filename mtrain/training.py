@@ -395,8 +395,9 @@ class Training(object):
             try:
                 tokens = reinsertion.tokenize_keep_markup(segment)
             except:
-                print("Problem with this segment:\n%s" % segment)
-                raise
+                logging.debug("Segment is not well-formed: '%s'" % segment)
+                # segment is not well-formed, discard
+                return None
         else:
             tokens = [token for token in segment.split(" ") if token != '']
         if len(tokens) < min_tokens or len(tokens) > max_tokens:

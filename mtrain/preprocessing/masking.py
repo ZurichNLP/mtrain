@@ -267,7 +267,7 @@ def write_masking_patterns(protected_patterns_path, markup_only=False):
                     )
             except KeyError:
                 patterns_file.write("# %s\n%s\n" % ('xml','<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'))
-                patterns_file.write("# %s\n%s\n" % ('entity', '&[^\s]+;'))
+                patterns_file.write("# %s\n%s\n" % ('entity', '&[a-zA-Z0-9#]+;'))
         else:
             for mask_token, regex in constants.PROTECTED_PATTERNS.items():
                 patterns_file.write("# %s\n%s\n" % (mask_token, regex))

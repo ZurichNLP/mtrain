@@ -56,7 +56,7 @@ MOSES_SPECIAL_CHARS["]"] = "&#93;"
 PROTECTED_PATTERNS_FILE_NAME = 'protected-patterns.dat'
 PROTECTED_PATTERNS = {}
 PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'
-PROTECTED_PATTERNS['entity'] = r'&[^\s]+;'
+PROTECTED_PATTERNS['entity'] = r'&[a-zA-Z0-9#]+;'
 PROTECTED_PATTERNS['email'] = r'[\w\-\_\.]+\@([\w\-\_]+\.)+[a-zA-Z]{2,}'
 PROTECTED_PATTERNS['url'] = r'(https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}|www\.[^\s]+\.[^\s]{2,})'
 
