@@ -33,7 +33,7 @@ def get_argument_parser():
         type=str,
         help="target language code: same valid choices as in src_lang",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' #overrides ugnly double-listing of available choices in --help
+        metavar='trg_lang' #overrides ugly double-listing of available choices in --help
     )
     parser.add_argument(
         "-l", "--lowercase",

@@ -255,14 +255,19 @@ def write_masking_patterns(protected_patterns_path, markup_only=False):
     '''
     Writes protected patterns to a physical file in the engine directory.
     @param protected_patterns_path path to file the patterns should be written to
-    @param markup_only whether only markup should be protected during tokenization
+    @param markup_only whether only markup should be protected during tokenization,
+        which will also protect escaped markup
     '''
     with open(protected_patterns_path, 'w') as patterns_file:
         if markup_only:
             try:
-                patterns_file.write("# %s\n%s\n" % ('xml', constants.PROTECTED_PATTERNS['xml']))
+                for mask_token in ('xml', 'entity'):
+                    patterns_file.write(
+                        "# %s\n%s\n" % (mask_token, constants.PROTECTED_PATTERNS[mask_token])
+                    )
             except KeyError:
                 patterns_file.write("# %s\n%s\n" % ('xml','<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'))
+                patterns_file.write("# %s\n%s\n" % ('entity', '&[^\s]+;'))
         else:
             for mask_token, regex in constants.PROTECTED_PATTERNS.items():
                 patterns_file.write("# %s\n%s\n" % (mask_token, regex))

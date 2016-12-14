@@ -13,7 +13,7 @@ from mtrain.constants import *
 from mtrain.preprocessing.masking import Masker, write_masking_patterns
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
 from mtrain.preprocessing.tokenizer import Tokenizer
-from mtrain.preprocessing import lowercaser, cleaner
+from mtrain.preprocessing import lowercaser, cleaner, reinsertion
 from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
 from mtrain import evaluator
@@ -374,9 +374,8 @@ class Training(object):
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
         '''
-        Tokenizes a bisegment, escapes special characters, introduces mask tokens or
-            processes markup found in the segment. Also checks for minimum and
-            maximum number of tokens.
+        Checks the length of segments (in tokens). An accurate check strips,
+            tokenizes the segment and XML element tags count as single tokens.
         @param segment the segment the length of which should be determined
         @param min_tokens minimal number of tokens
         @param max_tokens maximal number of tokens
@@ -391,12 +390,15 @@ class Training(object):
         if accurate:
             segment = segment.strip()
             segment = tokenizer.tokenize(segment, split=False)
-            if self._xml_strategy:
-                segment, _ = self._xml_processor.preprocess_markup(segment)
             if self._masking_strategy:
                 segment, _ = self._masker.mask_segment(segment)
-
-        tokens = [token for token in segment.split(" ") if token != '']
+            try:
+                tokens = reinsertion.tokenize_keep_markup(segment)
+            except:
+                print("Problem with this segment:\n%s" % segment)
+                raise
+        else:
+            tokens = [token for token in segment.split(" ") if token != '']
         if len(tokens) < min_tokens or len(tokens) > max_tokens:
             # None means segment should be discarded
             return None
