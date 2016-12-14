@@ -105,19 +105,17 @@ class Evaluator(object):
         # determine path to source side of evaluation corpus
         corpus_eval_src = self._get_path_eval(self._src_lang)
 
-        if not self._extended_eval:
-            logging.info("Translating evaluation corpus")
+        logging.info("Translating evaluation corpus")
         # translate eval corpus
         with open(corpus_eval_src, 'r') as corpus_eval_src:
-            with open(hypothesis_path, 'w') as hypothesis:
-                for source_segment in corpus_eval_src:
-                    target_segment = self._engine.translate(
-                        source_segment,
-                        preprocess=True,
-                        lowercase=False,
-                        detokenize=False
-                    )
-                    self._translations.append(target_segment)
+            for source_segment in corpus_eval_src:
+                target_segment = self._engine.translate(
+                    source_segment,
+                    preprocess=True,
+                    lowercase=False,
+                    detokenize=False
+                )
+                self._translations.append(target_segment)
 
         # remove all engine processes
         self._engine.close()
@@ -268,7 +266,7 @@ class Evaluator(object):
         Logs evaluation options with the appropriate level.
         '''
         display_options = [item.replace("_", " ") for item in self._eval_options]
-        message = "Evaluation options:"
+        message = "Evaluation options: "
         if self._extended_eval:
             self._num_rounds += 1
             message = "Extended evaluation round %i, options: " % self._num_rounds

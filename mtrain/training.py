@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import itertools
 import logging
 import random
 import shutil
@@ -366,17 +365,11 @@ class Training(object):
             xml_processor=self._xml_processor,
             extended_eval=extended
         )
-        if extended:
-            permutations = list(itertools.product([True, False], repeat=3))
-            for permutation in permutations:
-                self._evaluator.evaluate(*permutation)
-        else:
-            self._evaluator.evaluate(
-                lowercase=lowercase_eval,
-                detokenize=detokenize_eval,
-                strip_markup=strip_markup_eval,
-                extended=False
-            )
+        self._evaluator.evaluate(
+            lowercase=lowercase_eval,
+            detokenize=detokenize_eval,
+            strip_markup=strip_markup_eval
+        )
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
