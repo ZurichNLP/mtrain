@@ -107,9 +107,9 @@ class XmlProcessor(object):
             return self._reinsert_markup(source_segment, target_segment)
         elif self._xml_strategy == XML_STRIP:
             # in this case, do nothing / todo: well, remove markup if any?
-            return target_segment 
+            return target_segment.translation
         elif self._xml_strategy == XML_MASK:
-            return self._unmask_markup(masked_source_segment, target_segment, mapping)
+            return self._unmask_markup(masked_source_segment, target_segment.translation, mapping)
         elif self._xml_strategy == XML_PASS_THROUGH:
-            return segment # then return segment unchanged
+            return target_segment.translation # then return segment unchanged
 

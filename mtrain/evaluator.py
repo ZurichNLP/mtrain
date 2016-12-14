@@ -286,6 +286,7 @@ class Evaluator(object):
         Note: tokenized evaluation implies escaped evaluation, detokenized
             evaluation implies deescaped evaluation
         '''
+        logging.info("Evaluating trained engine")
         # set object attributes
         self._lowercase_eval = lowercase
         self._detokenize_eval = detokenize
