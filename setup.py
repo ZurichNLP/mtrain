@@ -19,4 +19,5 @@ setup(name='mtrain',
       tests_require=['nose', 'coverage'],
       scripts=['bin/mtrain', 'bin/mtrans'],
       include_package_data=True,
-      zip_safe=False)
+      zip_safe=False,
+      setup_requires=['nose>=1.0'])

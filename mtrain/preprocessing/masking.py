@@ -5,11 +5,12 @@ Class for replacing stretches of text with a mask token or
 reversing this process.
 '''
 
-from mtrain.constants import *
+from mtrain import constants # do not import * to allow testing
 from mtrain.preprocessing import cleaner
 
 import sys
 import re
+import logging
 
 class _Replacement(object):
     '''
@@ -51,7 +52,7 @@ class Masker(object):
         self._remove_all = remove_all
 
         # if no patterns are defined that could be masked
-        if not PROTECTED_PATTERNS:
+        if not constants.PROTECTED_PATTERNS:
             sys.exit('Masking is not possible because no patterns are defined in PROTECTED_PATTERNS in mtrain/constants.py.')
 
     def mask_segment(self, segment):
@@ -61,8 +62,8 @@ class Masker(object):
         '''
         mapping = []
         
-        for mask_token, regex in PROTECTED_PATTERNS.items():        
-            if self._strategy == MASKING_IDENTITY:
+        for mask_token, regex in constants.PROTECTED_PATTERNS.items():        
+            if self._strategy == constants.MASKING_IDENTITY:
                 replacement = _Replacement(mask_token, with_id=True)
             # currently, for all other strategies
             else:
@@ -109,8 +110,8 @@ class Masker(object):
         # make sure token is a string
         token = str(token)        
         
-        for mask in PROTECTED_PATTERNS.keys():
-            if self._strategy == MASKING_IDENTITY:
+        for mask in constants.PROTECTED_PATTERNS.keys():
+            if self._strategy == constants.MASKING_IDENTITY:
                  if re.match("__%s_\d+__" % mask, token):
                     return True
             else:
@@ -219,10 +220,10 @@ class Masker(object):
         '''
         
         if mapping:
-            if self._strategy == MASKING_ALIGNMENT:
+            if self._strategy == constants.MASKING_ALIGNMENT:
                 target_segment = self._unmask_segment_alignment(source_segment, target_segment, mapping, alignment)
 
-            elif self._strategy == MASKING_IDENTITY:
+            elif self._strategy == constants.MASKING_IDENTITY:
                 target_segment = self._unmask_segment_identity(target_segment, mapping)
 
         # check if there are still masks in the target segment
@@ -240,7 +241,7 @@ class Masker(object):
         @param masked_segment an untranslated segment that probably
             has mask tokens
         '''
-        if self._strategy == MASKING_IDENTITY:
+        if self._strategy == constants.MASKING_IDENTITY:
             pattern = re.compile(r'__\w+_\d+__')
         else:
             pattern = re.compile(r'__\w+__')
@@ -258,8 +259,11 @@ def write_masking_patterns(protected_patterns_path, markup_only=False):
     '''
     with open(protected_patterns_path, 'w') as patterns_file:
         if markup_only:
-            patterns_file.write("# %s\n%s\n" % ('xml', PROTECTED_PATTERNS['xml']))
+            try:
+                patterns_file.write("# %s\n%s\n" % ('xml', constants.PROTECTED_PATTERNS['xml']))
+            except KeyError:
+                patterns_file.write("# %s\n%s\n" % ('xml','<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'))
         else:
-            for mask_token, regex in PROTECTED_PATTERNS.items():
+            for mask_token, regex in constants.PROTECTED_PATTERNS.items():
                 patterns_file.write("# %s\n%s\n" % (mask_token, regex))
 

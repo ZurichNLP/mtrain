@@ -3,22 +3,46 @@
 import os
 import random
 
+from mtrain.preprocessing import cleaner
+
 class ParallelCorpus(object):
     '''
     A parallel corpus storing either a limited or unlimited number of
     bi-segments.
     '''
 
-    def __init__(self, filepath_source, filepath_target, max_size=None):
+    def __init__(self, filepath_source, filepath_target, max_size=None, 
+        preprocess=False, tokenize=True, tokenizer_src=None, tokenizer_trg=None,
+        mask=False, masker=None, process_xml=False, xml_processor=None):
         '''
         Creates an empty corpus stored at @param filepath_source (source side)
         and @param filepath_target (target side). Existing files will be
-        overwritten.
+        overwritten. Preprocesses segments before writing them to disk.
 
         @param max_size the maximum number of segments to be stored. If given,
             the `self.insert` method will remove and return a random segment
             that is already stored in this corpus.
+        @param preprocess whether segments in this corpus should be preprocessed
+            before they are written to disk
+        @param tokenize whether segments should be tokenized
+        @param tokenizer_src tokenizer object for the source language
+        @param tokenizer_trg tokenizer object for the target language
+        @param mask whether segments should be masked
+        @param masker masking.Masker object
+        @param process_xml whether XML should be dealt with
+        @param xml_processor an xmlprocessing.XmlProcessor object
         '''
+        # set up preprocessing attributes
+        self._preprocess = preprocess
+        self._tokenize = tokenize
+        self._tokenizer_src = tokenizer_src
+        self._tokenizer_trg = tokenizer_trg
+        self._mask = mask
+        self._masker = masker
+        self._process_xml = process_xml
+        self._xml_processor = xml_processor
+
+        # set up file paths and handles
         self._filepath_source = filepath_source
         self._filepath_target = filepath_target
         self._bisegments = []
@@ -79,14 +103,45 @@ class ParallelCorpus(object):
         '''
         return self._num_bisegments
 
-    def _write_bisegment(self, bisegment):
+    def _preprocess_segment(self, segment, tokenizer):
         '''
-        Writes a bi-segment to file.
+        Tokenizes a bisegment, escapes special characters, introduces mask tokens or
+            processes markup found in the segment.
+        @param segment the segment that should be preprocessed
+        @param the tokenizer object that should be used for tokenization
+        '''
+        segment = segment.strip()
+        if self._tokenize:
+            segment = tokenizer.tokenize(segment, split=False)
+        if self._process_xml:
+            segment, _ = self._xml_processor.preprocess_markup(segment)
+        if self._mask:
+            segment, _ = self._masker.mask_segment(segment)
+        return cleaner.clean(segment)
 
-        @param bi-segment the (source, target) segment tuple to be written to
-            file.
+    def _preprocess_bisegment(self, bisegment):
+        '''
+        Preprocesses a bisegment.
         '''
         segment_source, segment_target = bisegment
+        segment_source = self._preprocess_segment(segment_source, tokenizer=self._tokenizer_src)
+        segment_target = self._preprocess_segment(segment_target, tokenizer=self._tokenizer_trg)
+
+        return segment_source, segment_target
+
+    def _write_bisegment(self, bisegment):
+        '''
+        Writes a bisegment to file.
+        @param bisegment the (source, target) segment tuple to be written to
+            file.
+        '''
+        if self._preprocess:
+            segment_source, segment_target = self._preprocess_bisegment(bisegment)
+        else:
+            segment_source, segment_target = bisegment
+            segment_source = segment_source.strip()
+            segment_target = segment_target.strip()
+
         self._file_source.write(segment_source + '\n')
         self._file_target.write(segment_target + '\n')
 

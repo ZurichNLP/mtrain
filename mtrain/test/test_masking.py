@@ -3,6 +3,7 @@
 from unittest import TestCase
 from collections import Counter
 import random
+import os
 
 from mtrain import constants
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
@@ -11,9 +12,9 @@ from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 constants.PROTECTED_PATTERNS = {}
 constants.PROTECTED_PATTERNS['xml'] = r'<\/?[a-zA-Z_][a-zA-Z_.\-0-9]*[^<>]*\/?>'
 constants.PROTECTED_PATTERNS['email'] = r'[\w\-\_\.]+\@([\w\-\_]+\.)+[a-zA-Z]{2,}'
-constants.PROTECTED_PATTERNS['url'] = r'(?:(?:https?|ftp)://)(?:\S+(?::\S*)?@)?(?:(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:/[^\s]*)?'
+constants.PROTECTED_PATTERNS['url'] = r'(https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}|www\.[^\s]+\.[^\s]{2,})'
 
-from mtrain.preprocessing.masking import *
+from mtrain.preprocessing.masking import Masker, write_masking_patterns
 
 class TestIdentityMasker(TestCase):
 
@@ -162,7 +163,7 @@ class TestWritingPatterns(TestCaseWithCleanup):
     lines_that_should_be_read = [
         '# xml\n', '<\\/?[a-zA-Z_][a-zA-Z_.\\-0-9]*[^<>]*\\/?>\n',
         '# email\n', '[\\w\\-\\_\\.]+\\@([\\w\\-\\_]+\\.)+[a-zA-Z]{2,}\n',
-        '# url\n', '(?:(?:https?|ftp)://)(?:\\S+(?::\\S*)?@)?(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,})))(?::\\d{2,5})?(?:/[^\\s]*)?\n'
+        '# url\n', '(https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}|www\.[^\s]+\.[^\s]{2,})\n'
     ]
 
     def test_write_masking_patterns_all(self):

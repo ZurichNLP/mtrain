@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import itertools
 import logging
 import random
 import shutil
@@ -16,6 +17,7 @@ from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing import lowercaser, cleaner
 from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
+from mtrain import evaluator
 
 class Training(object):
     '''
@@ -107,12 +109,14 @@ class Training(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    def _get_path_masking_patterns(self, strategy):
+    def _get_path_masking_patterns(self, overall_strategy, detailed_strategy):
         '''
         Make sure a masking directory and masking strategy subfolder exist,
-        @return the path to the masking patterns file
+        @return the path to the masking patterns file.
+        @param overall_strategy coarse-grained masking or XML strategy
+        @param detailed_strategy fine-grained masking or XML strategy
         '''
-        protected_patterns_dir = os.sep.join([self._get_path('engine'), MASKING, strategy])
+        protected_patterns_dir = os.sep.join([self._get_path('engine'), overall_strategy, detailed_strategy])
         if not assertions.dir_exists(protected_patterns_dir):
             os.makedirs(protected_patterns_dir, exist_ok=True)
         return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
@@ -122,13 +126,28 @@ class Training(object):
         tokenizer_protects = False
         if self._masking_strategy:
             tokenizer_protects = True
-            protected_patterns_path = self._get_path_masking_patterns(strategy=self._masking_strategy)
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=MASK,
+                detailed_strategy=self._masking_strategy
+            )
         elif self._xml_strategy == XML_MASK:
             tokenizer_protects = True
-            protected_patterns_path = self._get_path_masking_patterns(strategy=XML_STRATEGIES_DEFAULTS[XML_MASK])
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=XML_MASK,
+                detailed_strategy=XML_STRATEGIES_DEFAULTS[XML_MASK]
+            )
+        elif self._xml_strategy == XML_STRIP or self._xml_strategy == XML_STRIP_REINSERT:
+            tokenizer_protects=True
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=self._xml_strategy,
+                detailed_strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy]
+            )
 
         if tokenizer_protects:
-            write_masking_patterns(protected_patterns_path, markup_only=self._xml_strategy == XML_MASK)
+            write_masking_patterns(
+                protected_patterns_path,
+                markup_only=bool(self._xml_strategy)
+            )
 
             self._tokenizer_source = Tokenizer(
                 self._src_lang,
@@ -185,7 +204,7 @@ class Training(object):
                 BASENAME_TUNING_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external
+                preprocess_external=True
             )
         if isinstance(self._evaluation, str):
             self._preprocess_external_corpus(
@@ -193,17 +212,12 @@ class Training(object):
                 BASENAME_EVALUATION_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external
+                preprocess_external=False
             )
         # lowercase as needed
         self._lowercase()
-        # create casing models
-        #todo
         # mark final files (.final symlinks)
         self._mark_final_files()
-        # close subprocesses
-        self._tokenizer_source.close()
-        self._tokenizer_target.close()
 
     def train_truecaser(self):
         '''
@@ -329,39 +343,72 @@ class Training(object):
         '''
         self._MERT(num_threads)
 
-    def evaluate(self, num_threads=1, lowercase=False):
+    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
+                 strip_markup_eval=False, extended=False):
         '''
-        Evaluates the engine by translating and scoring an  evaluation set
+        Evaluates the engine by translating and scoring an evaluation set.
+        @param num_threads the maximum number of threads to be used
+        @param lowercase_eval whether to lowercase all segments before evaluation
+        @param detokenize_eval whether to detokenize all segments before evaluation
+        @param strip_markup_eval whether all markup should be removed before evaluation
+        @param extended perform multiple evaluations that vary processing steps applied
+            to the test files: lowercased or not, detokenized or not, with markup or without
         '''
-        self._multeval(num_threads, lowercase=lowercase)
+        self._evaluator = evaluator.Evaluator(
+            basepath=self._basepath,
+            eval_corpus_path=self._get_path('corpus'),
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang,
+            xml_strategy=self._xml_strategy,
+            num_threads=num_threads,
+            eval_tool=MULTEVAL_TOOL,
+            tokenizer_trg=self._tokenizer_target,
+            xml_processor=self._xml_processor,
+            extended_eval=extended
+        )
+        if extended:
+            permutations = list(itertools.product([True, False], repeat=3))
+            for permutation in permutations:
+                self._evaluator.evaluate(*permutation)
+        else:
+            self._evaluator.evaluate(
+                lowercase=lowercase_eval,
+                detokenize=detokenize_eval,
+                strip_markup=strip_markup_eval,
+                extended=False
+            )
 
-    def _preprocess_segment(self, segment, min_tokens, max_tokens, tokenize=True,
-                            tokenizer=None, mask=False, process_xml=False, return_mapping=False):
+    def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
+            accurate=False):
         '''
         Tokenizes a bisegment, escapes special characters, introduces mask tokens or
             processes markup found in the segment. Also checks for minimum and
             maximum number of tokens.
-
-        @return the preprocessed segment. None means that the segment should be
+        @param segment the segment the length of which should be determined
+        @param min_tokens minimal number of tokens
+        @param max_tokens maximal number of tokens
+        @param tokenizer the right tokenizer depending on the language
+        @param whether the counting should be naive (faster) or accurate (slower)
+        @return the input segment. None means that the segment should be
             discarded.
         '''
-        segment = segment.strip()
-        if tokenize:
+        original_segment = segment
+
+        # more accurate count if preprocessing steps are applied
+        if accurate:
+            segment = segment.strip()
             segment = tokenizer.tokenize(segment, split=False)
-        if process_xml:
-            segment, _ = self._xml_processor.preprocess_markup(segment)
-        if mask:
-            segment, mapping = self._masker.mask_segment(segment)
-        # check length of segment after masking and xml processing, otherwise
-        # the counts will not be meaningful
+            if self._xml_strategy:
+                segment, _ = self._xml_processor.preprocess_markup(segment)
+            if self._masking_strategy:
+                segment, _ = self._masker.mask_segment(segment)
+
         tokens = [token for token in segment.split(" ") if token != '']
         if len(tokens) < min_tokens or len(tokens) > max_tokens:
-            return None # means segment should be discarded
-        segment = cleaner.clean(segment)
-        if return_mapping:
-            return segment, mapping
-        else:
-            return segment
+            # None means segment should be discarded
+            return None
+
+        return original_segment        
 
     def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
         '''
@@ -378,26 +425,42 @@ class Training(object):
         corpus_train = ParallelCorpus(
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
-            max_size=None
+            max_size=None,
+            preprocess=True,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=mask,
+            masker=self._masker if self._masking_strategy else None,
+            process_xml=process_xml,
+            xml_processor=self._xml_processor if self._xml_strategy else None
         )
         corpus_tune = ParallelCorpus(
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
-            max_size=num_tune
+            max_size=num_tune,
+            preprocess=True,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=mask,
+            masker=self._masker if self._masking_strategy else None,
+            process_xml=process_xml,
+            xml_processor=self._xml_processor if self._xml_strategy else None
         )
         corpus_eval = ParallelCorpus(
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            max_size=num_eval
+            max_size=num_eval,
+            preprocess=False
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
-            # tokenize, clean (among other things, remove trailing \n) and otherwise process segments
-            segment_source = self._preprocess_segment(segment_source, min_tokens, max_tokens,
-                                  tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
-            segment_target = self._preprocess_segment(segment_target, min_tokens, max_tokens,
-                                  tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
-
+            # check lengths of segments
+            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_source, accurate=True)
+            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_target, accurate=True)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             # reservoir sampling (Algorithm R)
@@ -415,6 +478,7 @@ class Training(object):
         corpus_source.close()
         corpus_target.close()
         corpus_train.close()
+        # preprocess segments, then write to disk, the close file handle
         corpus_tune.close()
         corpus_eval.close()
         # logging
@@ -430,7 +494,7 @@ class Training(object):
             logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, preprocess_segments):
+                                    min_tokens, max_tokens, preprocess_external):
         '''
         Pre-processes an external corpus into /corpus.
 
@@ -440,22 +504,32 @@ class Training(object):
             an EN to FR training
         @param basename the basename of the external corpus in the context of this
             training, e.g., `test`
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
+        @param preprocess_external whether the segments should be preprocessed
         '''
-        mask = bool(self._masking_strategy)
-        process_xml = False if self._xml_strategy == XML_PASS_THROUGH else True
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
-            self._get_path_corpus(basename, self._trg_lang)
+            self._get_path_corpus(basename, self._trg_lang),
+            max_size=None,
+            preprocess=preprocess_external,
+            tokenize=True, # todo: maybe do not hardcode this
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=bool(self._masking_strategy),
+            masker=self._masker if self._masking_strategy else None,
+            process_xml=False if self._xml_strategy == XML_PASS_THROUGH else True,
+            xml_processor=self._xml_processor if self._xml_strategy else None
         )
         # pre-process segments
         corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
         corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
         for segment_source, segment_target in zip(corpus_source, corpus_target):
             # tokenize, clean and mask segments (most importantly, remove trailing \n)
-            segment_source = self._preprocess_segment(segment_source, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_source, mask=mask, process_xml=process_xml)
-            segment_target = self._preprocess_segment(segment_target, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_target, mask=mask, process_xml=process_xml)
+            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_source, accurate=True)
+            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_target, accurate=True)
             if None in [segment_source, segment_target]:
                 continue # discard segments with too few or too many tokens
             else:
@@ -471,12 +545,9 @@ class Training(object):
 
     def _lowercase(self):
         '''
-        Lowercases the training, tuning, and evaluation corpus.
+        Lowercases the training and tuning corpora.
         '''
         files_to_be_lowercased = []
-        if self._evaluation:
-            # always include target-side of eval corpus for case-insensitive evaluation
-            files_to_be_lowercased.append((BASENAME_EVALUATION_CORPUS, self._trg_lang))
         if self._casing_strategy == SELFCASING:
             files_to_be_lowercased.append(
                 (BASENAME_TRAINING_CORPUS, self._src_lang)
@@ -484,10 +555,6 @@ class Training(object):
             if self._tuning:
                 files_to_be_lowercased.append(
                     (BASENAME_TUNING_CORPUS, self._src_lang)
-                )
-            if self._evaluation:
-                files_to_be_lowercased.append(
-                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
                 )
         elif self._casing_strategy == RECASING:
             files_to_be_lowercased.append(
@@ -502,10 +569,6 @@ class Training(object):
                 )
                 files_to_be_lowercased.append(
                     (BASENAME_TUNING_CORPUS, self._trg_lang)
-                )
-            if self._evaluation:
-                files_to_be_lowercased.append(
-                    (BASENAME_EVALUATION_CORPUS, self._src_lang)
                 )
         elif self._casing_strategy == TRUECASING:
             pass
@@ -540,23 +603,18 @@ class Training(object):
             # lowercased input side, unmodified output side
             add_suffix('train', 'src', SUFFIX_LOWERCASED)
             add_suffix('tune', 'src', SUFFIX_LOWERCASED)
-            add_suffix('test', 'src', SUFFIX_LOWERCASED)
         elif self._casing_strategy == TRUECASING:
             # truecased input side, truecased output side
             add_suffix('train', 'src', SUFFIX_TRUECASED)
             add_suffix('train', 'trg', SUFFIX_TRUECASED)
             add_suffix('tune', 'src', SUFFIX_TRUECASED)
             add_suffix('tune', 'trg', SUFFIX_TRUECASED)
-            add_suffix('test', 'src', SUFFIX_TRUECASED)
-            add_suffix('test', 'trg', SUFFIX_TRUECASED)
         elif self._casing_strategy == RECASING:
             # truecased input side, truecased output side
             add_suffix('train', 'src', SUFFIX_LOWERCASED)
             add_suffix('train', 'trg', SUFFIX_LOWERCASED)
             add_suffix('tune', 'src', SUFFIX_LOWERCASED)
             add_suffix('tune', 'trg', SUFFIX_LOWERCASED)
-            add_suffix('test', 'src', SUFFIX_LOWERCASED)
-            add_suffix('test', 'trg', SUFFIX_LOWERCASED)
         # create symlinks
         def symlink_path(basename, lang):
             return self._get_path_corpus([basename, SUFFIX_FINAL], lang)
@@ -770,60 +828,6 @@ class Training(object):
             num_threads=num_threads
         )
         commander.run(mert_command, "Tuning engine through Minimum Error Rate Training (MERT)")
-
-    def _multeval(self, num_threads, lowercase=False):
-        '''
-        Evaluates the engine using MultEval.
-        @param num_threads max number of threads used
-        @param lowercase whether to lowercase the translated segments before evaluation
-        '''
-        # create target directories
-        base_dir_evaluation = self._get_path('evaluation')
-        if not assertions.dir_exists(base_dir_evaluation):
-            os.mkdir(base_dir_evaluation)
-        base_dir_multeval = base_dir_evaluation + os.sep + 'multeval'
-        if not assertions.dir_exists(base_dir_multeval):
-            os.mkdir(base_dir_multeval)
-
-        # translate source side of test corpus
-        logging.info("Translating evaluation corpus")
-        engine = TranslationEngine(self._basepath, self._src_lang, self._trg_lang)
-
-        if lowercase:
-            logging.info("Evaluating lowercased text")
-            path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.lowercased.' + self._trg_lang
-            path_reference = self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._src_lang)
-        else:
-            logging.info("Evaluating cased text")
-            path_hypothesis = base_dir_multeval + os.sep + 'hypothesis.' + self._trg_lang
-            path_reference = self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang)
-
-        with open(path_reference, 'r') as corpus_evaluation_src:
-            with open(path_hypothesis, 'w') as hypothesis:
-                for segment_source in corpus_evaluation_src:
-                    segment_source = segment_source.strip()
-                    translated_segment = engine.translate(segment_source, preprocess=False, lowercase=lowercase, detokenize=False)
-                    hypothesis.write(translated_segment + '\n')
-
-        # remove all engine processes
-        engine.close()
-
-        # evaluate with multeval
-        output_file = base_dir_multeval + os.sep + 'hypothesis' + ('.lowercased' if lowercase else '') + '.multeval'
-        meteor_argument = '--meteor.language "%s"' % self._trg_lang
-        if self._trg_lang not in METEOR_LANG_CODES.keys():
-            logging.warning("Target language not supported by METEOR library. Evaluation will not include METEOR scores.")
-            meteor_argument = '--metrics bleu,ter,length'
-
-        multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" {meteor_argument} --refs "{corpus_evaluation_trg}" --hyps-baseline "{hypothesis}" > "{output_file}"'.format(
-            script=MULTEVAL,
-            num_threads=num_threads,
-            meteor_argument=meteor_argument,
-            corpus_evaluation_trg=self._get_path_corpus_final(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            hypothesis=path_hypothesis,
-            output_file=output_file
-        )
-        commander.run(multeval_command, "Evaluating engine with MultEval")
 
     def write_final_ini(self):
         '''
