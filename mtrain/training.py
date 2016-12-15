@@ -204,7 +204,8 @@ class Training(object):
                 BASENAME_TUNING_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external=True
+                preprocess_external=preprocess_external,
+                process_xml=process_xml
             )
         if isinstance(self._evaluation, str):
             self._preprocess_external_corpus(
@@ -212,7 +213,8 @@ class Training(object):
                 BASENAME_EVALUATION_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external=False
+                preprocess_external=False, # never preprocess EVAL corpus
+                process_xml=process_xml
             )
         # lowercase as needed
         self._lowercase()
@@ -493,7 +495,8 @@ class Training(object):
             logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, preprocess_external):
+                                    min_tokens, max_tokens, preprocess_external,
+                                    process_xml):
         '''
         Pre-processes an external corpus into /corpus.
 
@@ -506,6 +509,8 @@ class Training(object):
         @param min_tokens minimal number of tokens in a segment
         @param max_tokens maximal number of tokens in a segment
         @param preprocess_external whether the segments should be preprocessed
+        @param process_xml whether or not the XML processing strategy should be
+            applied to the segments in external corpora
         '''
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
@@ -517,7 +522,7 @@ class Training(object):
             tokenizer_trg=self._tokenizer_target,
             mask=bool(self._masking_strategy),
             masker=self._masker if self._masking_strategy else None,
-            process_xml=False if self._xml_strategy == XML_PASS_THROUGH else True,
+            process_xml=process_xml,
             xml_processor=self._xml_processor if self._xml_strategy else None
         )
         # pre-process segments
