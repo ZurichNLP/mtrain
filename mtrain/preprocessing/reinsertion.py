@@ -338,12 +338,12 @@ class Reinserter(object):
                     close_now.extend(closing_elements_by_position[source_index])
                     del closing_elements_by_position[source_index]
 
-                # actually open elements
-                output_tokens.extend(open_now)
-                # output actual phrase
-                output_tokens.append(target_token)
-                # actually close elements
-                output_tokens.extend(close_now)
+            # actually open elements
+            output_tokens.extend(open_now)
+            # output actual phrase
+            output_tokens.append(target_token)
+            # actually close elements
+            output_tokens.extend(close_now)
 
         if force_all:
             # if there are remaining opening tags
