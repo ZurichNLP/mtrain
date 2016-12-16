@@ -21,9 +21,17 @@ class XmlProcessor(object):
     def __init__(self, xml_strategy):
         self._xml_strategy = xml_strategy
         if self._xml_strategy in (XML_STRIP, XML_STRIP_REINSERT):
-            self._reinserter = Reinserter(XML_STRATEGIES_DEFAULTS[self._xml_strategy])
+            self._reinserter = Reinserter(
+                XML_STRATEGIES_DEFAULTS[self._xml_strategy],
+                force_all=FORCE_REINSERT_ALL
+            )
         elif self._xml_strategy == XML_MASK:
-            self._masker = Masker(XML_STRATEGIES_DEFAULTS[self._xml_strategy])
+            self._masker = Masker(
+                strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy],
+                escape=True,
+                force_all=FORCE_REINSERT_ALL,
+                remove_all=REMOVE_ALL_MASKS
+            )
 
     def _strip_markup(self, segment, keep_escaped_markup=True):
         '''

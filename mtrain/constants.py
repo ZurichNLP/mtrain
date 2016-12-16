@@ -159,6 +159,7 @@ MASKING_STRATEGIES = {
 }
 # More fine-grained defaults for masking
 FORCE_MASK_TRANSLATION = False # constraint decoding for the mask token
+REMOVE_ALL_MASKS = True # whether superfluous mask tokens should be removed
 
 # Markup reinsertion
 REINSERTION = 'reinsertion'
@@ -174,8 +175,8 @@ REINSERTION_STRATEGIES = {
     REINSERTION_ALIGNMENT: "reinsert markup based solely on information " +
         "about word alignments"
 }
-# More fine-grained defaults for reinsertion
-FORCE_REINSERT_ALL = False # whether unplaceable markup should be inserted anyway
+# More fine-grained defaults for reinsertion and masking
+FORCE_REINSERT_ALL = True # whether unplaceable markup should be inserted anyway
 
 # XML processing
 XML_PASS_THROUGH = 'pass-through'

@@ -18,8 +18,14 @@ class Reinserter(object):
         markup prior to translation.
     '''
 
-    def __init__(self, reinsertion_strategy):
+    def __init__(self, reinsertion_strategy, force_all=True):
+        '''
+        @param reinsertion_strategy the method for reinsertion
+        @param force_all whether all tags found in the source must by all means be
+            inserted into the target segment, even if there is no conclusive evidence
+        '''
         self._reinsertion_strategy = reinsertion_strategy
+        self._force_all = force_all
 
     def _next_source_tag_region(self, source_tokens):
         '''
@@ -222,7 +228,7 @@ class Reinserter(object):
 
         return " ".join(target_tokens)
 
-    def _reinsert_markup_segmentation(self, source_segment, target_segment, segmentation, force_all=True):
+    def _reinsert_markup_segmentation(self, source_segment, target_segment, segmentation):
         '''
         Reinserts markup based on the source segment and information about phrase segmentation.
         @param source_segment the original segment in the source language
@@ -230,8 +236,6 @@ class Reinserter(object):
         @param target_segment a translated segment without markup
         @param segmentation phrase segmentation reported by Moses, a dictionary
             where keys are tuples of source spans
-        @param force_all whether all tags found in the source must by all means be
-            inserted into the target segment, even if there is no conclusive evidence
         '''
         source_tokens = tokenize_keep_markup(source_segment)
         target_tokens = target_segment.split(" ")
@@ -279,7 +283,7 @@ class Reinserter(object):
             # actually close elements
             output_tokens.extend(close_now)
 
-        if force_all:
+        if self._force_all:
             # if there are remaining opening tags
             if opening_elements_by_position:
                 for key in sorted(opening_elements_by_position.keys()):
@@ -292,7 +296,7 @@ class Reinserter(object):
 
         return " ".join(output_tokens)
 
-    def _reinsert_markup_alignment(self, source_segment, target_segment, alignment, force_all=True):
+    def _reinsert_markup_alignment(self, source_segment, target_segment, alignment):
         '''
         Reinserts markup based on the source segment and information about word alignment.
         @param source_segment the original segment in the source language
@@ -300,8 +304,6 @@ class Reinserter(object):
         @param target_segment a translated segment without markup
         @param alignment word alignment information reported by Moses, a
             dictionary where source tokens are keys
-        @param force_all whether all tags found in the source must by all means be
-            inserted into the target segment, even if there is no conclusive evidence
         '''
         output_tokens = []
 
@@ -345,7 +347,7 @@ class Reinserter(object):
             # actually close elements
             output_tokens.extend(close_now)
 
-        if force_all:
+        if self._force_all:
             # if there are remaining opening tags
             if opening_elements_by_position:
                 for key in sorted(opening_elements_by_position.keys()):
