@@ -406,6 +406,15 @@ def _is_selfclosing_tag(token):
     '''
     return bool( re.match(r"<[a-zA-Z_][^\/<>]*\/>", token) )
 
+def is_xml_tag(token):
+    '''
+    Determines whether @param token is an XML element tag.
+    '''
+    if _is_opening_tag(token) or _is_closing_tag(token) or _is_selfclosing_tag(token):
+        return True
+    else:
+        return False
+
 def _is_xml_comment(token):
     '''
     Determines whether @param token is an XML comment.

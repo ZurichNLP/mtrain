@@ -44,9 +44,16 @@ class XmlProcessor(object):
             only its text content should be kept
         '''
         # unescaped markup
-        if '<' in segment:
+        try:
             tree = etree.fromstring('<root>' + segment + '</root>')
             segment  = etree.tostring(tree, encoding='unicode', method='text')
+        except:
+            # malformed fragment, fall back strategy
+            tokens = []
+            for token in re.split("(<[^<>]+>)", segment):
+                if not re.match("<[^<>]+>", token):
+                    tokens.extend(token.split(" "))
+            segment = " ".join(tokens)
         # markup that was escaped in the original segment, now surfaced
         if '<' in segment and not keep_escaped_markup:        
             segment = re.sub('<[^>]*>', '', segment)
