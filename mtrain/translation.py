@@ -143,6 +143,9 @@ class TranslationEngine(object):
             segment, xml_mapping = self._xml_processor.preprocess_markup(segment)
         else:
             xml_mapping = None
+        # force mask translation
+        if FORCE_MASK_TRANSLATION:
+            segment = self._masker.force_mask_translation(segment)
         return source_segment, segment, mask_mapping, xml_mapping
 
     def _postprocess_segment(self, source_segment, target_segment, masked_source_segment=None,

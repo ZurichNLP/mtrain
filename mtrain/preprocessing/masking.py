@@ -37,7 +37,7 @@ class _Replacement(object):
 
 class Masker(object):
     
-    def __init__(self, strategy, escape=True, force_all=True, remove_all=False):
+    def __init__(self, strategy, escape=True, force_all=True, remove_all=True):
         '''
         @param strategy valid masking strategy
         @param escape whether characters reserved in Moses should be escaped
@@ -55,10 +55,12 @@ class Masker(object):
         if not constants.PROTECTED_PATTERNS:
             sys.exit('Masking is not possible because no patterns are defined in PROTECTED_PATTERNS in mtrain/constants.py.')
 
-    def mask_segment(self, segment):
+    def mask_segment(self, segment, force_mask_translation=False):
         '''
         Introduces mask tokens into segment and escapes characters.
         @param segment the input text
+        @param force_mask_translation whether the mask token should
+            be wrapped with unsecaped XML for forced decoding
         '''
         mapping = []
         
@@ -74,6 +76,9 @@ class Masker(object):
         if self._escape:
             segment = cleaner.escape_special_chars(segment)
     
+        if force_mask_translation:
+            segment = self.force_mask_translation(segment)
+
         return segment, mapping
     
     def mask_tokens(self, tokens):
