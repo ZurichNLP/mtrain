@@ -37,7 +37,7 @@ class _Replacement(object):
 
 class Masker(object):
     
-    def __init__(self, strategy, escape=True, force_all=False, remove_all=False):
+    def __init__(self, strategy, escape=True, force_all=True, remove_all=False):
         '''
         @param strategy valid masking strategy
         @param escape whether characters reserved in Moses should be escaped
