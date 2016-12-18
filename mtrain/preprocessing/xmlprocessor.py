@@ -72,7 +72,7 @@ class XmlProcessor(object):
         '''
         return self._masker.mask_segment(segment)
 
-    def _unmask_markup(self, masked_source_segment, target_segment, mapping):
+    def _unmask_markup(self, masked_source_segment, target_segment, mapping, alignment=None):
         '''
         When a mask token is found, reinsert the original
             XML markup content.
@@ -80,8 +80,9 @@ class XmlProcessor(object):
         @param target_segment a translation with mask tokens
         @param mapping a dictionary containing the mask tokens
             and the original content
+        @param word alignment between the source and target segment
         '''
-        return self._masker.unmask_segment(masked_source_segment, target_segment, mapping)
+        return self._masker.unmask_segment(masked_source_segment, target_segment, mapping, alignment)
 
     def _reinsert_markup(self, source_segment, target_segment):
         '''
@@ -98,6 +99,12 @@ class XmlProcessor(object):
             target_segment.segmentation,
             target_segment.alignment
         )
+
+    def force_mask_translation(self, segment):
+        '''
+        Enforces the translation of mask tokens.
+        '''
+        return self._masker.force_mask_translation(segment)
 
     # Exposed methods
     def preprocess_markup(self, segment):
@@ -124,7 +131,7 @@ class XmlProcessor(object):
             # in this case, do nothing / todo: well, remove markup if any?
             return target_segment.translation
         elif self._xml_strategy == XML_MASK:
-            return self._unmask_markup(masked_source_segment, target_segment.translation, mapping)
+            return self._unmask_markup(masked_source_segment, target_segment.translation, mapping, target_segment.alignment)
         elif self._xml_strategy == XML_PASS_THROUGH:
             return target_segment.translation # then return segment unchanged
 

@@ -71,7 +71,7 @@ class TranslationEngine(object):
         self._engine = Engine(
             path_moses_ini=path_moses_ini,
             report_alignment=report_alignment,
-            report_segmentation=report_segmentation
+            report_segmentation=report_segmentation,
         )
 
     def _load_tokenizer(self):
@@ -143,9 +143,13 @@ class TranslationEngine(object):
             segment, xml_mapping = self._xml_processor.preprocess_markup(segment)
         else:
             xml_mapping = None
-        # force mask translation
+        
         if FORCE_MASK_TRANSLATION:
-            segment = self._masker.force_mask_translation(segment)
+            if self._masking_strategy:
+                segment = self._masker.force_mask_translation(segment)
+            elif self._xml_strategy == XML_MASK:
+                segment = self._xml_processor.force_mask_translation(segment)
+
         return source_segment, segment, mask_mapping, xml_mapping
 
     def _postprocess_segment(self, source_segment, target_segment, masked_source_segment=None,
