@@ -257,7 +257,7 @@ class Reinserter(object):
             )
 
         # gather info from source segment
-        opening_elements_by_position, closing_elements_by_position = _tag_indexes_from_tokens(source_tokens)
+        opening_elements_by_position, closing_elements_by_position = _tag_indexes_from_tokens_segmentation(source_tokens)
         
         # then for each target phrase
         for source, target, tokens_in_source, tokens_in_target in sorted(target_phrases, key=lambda x: x[1]):
@@ -460,6 +460,28 @@ def _tag_indexes_from_tokens(source_tokens):
         # else: do nothing
 
     return elements_by_position
+
+def _tag_indexes_from_tokens_segmentation(source_tokens):
+    '''
+    Identifies tokens that are tags and lists their indexes in the source
+        segment.
+    @param source_tokens a list of tokens that might contain tags
+    '''
+    opening_elements_by_position = defaultdict(list)
+    closing_elements_by_position = defaultdict(list)
+
+    tags_seen_offset = 0
+
+    for source_index, source_token in enumerate(source_tokens):
+        if _is_opening_tag(source_token) or _is_selfclosing_tag(source_token):
+            opening_elements_by_position[source_index - tags_seen_offset].append(source_token)
+            tags_seen_offset += 1
+        elif _is_closing_tag(source_token):
+            closing_elements_by_position[source_index - tags_seen_offset - 1].append(source_token)
+            tags_seen_offset += 1
+        # else: do nothing
+
+    return opening_elements_by_position, closing_elements_by_position
 
 class _NodesToListHandler(xml.sax.ContentHandler):
     """

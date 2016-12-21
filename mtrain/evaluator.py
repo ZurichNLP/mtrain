@@ -13,6 +13,7 @@ from mtrain import commander
 from mtrain.translation import TranslationEngine
 from mtrain.preprocessing import cleaner
 from mtrain.preprocessing import lowercaser
+from mtrain.preprocessing.reinsertion import tokenize_keep_markup
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
 
@@ -88,7 +89,29 @@ class Evaluator(object):
                         target_segment = lowercaser.lowercase_string(target_segment)
                     if not self._detokenize_eval:
                         target_segment = self._tokenizer.tokenize(target_segment, split=False)
+                        # markup-aware tokenizer does not escape, but un-detokenized machine translation
+                        # is escaped, except for markup; do the same here
+                        target_segment = self._escape_if_not_markup(target_segment)
                     path_eval_trg_processed.write(target_segment + "\n")
+
+    def _escape_if_not_markup(self, segment):
+        '''
+        Splits a segment into tokens (markup-aware) and escapes tokens
+        if they are not markup tags.
+        '''
+        escaped_tokens = []
+
+        tokens = tokenize_keep_markup(segment)
+        for token in tokens:
+            if re.match("<[^<>]+>", token):
+                # markup tag, do not escape
+                escaped_tokens.append(token)
+            else:
+                escaped_tokens.append(
+                    cleaner.escape_special_chars(token)
+                )
+
+        return " ".join(escaped_tokens)
 
     def _translate_eval_corpus_src(self):
         '''
