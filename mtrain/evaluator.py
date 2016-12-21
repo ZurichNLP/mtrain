@@ -4,6 +4,7 @@ Automatic evaluation of a trained engine, based on the translations of an evalua
 '''
 
 import os
+import re
 import logging
 import itertools
 
@@ -100,17 +101,13 @@ class Evaluator(object):
         if they are not markup tags.
         '''
         escaped_tokens = []
-
-        tokens = tokenize_keep_markup(segment)
-        for token in tokens:
+        tokens = []
+        for token in re.split("(<[^<>]+>)", segment):
             if re.match("<[^<>]+>", token):
-                # markup tag, do not escape
+                # markup, do not escape
                 escaped_tokens.append(token)
             else:
-                escaped_tokens.append(
-                    cleaner.escape_special_chars(token)
-                )
-
+                escaped_tokens.append(cleaner.escape_special_chars(token))
         return " ".join(escaped_tokens)
 
     def _translate_eval_corpus_src(self):
