@@ -106,8 +106,8 @@ class Evaluator(object):
             if re.match("<[^<>]+>", token):
                 # markup, do not escape
                 escaped_tokens.append(token)
-            else:
-                escaped_tokens.append(cleaner.escape_special_chars(token))
+            elif token:
+                escaped_tokens.append(cleaner.escape_special_chars(token.strip()))
         return " ".join(escaped_tokens)
 
     def _translate_eval_corpus_src(self):
