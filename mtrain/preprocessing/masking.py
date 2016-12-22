@@ -51,6 +51,9 @@ class Masker(object):
         self._force_all = force_all
         self._remove_all = remove_all
 
+        # take forced translation option from constants file
+        self._force_mask_translation = constants.FORCE_MASK_TRANSLATION
+
         # if no patterns are defined that could be masked
         if not constants.PROTECTED_PATTERNS:
             sys.exit('Masking is not possible because no patterns are defined in PROTECTED_PATTERNS in mtrain/constants.py.')
@@ -176,6 +179,9 @@ class Masker(object):
         Replaces mask tokens in @param target_segment with their actual content. Decisions
             are based on the source segment, the mapping and word alignments.
         '''
+        if self._force_mask_translation:
+            alignment = _fill_in_alignments(alignment)
+
         mapping_masks = [tuple[0] for tuple in mapping]
 
         # no duplicate masks in the mapping?
@@ -255,6 +261,23 @@ class Masker(object):
             segment = segment.replace(mask_token, replacement)
 
         return segment
+
+def _fill_in_alignments(alignment):
+    '''
+    If translation of mask tokens was forced, reintroduces
+    alignments for mask tokens.
+    @param alignment a dictionary with alignments reported by the decoder
+
+    Note: Assumes for all mask tokens that they were not reordered -
+    which might be a crippling assumption.
+    '''
+
+    max_index = max(alignment) + 1
+    for index in range(0, max_index):
+        if index not in alignment:
+            alignment[index] = [index]
+
+    return alignment
 
 def write_masking_patterns(protected_patterns_path, markup_only=False):
     '''

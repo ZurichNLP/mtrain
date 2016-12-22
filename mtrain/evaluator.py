@@ -92,7 +92,9 @@ class Evaluator(object):
                         target_segment = self._tokenizer.tokenize(target_segment, split=False)
                         # markup-aware tokenizer does not escape, but un-detokenized machine translation
                         # is escaped, except for markup; do the same here
-                        target_segment = self._escape_if_not_markup(target_segment)
+                        if self._xml_strategy:
+                            target_segment = self._escape_if_not_markup(target_segment)
+                        # else, the tokenizer already escapes properly
                     path_eval_trg_processed.write(target_segment + "\n")
 
     def _escape_if_not_markup(self, segment):
