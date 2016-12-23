@@ -180,6 +180,9 @@ class Masker(object):
             are based on the source segment, the mapping and word alignments.
         '''
         if self._force_mask_translation:
+            # get rid of forced decoding markup
+            source_segment = _remove_forced_translations(source_segment)
+            # fill in missing alignments
             alignment = _fill_in_alignments(alignment)
 
         mapping_masks = [tuple[0] for tuple in mapping]
@@ -300,3 +303,9 @@ def write_masking_patterns(protected_patterns_path, markup_only=False):
             for mask_token, regex in constants.PROTECTED_PATTERNS.items():
                 patterns_file.write("# %s\n%s\n" % (mask_token, regex))
 
+def _remove_forced_translations(segment):
+    '''
+    Removes forced translation directives from a segment.
+    '''
+    tokens = [token for token in re.split("<[^<>]+>", segment) if token]
+    return " ".join(tokens)
