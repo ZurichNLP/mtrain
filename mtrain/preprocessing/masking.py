@@ -183,7 +183,7 @@ class Masker(object):
             # get rid of forced decoding markup
             source_segment = _remove_forced_translations(source_segment)
             # fill in missing alignments
-            alignment = _fill_in_alignments(alignment)
+            alignment = self._fill_in_alignments(source_segment, target_segment, alignment)
 
         mapping_masks = [tuple[0] for tuple in mapping]
 
@@ -200,7 +200,13 @@ class Masker(object):
                     # follow alignment to target token(s)
                     for candidate_index in alignment[source_index]:
                         # determine aligned token in target phrase
-                        target_token = target_tokens[candidate_index]
+                        try:
+                            target_token = target_tokens[candidate_index]
+                        except:
+                            print("alignments: %s" % str(alignment))
+                            print("source_tokens: %s" % source_tokens)
+                            print("target_tokens: %s" % target_tokens)
+                            raise
                         if self._is_mask_token(target_token):
                             # then, finally reinsert original content
                             target_tokens[candidate_index], remove_index = self._first_original(source_token, mapping)
@@ -265,22 +271,28 @@ class Masker(object):
 
         return segment
 
-def _fill_in_alignments(alignment):
-    '''
-    If translation of mask tokens was forced, reintroduces
-    alignments for mask tokens.
-    @param alignment a dictionary with alignments reported by the decoder
+    def _fill_in_alignments(self, source_segment, target_segment, alignment):
+        '''
+        If translation of mask tokens was forced, reintroduces
+        alignments for mask tokens.
+        @param alignment a dictionary with alignments reported by the decoder
+    
+        Note: Assumes for all mask tokens that they were not reordered -
+        which might be a crippling assumption.
+        '''
+        
+        source_tokens = source_segment.split(" ")
+        target_tokens = target_segment.split(" ")
 
-    Note: Assumes for all mask tokens that they were not reordered -
-    which might be a crippling assumption.
-    '''
+        for source_index, source_token in enumerate(source_tokens):
+            if self._is_mask_token(source_token):
+                for target_index, target_token in enumerate(target_tokens):
+                    if source_token == target_token:
+                        alignment[source_index].append(target_index)
+                        target_tokens[target_index] = "USED"
+                        break
 
-    max_index = max(alignment) + 1
-    for index in range(0, max_index):
-        if index not in alignment:
-            alignment[index] = [index]
-
-    return alignment
+        return alignment
 
 def write_masking_patterns(protected_patterns_path, markup_only=False):
     '''
