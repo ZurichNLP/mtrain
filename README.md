@@ -151,6 +151,8 @@ Handling XML input is controlled by the `--xml_input` option. Here are all possi
 * `strip-reinsert` stripping markup before training and translation. After translation, reinsert markup into the machine-translated segment,
 * `mask` in training, replacing markup strings with mask tokens. Before translation, replace markup with mask tokens, "un"-replace mask tokens again in the machine-translated segment.
 
+For more detailed descriptions of those strategies, look [here](http://www.cl.uzh.ch/dam/jcr:e7fb9132-4761-4af4-8f95-7e610a12a705/MA_mathiasmueller_05012017_0008.pdf).
+
 ## Use cases
 
 Description pending.
