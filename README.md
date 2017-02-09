@@ -141,6 +141,16 @@ For further translation options, run
 mtrans --help
 ```
 
+### Handling of XML Markup
+
+If your training data contains inline markup (for instance, because the training set is extracted from Microsoft Word or XLIFF), then `mtrain` offers several ways of dealing properly with the XML markup. By default, `mtrain` and `mtrans` assume that your data set does not contain any markup and will treat markup as normal tokens.
+
+Handling XML input is controlled by the `--xml_input` option. Here are all possible values for this option, which reflects all the possible strategies for markup handling that are currently implemented:
+* `pass-through` ignoring the fact that there is markup (not recommended if your data contains markup),
+* `strip` stripping markup before training and translation,
+* `strip-reinsert` stripping markup before training and translation. After translation, reinsert markup into the machine-translated segment,
+* `mask` in training, replacing markup strings with mask tokens. Before translation, replace markup with mask tokens, "un"-replace mask tokens again in the machine-translated segment.
+
 ## Use cases
 
 Description pending.
