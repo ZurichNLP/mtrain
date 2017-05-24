@@ -716,7 +716,7 @@ class Training(object):
             script=FAST_ALIGN,
             corpus=path_joined_corpus
         )
-        command_backward = '{threads_environment}{script} -i {corpus} -d -o -v > {corpus}.backward'.format(
+        command_backward = '{threads_environment}{script} -i {corpus} -d -o -v -r > {corpus}.backward'.format(
             threads_environment=('OMP_NUM_THREADS=%d ' % num_threads) if num_threads else '',
             script=FAST_ALIGN,
             corpus=path_joined_corpus
