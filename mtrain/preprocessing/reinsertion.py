@@ -7,6 +7,7 @@ from lxml import etree
 
 import xml.sax
 import re
+import sys
 
 '''
 Reinsert markup into target segments, based on the markup found in the source segments.
@@ -47,7 +48,11 @@ class Reinserter(object):
                 elif _is_closing_tag(source_token):
                     # delete this pair of tags from the source
                     del source_tokens[source_index]
-                    del source_tokens[current_opening_tag[0]]
+                    try:
+                        del source_tokens[current_opening_tag[0]]
+                    except TypeError:
+                        print(source_tokens)
+                        sys.exit()
                     # then yield, because the closing tag is bound to correspond to
                     # the most recent opening tag
                     yield (current_opening_tag[0] - tags_seen_offset, current_opening_tag[1]), \
@@ -199,13 +204,25 @@ class Reinserter(object):
                     for index in source_tag_region:
                         relevant_alignments.extend(alignment[index])
 
+                    #print("All alignments: ", alignment)
+                    #print("source tag region: ", source_tag_region)
+                    #print("Relevant alignments: ", relevant_alignments)
+
                     if self._tcp_is_contiguous(target_covering_phrases):
                         # Rule 2
+                        try:
+                            insert_at_opening = min(relevant_alignments)
+                        except ValueError:
+                            insert_at_opening = len(target_tokens)
                         changes.append(
-                            (min(relevant_alignments), opening_tag)
+                            (insert_at_opening, opening_tag)
                         )
+                        try:
+                            insert_at_closing = max(relevant_alignments) + 1
+                        except ValueError:
+                            insert_at_closing = len(target_tokens)
                         changes.append(
-                            (max(relevant_alignments) + 1, closing_tag)
+                            (insert_at_closing, closing_tag)
                         )
                     else:
                         # Rule 3.5
@@ -385,7 +402,7 @@ def _is_opening_tag(token):
     '''
     Determines whether @param token is the opening tag of an XML element.
     '''
-    return bool( re.match(r"<[a-zA-Z_][^\/<>]*>", token) )
+    return bool( re.match(r'<[a-zA-Z_][^<>\/]*(".*")?[^\/<>]*>', token) )
 
 def _is_closing_tag(token):
     '''

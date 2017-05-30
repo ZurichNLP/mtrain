@@ -158,7 +158,7 @@ MASKING_STRATEGIES = {
         "is restored based solely on mapping information",
 }
 # More fine-grained defaults for masking
-FORCE_MASK_TRANSLATION = True # constraint decoding for the mask token
+FORCE_MASK_TRANSLATION = False # constraint decoding for the mask token
 REMOVE_ALL_MASKS = True # whether superfluous mask tokens should be removed
 
 # Markup reinsertion
@@ -198,8 +198,8 @@ XML_STRATEGIES = {
 }
 # More fine-grained defaults for XML processing
 XML_STRATEGIES_DEFAULTS = {
-    XML_STRIP: REINSERTION_SEGMENTATION,
-    XML_STRIP_REINSERT: REINSERTION_SEGMENTATION,
+    XML_STRIP: REINSERTION_FULL,
+    XML_STRIP_REINSERT: REINSERTION_FULL,
     XML_MASK: MASKING_ALIGNMENT
 }
 
