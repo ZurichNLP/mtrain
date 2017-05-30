@@ -207,10 +207,6 @@ class Reinserter(object):
                     for index in source_tag_region:
                         relevant_alignments.extend(alignment[index])
 
-                    #print("All alignments: ", alignment)
-                    #print("source tag region: ", source_tag_region)
-                    #print("Relevant alignments: ", relevant_alignments)
-
                     if self._tcp_is_contiguous(target_covering_phrases):
                         # Rule 2
                         try:
@@ -223,7 +219,7 @@ class Reinserter(object):
                         try:
                             insert_at_closing = max(relevant_alignments) + 1
                         except ValueError:
-                            insert_at_closing = len(target_tokens)
+                            insert_at_closing = len(target_tokens) + 1
                         changes.append(
                             (insert_at_closing, closing_tag)
                         )
