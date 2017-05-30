@@ -164,7 +164,10 @@ class Reinserter(object):
             
             if not closing:
                 # selfclosing tag
-                changes.append( (alignment[opening_index][0], opening_tag) )
+                try:
+                    changes.append( (alignment[opening_index][0], opening_tag) )
+                except IndexError:
+                    changes.append( (len(target_tokens), opening_tag) )
 
             elif not source_tag_region:
                 # tag pair with no content tokens between them
