@@ -660,7 +660,7 @@ class Training(object):
             os.mkdir(base_dir_lm)
         # train language model
         commander.run(
-            '{script} -o {n} -S 40% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
+            '{script} -o {n} -S 30% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
                 script=KENLM_TRAIN_MODEL,
                 n=n,
                 path_temp_files=path_temp_files,
