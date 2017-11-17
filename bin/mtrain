@@ -7,7 +7,7 @@ import os
 
 from mtrain.training import Training
 from mtrain.constants import *
-from mtrain import checker
+from mtrain import checker, assertions
 
 LOGGING_LEVELS = {
     "DEBUG": logging.DEBUG,
@@ -19,7 +19,8 @@ LOGGING_LEVELS = {
 
 def get_argument_parser():
     parser = argparse.ArgumentParser()
-    parser.description = "Trains a Moses-based machine translation system."
+    parser.description = ("Trains either a Moses-based statistical machine translation system " +
+        "or a Nematus-based neural network translation system.")
     parser.add_argument(
         "basepath",
         type=str,
@@ -41,6 +42,15 @@ def get_argument_parser():
         help="target language code: same valid choices as in src_lang",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
         metavar='trg_lang' #overrides ugly double-listing of available choices in --help
+    )
+    parser.add_argument(
+        "--backend", # "-b", conflicting with --bpe_ops
+        type=str,
+        help="decide on which backend is to be used for training the translation system." +
+            " Valid choices are: " +
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in BACKEND_CHOICES.items()]),
+        choices=BACKEND_CHOICES.keys(),
+        default='moses'
     )
     parser.add_argument(
         "-o", "--output_dir",
@@ -94,28 +104,28 @@ def get_argument_parser():
     )
     parser.add_argument(
         "-n", "--n_gram_order",
-        help="the language model's n-gram order",
         type=int,
+        help="the language model's n-gram order",
         default=5
     )
     parser.add_argument(
         "--min_tokens",
+        type=int,
         help="the minimum number of tokens per segments; segments with less " +
             "tokens will be discarded",
-        type=int,
         default=1
     )
     parser.add_argument(
         "--max_tokens",
+        type=int,
         help="the maximum number of tokens per segments; segments with more " +
             "tokens will be discarded",
-        type=int,
         default=80
     )
     parser.add_argument(
         "--threads",
-        help="the number of threads to be used at most",
         type=int,
+        help="the number of threads to be used at most",
         default=8
     )
     parser.add_argument(
@@ -150,6 +160,13 @@ def get_argument_parser():
             "lowercased or not, detokenized or not, with markup or without.",
         default=False
     )
+    parser.add_argument(
+        "--bpe_ops",
+        type=int,
+        help="decide how many byte-pair operations are to be performed when learning the " +
+        "byte-pair encoding model. Default is 100,000 operations.",
+        default=100000
+    )
     return parser
 
 def main():
@@ -166,7 +183,13 @@ def main():
             args.eval = int(args.eval)
         except ValueError:
             pass # string is fine; means path to external evalution corpus was provided
+
     # initialize logging
+    # check existence of args.output_dir before creating logfile
+    assertions.dir_exists(
+        args.output_dir,
+        raise_exception="%s does not exist" % args.output_dir
+    )
     # log all events to file
     logging.basicConfig(
         filename=args.output_dir + os.sep + 'training.log',
@@ -186,25 +209,50 @@ def main():
             "'--xml_input mask', but not both. See '-h'/'--help' for more information.")
         sys.exit()
 
+    # currently neither generic masking nor XML masking for backend nematus
+    if args.backend == BACKEND_NEMATUS and (args.masking or args.xml_input):
+        logging.critical("Invalid command line options. For '--backend %s', " +
+            "neither '--masking' nor '--xml_input' are applicable yet. " +
+            "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
+        sys.exit()
+
+    # currently no casing other than truecasing for backend nematus
+    if args.backend == BACKEND_NEMATUS and args.caser != TRUECASING:
+        logging.critical("Invalid command line options. For '--backend %s', " +
+            "only '%s' is applicable as casing strategy. " +
+            "See '-h'/'--help' for more information.", BACKEND_NEMATUS, TRUECASING)
+        sys.exit()
+
+    # ignore bpe operations for backend moses, warn user but continue processing
+    if args.backend == BACKEND_MOSES and args.bpe_ops:
+        logging.warning("Invalid command line options. For '--backend %s', " +
+            "'--bpe_ops' is not applicable and will be ignored. " +
+            "See '-h'/'--help' for more information.", BACKEND_MOSES)
+
     # make instance of Training class
     training = Training(
         basepath=args.output_dir,
         src_lang=args.src_lang,
         trg_lang=args.trg_lang,
+        backend=args.backend,
         casing_strategy=args.caser,
         masking_strategy=args.masking,
         xml_strategy=args.xml_input,
         tuning=args.tune,
         evaluation=args.eval
     )
+
+    # initiate preprocessing
     training.preprocess(
-        base_corpus_path=args.basepath,
+        corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
         min_tokens=args.min_tokens,
         max_tokens=args.max_tokens,
         mask=bool(args.masking),
         preprocess_external=args.preprocess_external_tune,
         process_xml=bool(args.xml_input)
     )
+    
+    # continue preprocessing: apply casing strategy
     if args.caser == TRUECASING:
         training.train_truecaser()
         training.truecase()
@@ -214,6 +262,16 @@ def main():
             args.temp_dir,
             args.keep_uncompressed_models
         )
+
+    # continue preprocessing: byte-pair encoding for backend nematus
+    if args.backend == BACKEND_NEMATUS:
+        training.bpe_encoding(
+            bpe_operations=args.bpe_ops
+        )
+
+    exit() ###BH testing exit ############################################################
+
+    # initiate training
     training.train_engine(
         n=args.n_gram_order,
         alignment='grow-diag-final-and', # todo: make changeable
@@ -223,10 +281,14 @@ def main():
         path_temp_files=args.temp_dir,
         keep_uncompressed=args.keep_uncompressed_models
     )
+
+    # initiate tuning
     if args.tune:
         training.tune(args.threads)
+
     training.write_final_ini()
 
+    # initiate evaluation
     if args.eval:
         # abort if MULTEVAL_HOME environment variable is not set
         checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
@@ -246,3 +308,10 @@ if __name__ == '__main__':
     checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
     # run main routine
     main()
+
+    # ###BH todo check for versions and env variables:
+    # SUBWORD_NMT
+    # NEMATUS (see https://github.com/EdinburghNLP/nematus)
+    # Theano
+    # gpuarray...
+    # check nematus stuff only when chosen as backend, e.g. before call of training.preprocess()
