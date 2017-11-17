@@ -14,10 +14,14 @@ MOSES_HOME = os.environ.get('MOSES_HOME') if os.environ.get('MOSES_HOME') else '
 MOSES_BIN = MOSES_HOME + os.sep + 'bin'
 FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
 MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
+# Paths to 3rd party packages for nematus branch implementation
+SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else '' # Subword NMT base directory
+NEMATUS_HOME = os.environ.get('NEMATUS_HOME') if os.environ.get('NEMATUS_HOME') else '' # Nematus base directory
 
 # Paths to Moses files/scripts
 MOSES = MOSES_HOME + os.sep + 'bin/moses'
 MOSES_TRAIN_MODEL = MOSES_HOME + os.sep + 'scripts/training/train-model.perl'
+MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl'
 MOSES_TOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/tokenizer.perl'
 MOSES_DETOKENIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/detokenizer.perl'
 MOSES_TRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/truecase.perl'
@@ -28,9 +32,16 @@ MOSES_MERT = MOSES_HOME + os.sep + 'scripts/training/mert-moses.pl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTableMin'
 
+###BH todo reference source of 3rd party scripts !!!
+# Paths to Subword NMT files/scripts
+SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py'
+SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py'
+# Paths to Nematus files/scripts
+NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'build_dictionary.py'
+
 # Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
-KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
+KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary' ###BH @MM: maybe a / too much, results in '//bin..' ?
 
 # Paths to fast_align files/scripts
 FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'
@@ -68,11 +79,13 @@ PATH_COMPONENT = {
     "evaluation": "evaluation",
     "logs": "logs"
 }
+# new subfolder bpe model
+BPE = 'bpe'
 
 # Default file names and affixes
 BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
-BASENAME_EVALUATION_CORPUS = 'test'
+BASENAME_EVALUATION_CORPUS = 'eval' ###BH @MM: changed value from 'test'
 SUFFIX_TOKENIZED = 'tokenized'
 SUFFIX_DETOKENIZED= 'detokenized'
 SUFFIX_MASKED = 'masked'
@@ -217,4 +230,13 @@ LOGGING_LEVELS = {
     "WARNING": logging.WARNING,
     "ERROR": logging.ERROR,
     "CRITICAL": logging.CRITICAL,
+}
+
+# Backend choices
+BACKEND_MOSES = 'moses'
+BACKEND_NEMATUS = 'nematus'
+# Valid backend choices
+BACKEND_CHOICES = {
+    BACKEND_MOSES: "SMT training based on Moses (default)",
+    BACKEND_NEMATUS: "NN training based on Nematus. Note that '--masking', '--xml_input' and '--caser' other than 'truecasing' are not applicaple for Nematus."
 }
