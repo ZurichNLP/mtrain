@@ -13,18 +13,19 @@ from mtrain.constants import *
 from mtrain.preprocessing.masking import Masker, write_masking_patterns
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
 from mtrain.preprocessing.tokenizer import Tokenizer
-from mtrain.preprocessing import lowercaser, cleaner, reinsertion
+from mtrain.preprocessing.bpe import Encoder
+from mtrain.preprocessing import lowercaser, cleaner, reinsertion 
 from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
 from mtrain import evaluator
 
 class Training(object):
     '''
-    Models the training process of a Moses engine, including all files and
+    Models the training process of a Moses or Nematus engine, including all files and
     folders that are required and generated.
     '''
 
-    def __init__(self, basepath, src_lang, trg_lang, casing_strategy,
+    def __init__(self, basepath, src_lang, trg_lang, backend, casing_strategy,
                  masking_strategy, xml_strategy, tuning, evaluation):
         '''
         Creates a new project structure at @param basepath.
@@ -34,6 +35,7 @@ class Training(object):
             directory; existing files will be overwritten
         @param src_lang the language code of the source language, e.g., `en`
         @param trg_lang the language code of the target language, e.g., `fr`
+        @param backend ###BH todo text
         @param casing_strategy how case should be handled in preprocessing
         @param masking_strategy whether and how mask tokens should be
             introduced into segments
@@ -50,10 +52,13 @@ class Training(object):
         Note: @param src_lang, @param trg_lang must be language codes recognised
             by the built-in Moses tokenizer.
         '''
+
         # base directory and languages
         self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
+        # set backend choice
+        self._backend = backend
         # set strategies
         self._masking_strategy = masking_strategy
         self._casing_strategy = casing_strategy
@@ -100,7 +105,6 @@ class Training(object):
         '''
         return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
 
-
     def _symlink(self, orig, link_name):
         try:
             os.symlink(orig, link_name)
@@ -123,45 +127,56 @@ class Training(object):
 
     def _load_tokenizer(self):
         # create tokenizers: masking strategy has an impact on tokenizer behaviour
-        tokenizer_protects = False
-        if self._masking_strategy:
-            tokenizer_protects = True
-            protected_patterns_path = self._get_path_masking_patterns(
-                overall_strategy=MASK,
-                detailed_strategy=self._masking_strategy
-            )
-        elif self._xml_strategy == XML_MASK:
-            tokenizer_protects = True
-            protected_patterns_path = self._get_path_masking_patterns(
-                overall_strategy=XML_MASK,
-                detailed_strategy=XML_STRATEGIES_DEFAULTS[XML_MASK]
-            )
-        elif self._xml_strategy == XML_STRIP or self._xml_strategy == XML_STRIP_REINSERT:
-            tokenizer_protects=True
-            protected_patterns_path = self._get_path_masking_patterns(
-                overall_strategy=self._xml_strategy,
-                detailed_strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy]
-            )
 
-        if tokenizer_protects:
-            write_masking_patterns(
-                protected_patterns_path,
-                markup_only=bool(self._xml_strategy)
-            )
+        # for backend choice moses
+        if self._backend == BACKEND_MOSES:
 
-            self._tokenizer_source = Tokenizer(
-                self._src_lang,
-                protect=True,
-                protected_patterns_path=protected_patterns_path,
-                escape=False
-            )
-            self._tokenizer_target = Tokenizer(
-                self._trg_lang,
-                protect=True,
-                protected_patterns_path=protected_patterns_path,
-                escape=False
-            )
-        else:
+            tokenizer_protects = False
+
+            if self._masking_strategy:
+                tokenizer_protects = True
+                protected_patterns_path = self._get_path_masking_patterns(
+                    overall_strategy=MASK,
+                    detailed_strategy=self._masking_strategy
+                )
+            elif self._xml_strategy == XML_MASK:
+                tokenizer_protects = True
+                protected_patterns_path = self._get_path_masking_patterns(
+                    overall_strategy=XML_MASK,
+                    detailed_strategy=XML_STRATEGIES_DEFAULTS[XML_MASK]
+                )
+            elif self._xml_strategy == XML_STRIP or self._xml_strategy == XML_STRIP_REINSERT:
+                tokenizer_protects=True
+                protected_patterns_path = self._get_path_masking_patterns(
+                    overall_strategy=self._xml_strategy,
+                    detailed_strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy]
+                )
+
+            if tokenizer_protects:
+                write_masking_patterns(
+                    protected_patterns_path,
+                    markup_only=bool(self._xml_strategy)
+                )
+
+                self._tokenizer_source = Tokenizer(
+                    self._src_lang,
+                    protect=True,
+                    protected_patterns_path=protected_patterns_path,
+                    escape=False
+                )
+                self._tokenizer_target = Tokenizer(
+                    self._trg_lang,
+                    protect=True,
+                    protected_patterns_path=protected_patterns_path,
+                    escape=False
+                )
+            else:
+                self._tokenizer_source = Tokenizer(self._src_lang)
+                self._tokenizer_target = Tokenizer(self._trg_lang)
+
+        # backend choice nematus (so far neither masking_strategy nor xml_strategy)
+        elif self._backend == BACKEND_NEMATUS:
+
             self._tokenizer_source = Tokenizer(self._src_lang)
             self._tokenizer_target = Tokenizer(self._trg_lang)
 
@@ -172,7 +187,7 @@ class Training(object):
     def _load_xmlprocessor(self):
         self._xml_processor = XmlProcessor(self._xml_strategy)
 
-    def preprocess(self, base_corpus_path, min_tokens, max_tokens, mask, preprocess_external, process_xml):
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, mask, preprocess_external, process_xml): ###BH changed 'base_corpus_path' to 'corpus_base_path'
         '''
         Preprocesses the given parallel corpus.
 
@@ -194,9 +209,13 @@ class Training(object):
             `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
             `/foo/corpus.fr`.
         '''
+
+        # logging info for backend choice and processing
+        logging.info("Initiating preprocessing for backend %s", self._backend)
         logging.info("Processing parallel corpus")
+
         # tokenize, clean, mask and split base corpus
-        self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens, mask, process_xml)
+        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml) ###BH changed 'base_corpus_path' to 'corpus_base_path'
         # tokenize, clean, mask and xml-process separate tuning and training corpora (if applicable)
         if isinstance(self._tuning, str):
             self._preprocess_external_corpus(
@@ -319,6 +338,38 @@ class Training(object):
             os.remove("%s/cased.kenlm.gz" % base_dir_recaser)
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
 
+    def bpe_encoding(self, bpe_operations):
+        '''
+        ###BH todo text @param
+        '''
+
+        # prepare bpe encoding
+
+        # get input for learning: paths of truecased training corpus and (if any) evaluation corpus. no language ending
+        corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED
+        if self._evaluation: 
+            corpus_eval_tc=self._get_path('corpus') + os.sep + BASENAME_EVAL_CORPUS + '.' + SUFFIX_TRUECASED
+        else:
+            corpus_eval_tc=None
+
+        # create target directory for model
+        bpe_model_path = os.sep.join([self._get_path('engine'), BPE])
+        if not assertions.dir_exists(bpe_model_path):
+            os.mkdir(bpe_model_path)
+
+        # create encoder instance
+        self._encoder = Encoder(corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang, self._tuning)
+
+        # learn bpe model (only for truecased training corpus)
+        self._encoder.learn_bpe_model()
+
+        # apply bpe model
+        self._encoder.apply_bpe_model()
+
+        # build bpe dictionary
+        ###BH todo implement bpe dictionary
+        #self._encoder.build_bpe_dictionary()
+
     def train_engine(self, n=5, alignment='grow-diag-final-and',
               max_phrase_length=7, reordering='msd-bidirectional-fe',
               num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
@@ -408,7 +459,7 @@ class Training(object):
             # None means segment should be discarded
             return None
 
-        return original_segment        
+        return original_segment
 
     def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
         '''
