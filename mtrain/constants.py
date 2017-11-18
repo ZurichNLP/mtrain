@@ -15,7 +15,9 @@ MOSES_BIN = MOSES_HOME + os.sep + 'bin'
 FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
 MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
 # Paths to 3rd party packages for nematus branch implementation
+###BH add full dedication to https://github.com/rsennrich/subword-nmt
 SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else '' # Subword NMT base directory
+###BH add full dedication to https://github.com/EdinburghNLP/nematus
 NEMATUS_HOME = os.environ.get('NEMATUS_HOME') if os.environ.get('NEMATUS_HOME') else '' # Nematus base directory
 
 # Paths to Moses files/scripts
@@ -32,7 +34,6 @@ MOSES_MERT = MOSES_HOME + os.sep + 'scripts/training/mert-moses.pl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTableMin'
 
-###BH todo reference source of 3rd party scripts !!!
 # Paths to Subword NMT files/scripts
 SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py'
 SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py'

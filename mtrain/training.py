@@ -35,7 +35,7 @@ class Training(object):
             directory; existing files will be overwritten
         @param src_lang the language code of the source language, e.g., `en`
         @param trg_lang the language code of the target language, e.g., `fr`
-        @param backend ###BH todo text
+        @param backend the backend to be used for training (moses or nematus)
         @param casing_strategy how case should be handled in preprocessing
         @param masking_strategy whether and how mask tokens should be
             introduced into segments
@@ -340,10 +340,12 @@ class Training(object):
 
     def bpe_encoding(self, bpe_operations):
         '''
-        ###BH todo text @param bpe_operations
-        '''
+        Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
 
-        # prepare bpe encoding
+        @param bpe_operations "Create this many new symbols (each representing a character n-gram)"
+                    Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
+                    Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+        '''
 
         # get input for learning: paths of truecased training corpus and (if any) evaluation corpus. no language ending
         corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED

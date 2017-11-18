@@ -5,17 +5,28 @@ from mtrain import commander
 from mtrain.preprocessing.external import ExternalProcessor
 
 '''
-###BH todo text
+###BH check for completeness, esp. dedication
+Provides further processing steps in order to use neural network training enabled by backend nematus.
+Processing steps are implemented according to guidance in https://github.com/rsennrich/wmt16-scripts/tree/master/sample
+
 '''
 
 class Encoder(object):
     '''
-    ###BH text working with truecased only, as in wmt
+    Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
+    The encoding is limited to input that is already processed using 'truecased' casing strategy.
+    Furthermore, neither generic masking nor XML masking are applicable.
     '''
 
     def __init__(self, corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, src_lang, trg_lang, evaluation):
         '''
-        ###BH todo all @params
+        @params corpus_train_tc location of truecased training corpus (no language ending)
+        @params corpus_eval_tc location of truecased evaluation corpus (no language ending)
+        @params bpe_model_path path of byte-pair encoding model to be stored (no filename)
+        @params bpe_operations number of n-grams to be created ###BH ref?
+        @params src_lang language identifier of source language
+        @params trg_lang language identifier of target language
+        @params evaluation whether a evaluation corpus exists that may be included in encoding
         '''
 
         self._corpus_train_tc=corpus_train_tc
@@ -31,6 +42,10 @@ class Encoder(object):
         '''
         Learn bpe model using truecased training corpus.
         Stores the bpe model in the basepath's subfolder 'engine/bpe/', model name SRC-TRG.bpe.
+
+        Script reference https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py:
+            Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
+            Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
         '''
 
         commander.run(
@@ -50,6 +65,10 @@ class Encoder(object):
         Apply bpe model on truecased training corpus (and if present, truecased evaluation corpus).
         Creates the files in the basepath's subfolder 'corpus', file names such as train.truecased.bpe.SRC, train.truecased.bpe.TRG
         (and eval.truecased.bpe.SRC, eval.truecased.bpe.TRG if applicable).
+
+        Script reference https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py:
+            Rico Sennrich, Barry Haddow and Alexandra Birch (2015). Neural Machine Translation of Rare Words with Subword Units.
+            Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
         '''
 
         def command(current_corpus, current_lang):
@@ -76,6 +95,8 @@ class Encoder(object):
         Build bpe dictionary (JSON files) for truecased training corpus.
         Note that the JSON files such as train.truecased.bpe.SRC.json and train.truecased.bpe.TRG.json
         are automatically stored at the location of the input files, which is the basepath's subfolder 'corpus'.
+
+        Scipt reference https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py
         '''
 
         commander.run(
