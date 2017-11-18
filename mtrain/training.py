@@ -340,7 +340,7 @@ class Training(object):
 
     def bpe_encoding(self, bpe_operations):
         '''
-        ###BH todo text @param
+        ###BH todo text @param bpe_operations
         '''
 
         # prepare bpe encoding
@@ -348,27 +348,26 @@ class Training(object):
         # get input for learning: paths of truecased training corpus and (if any) evaluation corpus. no language ending
         corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED
         if self._evaluation: 
-            corpus_eval_tc=self._get_path('corpus') + os.sep + BASENAME_EVAL_CORPUS + '.' + SUFFIX_TRUECASED
+            corpus_eval_tc=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED
         else:
             corpus_eval_tc=None
 
-        # create target directory for model
+        # create target directory for bpe model
         bpe_model_path = os.sep.join([self._get_path('engine'), BPE])
         if not assertions.dir_exists(bpe_model_path):
             os.mkdir(bpe_model_path)
 
         # create encoder instance
-        self._encoder = Encoder(corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang, self._tuning)
+        self._encoder = Encoder(corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang, self._evaluation)
 
-        # learn bpe model (only for truecased training corpus)
+        # learn bpe model using truecased training corpus
         self._encoder.learn_bpe_model()
 
-        # apply bpe model
+        # apply bpe model on truecased training corpus (and if present, truecased evaluation corpus)
         self._encoder.apply_bpe_model()
 
-        # build bpe dictionary
-        ###BH todo implement bpe dictionary
-        #self._encoder.build_bpe_dictionary()
+        # build bpe dictionary (JSON files) for truecased training corpus
+        self._encoder.build_bpe_dictionary()
 
     def train_engine(self, n=5, alignment='grow-diag-final-and',
               max_phrase_length=7, reordering='msd-bidirectional-fe',
