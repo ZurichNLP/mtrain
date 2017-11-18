@@ -229,6 +229,14 @@ def main():
             "'--bpe_ops' is not applicable and will be ignored. " +
             "See '-h'/'--help' for more information.", BACKEND_MOSES)
 
+    # abort if environment variables needed for nematus backend are not set
+    if args.backend == BACKEND_NEMATUS:
+        checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
+        checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
+        ###BH todo check for further env variables necessary for nematus
+        # Theano ?
+        # gpuarray ?
+
     # make instance of Training class
     training = Training(
         basepath=args.output_dir,
@@ -269,7 +277,7 @@ def main():
             bpe_operations=args.bpe_ops
         )
 
-    exit() ###BH testing exit ############################################################
+    exit() ###BH testing exit ###
 
     # initiate training
     training.train_engine(
@@ -308,10 +316,3 @@ if __name__ == '__main__':
     checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
     # run main routine
     main()
-
-    # ###BH todo check for versions and env variables:
-    # SUBWORD_NMT
-    # NEMATUS (see https://github.com/EdinburghNLP/nematus)
-    # Theano
-    # gpuarray...
-    # check nematus stuff only when chosen as backend, e.g. before call of training.preprocess()
