@@ -11,8 +11,9 @@ class ParallelCorpus(object):
     bi-segments.
     '''
 
-    def __init__(self, filepath_source, filepath_target, max_size=None, 
-        preprocess=False, tokenize=True, tokenizer_src=None, tokenizer_trg=None,
+    def __init__(self, filepath_source, filepath_target, src_lang, trg_lang, max_size=None, preprocess=False,
+        normalize=False, normalizer_src=None, normalizer_trg=None,
+        tokenize=True, tokenizer_src=None, tokenizer_trg=None,
         mask=False, masker=None, process_xml=False, xml_processor=None):
         '''
         Creates an empty corpus stored at @param filepath_source (source side)
@@ -31,9 +32,15 @@ class ParallelCorpus(object):
         @param masker masking.Masker object
         @param process_xml whether XML should be dealt with
         @param xml_processor an xmlprocessing.XmlProcessor object
+        ###BH todo text new params and sort all
         '''
         # set up preprocessing attributes
+        self._src_lang = src_lang               ###BH new for normalize_ro ?
+        self._trg_lang = trg_lang               ###BH new for normalize_ro ?
         self._preprocess = preprocess
+        self._normalize = normalize             ###BH new
+        self._normalizer_src = normalizer_src   ###BH new
+        self._normalizer_trg = normalizer_trg   ###BH new
         self._tokenize = tokenize
         self._tokenizer_src = tokenizer_src
         self._tokenizer_trg = tokenizer_trg
@@ -103,29 +110,57 @@ class ParallelCorpus(object):
         '''
         return self._num_bisegments
 
-    def _preprocess_segment(self, segment, tokenizer):
+    def _preprocess_segment(self, segment, normalizer, tokenizer):
         '''
-        Tokenizes a bisegment, escapes special characters, introduces mask tokens or
-            processes markup found in the segment.
+        ###BH check text
+        Normalizes (for backend nematus) and tokenizes a bisegment, escapes special characters,
+            introduces mask tokens or processes markup found in the segment.
         @param segment the segment that should be preprocessed
-        @param the tokenizer object that should be used for tokenization
+        @param normalizer the normalizer object that should be used for normalization
+        @param tokenizer the tokenizer object that should be used for tokenization
         '''
+
         segment = segment.strip()
+        # normalizing only for backend choice nematus
+        if self._normalize: ###BH new
+            segment = normalizer.normalize_punctuation(segment)
+        # tokenizing for either backend if applicable on corpus
         if self._tokenize:
             segment = tokenizer.tokenize(segment, split=False)
         if self._process_xml:
             segment, _ = self._xml_processor.preprocess_markup(segment)
         if self._mask:
             segment, _ = self._masker.mask_segment(segment)
-        return cleaner.clean(segment)
+
+        ###BH for now, cleaning depends on backend:
+        # for nematus, segmets need having diacritics removed
+        # return cleaner.clean(
+        #     segment,
+        #     normalized=True if self._normalize else False
+        # )
+
+        ###BH testing w/o cleaner, not robust so far
+        return segment
+
 
     def _preprocess_bisegment(self, bisegment):
         '''
+        ###BH check text
         Preprocesses a bisegment.
         '''
         segment_source, segment_target = bisegment
-        segment_source = self._preprocess_segment(segment_source, tokenizer=self._tokenizer_src)
-        segment_target = self._preprocess_segment(segment_target, tokenizer=self._tokenizer_trg)
+
+        segment_source = self._preprocess_segment(
+            segment_source,
+            normalizer=self._normalizer_src, ###BH new
+            tokenizer=self._tokenizer_src
+        )
+
+        segment_target = self._preprocess_segment(
+            segment_target,
+            normalizer=self._normalizer_trg, ###BH new
+            tokenizer=self._tokenizer_trg
+        )
 
         return segment_source, segment_target
 
