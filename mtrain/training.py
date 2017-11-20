@@ -12,9 +12,10 @@ from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
 from mtrain.preprocessing.masking import Masker, write_masking_patterns
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
+from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing.bpe import Encoder
-from mtrain.preprocessing import lowercaser, cleaner, reinsertion 
+from mtrain.preprocessing import lowercaser, cleaner, reinsertion
 from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
 from mtrain import evaluator
@@ -64,6 +65,7 @@ class Training(object):
         self._casing_strategy = casing_strategy
         self._xml_strategy = xml_strategy
         # load components
+        self._load_normalizer()
         self._load_tokenizer()
         self._load_masker()
         self._load_xmlprocessor()
@@ -124,6 +126,11 @@ class Training(object):
         if not assertions.dir_exists(protected_patterns_dir):
             os.makedirs(protected_patterns_dir, exist_ok=True)
         return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
+
+    def _load_normalizer(self):
+        # create normalizer as additional preprocessing step for backend nematus
+        self._normalizer_source = Normalizer(self._src_lang)
+        self._normalizer_target = Normalizer(self._trg_lang)
 
     def _load_tokenizer(self):
         # create tokenizers: masking strategy has an impact on tokenizer behaviour
@@ -466,6 +473,7 @@ class Training(object):
         '''
         Splits @param corpus_base_path into training, tuning, and evaluation
         sections (as applicable). Outputs are stored in /corpus.
+
         '''
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
@@ -473,12 +481,30 @@ class Training(object):
         # open parallel input corpus for reading
         corpus_source = open(corpus_base_path + "." + self._src_lang, 'r')
         corpus_target = open(corpus_base_path + "." + self._trg_lang, 'r')
-        # create parallel output corpora
+
+        ###BH check text
+        # create parallel output corpora:
+        # As for now, backend choice has the following impact on
+        # the attributes and, thus, later actions on ParallelCorpus().
+        #
+        # backend moses (corresponding to previous settings):
+        #   training:   preprocess=True     (normalize=False,   tokenize=True)
+        #   tuning:     preprocess=True     (normalize=False,   tokenize=True)
+        #   evaluation: preprocess=False    (normalize=False,   tokenize=False)
+        # backend nematus:
+        #   training:   preprocess=True     (normalize=True,    tokenize=True)
+        #   tuning:     preprocess=True     (normalize=True,    tokenize=True) ###BH unclear if necessary..?
+        #   evaluation: preprocess=True     (normalize=True,    tokenize=True)
         corpus_train = ParallelCorpus(
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
+            src_lang=self._src_lang, ###BH new for normalize_ro
+            trg_lang=self._trg_lang, ###BH new for normalize_ro
             max_size=None,
             preprocess=True,
+            normalize=True if self._backend == BACKEND_NEMATUS else False, ###BH new
+            normalizer_src=self._normalizer_source, ###BH new
+            normalizer_trg=self._normalizer_target, ###BH new
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
@@ -490,8 +516,13 @@ class Training(object):
         corpus_tune = ParallelCorpus(
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
+            src_lang=self._src_lang, ###BH new for normalize_ro
+            trg_lang=self._trg_lang, ###BH new for normalize_ro
             max_size=num_tune,
             preprocess=True,
+            normalize=True if self._backend == BACKEND_NEMATUS else False, ###BH new
+            normalizer_src=self._normalizer_source, ###BH new
+            normalizer_trg=self._normalizer_target, ###BH new
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
@@ -503,8 +534,16 @@ class Training(object):
         corpus_eval = ParallelCorpus(
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
+            src_lang=self._src_lang, ###BH new for normalize_ro
+            trg_lang=self._trg_lang, ###BH new for normalize_ro
             max_size=num_eval,
-            preprocess=False
+            preprocess=True if self._backend == BACKEND_NEMATUS else False,
+            normalize=True if self._backend == BACKEND_NEMATUS else False, ###BH new
+            normalizer_src=self._normalizer_source, ###BH new
+            normalizer_trg=self._normalizer_target, ###BH new
+            tokenize=True if self._backend == BACKEND_NEMATUS else False,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
@@ -564,11 +603,21 @@ class Training(object):
         @param process_xml whether or not the XML processing strategy should be
             applied to the segments in external corpora
         '''
+
+        ###BH ckech text
+        # same strategy for either backend: preprocess_external influences whether
+        # or not external tuning and/or evaluation corpora shall be preprocessed
+        # (disables normalization and tokenization if preprocess_external ommited)
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang),
+            src_lang=self._src_lang, ###BH new for normalize_ro
+            trg_lang=self._trg_lang, ###BH new for normalize_ro
             max_size=None,
             preprocess=preprocess_external,
+            normalize=True if self._backend == BACKEND_NEMATUS else False, ###BH new
+            normalizer_src=self._normalizer_source, ###BH new
+            normalizer_trg=self._normalizer_target, ###BH new
             tokenize=True, # todo: maybe do not hardcode this
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
