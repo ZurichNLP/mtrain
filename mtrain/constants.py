@@ -14,7 +14,9 @@ MOSES_HOME = os.environ.get('MOSES_HOME') if os.environ.get('MOSES_HOME') else '
 MOSES_BIN = MOSES_HOME + os.sep + 'bin'
 FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
 MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
-# Paths to 3rd party packages for nematus branch implementation
+# Paths to 3rd party packages for nematus backend implementation
+###BH add full dedication to https://github.com/rsennrich/wmt16-scripts/
+WMT16_HOME = os.environ.get('WMT16_HOME') if os.environ.get('WMT16_HOME') else '' # WMT16 Scripts base directory
 ###BH add full dedication to https://github.com/rsennrich/subword-nmt
 SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else '' # Subword NMT base directory
 ###BH add full dedication to https://github.com/EdinburghNLP/nematus
@@ -33,7 +35,9 @@ MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
 MOSES_MERT = MOSES_HOME + os.sep + 'scripts/training/mert-moses.pl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTableMin'
-
+# Paths to WMT16 files/scripts
+WMT16_REMOVE_DIACRITICS = WMT16_HOME + os.sep + 'preprocess/remove-diacritics.py'
+WMT16_NORMALIZE_RO = WMT16_HOME + os.sep + 'preprocess/normalise-romanian.py'
 # Paths to Subword NMT files/scripts
 SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py'
 SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py'
