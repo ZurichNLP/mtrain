@@ -219,7 +219,7 @@ class Training(object):
 
         # logging info for backend choice and processing
         logging.info("Initiating preprocessing for backend %s", self._backend)
-        logging.info("Processing parallel corpus")
+        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
 
         # tokenize, clean, mask and split base corpus
         self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml) ###BH changed 'base_corpus_path' to 'corpus_base_path'
@@ -493,7 +493,7 @@ class Training(object):
         #   evaluation: preprocess=False    (normalize=False,   tokenize=False)
         # backend nematus:
         #   training:   preprocess=True     (normalize=True,    tokenize=True)
-        #   tuning:     preprocess=True     (normalize=True,    tokenize=True) ###BH unclear if necessary..?
+        #   tuning:     preprocess=True     (normalize=True,    tokenize=True) unclear if in nematus
         #   evaluation: preprocess=True     (normalize=True,    tokenize=True)
         corpus_train = ParallelCorpus(
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
@@ -604,10 +604,10 @@ class Training(object):
             applied to the segments in external corpora
         '''
 
-        ###BH ckech text
+        ###BH check text
         # same strategy for either backend: preprocess_external influences whether
         # or not external tuning and/or evaluation corpora shall be preprocessed
-        # (disables normalization and tokenization if preprocess_external ommited)
+        # (disables normalization and tokenization if preprocess_external ommited/false)
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang),
