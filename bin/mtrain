@@ -44,7 +44,7 @@ def get_argument_parser():
         metavar='trg_lang' #overrides ugly double-listing of available choices in --help
     )
     parser.add_argument(
-        "--backend", # "-b", conflicting with --bpe_ops
+        "--backend", # "-b" removed, conflicting with --bpe_ops
         type=str,
         help="decide on which backend is to be used for training the translation system." +
             " Valid choices are: " +
@@ -231,6 +231,7 @@ def main():
 
     # abort if environment variables needed for nematus backend are not set
     if args.backend == BACKEND_NEMATUS:
+        checker.check_environment_variable(WMT16_HOME, 'WMT16_HOME', 'wmt16-scripts')
         checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
         checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
         ###BH todo check for further env variables necessary for nematus
