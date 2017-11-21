@@ -164,8 +164,8 @@ def get_argument_parser():
         "--bpe_ops",
         type=int,
         help="decide how many byte-pair operations are to be performed when learning the " +
-        "byte-pair encoding model. Default is 100,000 operations.",
-        default=30000 ###BH Testing value, reset to default
+        "byte-pair encoding model. Default is 89500 operations.",
+        default=10000 ###BH Testing value, reset to default 89500
     )
     return parser
 
@@ -231,7 +231,7 @@ def main():
 
     # abort if environment variables needed for nematus backend are not set
     if args.backend == BACKEND_NEMATUS:
-        checker.check_environment_variable(WMT16_HOME, 'WMT16_HOME', 'wmt16-scripts')
+        ###BH obsolete?# checker.check_environment_variable(WMT16_HOME, 'WMT16_HOME', 'wmt16-scripts')
         checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
         checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
         ###BH todo check for further env variables necessary for nematus

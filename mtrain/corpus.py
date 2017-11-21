@@ -20,11 +20,19 @@ class ParallelCorpus(object):
         and @param filepath_target (target side). Existing files will be
         overwritten. Preprocesses segments before writing them to disk.
 
+        @param src_lang language of source side of parallel corpus, for language
+            specific processing of segments if needed (e.g. in Romanian)
+        @param trg_lang language of target side of parallel corpus, for language
+            specific processing of segments if needed (e.g. in Romanian)
         @param max_size the maximum number of segments to be stored. If given,
             the `self.insert` method will remove and return a random segment
             that is already stored in this corpus.
         @param preprocess whether segments in this corpus should be preprocessed
             before they are written to disk
+        @param normalize whether segments in this corpus should be normalized
+            before they are written to disk, applied for backend choice nematus
+        @param normalizer_src normalizer object for the source language
+        @param normalizer_trg normalizer object for the target language
         @param tokenize whether segments should be tokenized
         @param tokenizer_src tokenizer object for the source language
         @param tokenizer_trg tokenizer object for the target language
@@ -32,15 +40,15 @@ class ParallelCorpus(object):
         @param masker masking.Masker object
         @param process_xml whether XML should be dealt with
         @param xml_processor an xmlprocessing.XmlProcessor object
-        ###BH todo text new params and sort all
         '''
+
         # set up preprocessing attributes
-        self._src_lang = src_lang               ###BH new for normalize_ro ?
-        self._trg_lang = trg_lang               ###BH new for normalize_ro ?
+        self._src_lang = src_lang
+        self._trg_lang = trg_lang
         self._preprocess = preprocess
-        self._normalize = normalize             ###BH new
-        self._normalizer_src = normalizer_src   ###BH new
-        self._normalizer_trg = normalizer_trg   ###BH new
+        self._normalize = normalize
+        self._normalizer_src = normalizer_src
+        self._normalizer_trg = normalizer_trg
         self._tokenize = tokenize
         self._tokenizer_src = tokenizer_src
         self._tokenizer_trg = tokenizer_trg
@@ -110,56 +118,61 @@ class ParallelCorpus(object):
         '''
         return self._num_bisegments
 
-    def _preprocess_segment(self, segment, normalizer, tokenizer):
+    def _preprocess_segment(self, segment, normalizer, tokenizer, lang):
         '''
-        ###BH check text
-        Normalizes (for backend nematus) and tokenizes a bisegment, escapes special characters,
-            introduces mask tokens or processes markup found in the segment.
+        Normalizes (for backend nematus) and tokenizes (moses and nematus) a bisegment,
+            escapes special characters, introduces mask tokens or processes markup found
+            in the segment.
         @param segment the segment that should be preprocessed
         @param normalizer the normalizer object that should be used for normalization
         @param tokenizer the tokenizer object that should be used for tokenization
+        @param lang the language of the segment to be preprocessed, for language
+            specific processing (e.g. in Romanian)
         '''
 
         segment = segment.strip()
         # normalizing only for backend choice nematus
-        if self._normalize: ###BH new
+        if self._normalize:
             segment = normalizer.normalize_punctuation(segment)
+
+            # if normalized (i.e. backend nematus), segments in Romanian need further normalization,
+            # whereas normalize_romanian() must be called before remove_ro_diacritics()
+            if lang == 'ro':
+                segment = cleaner.normalize_romanian(segment)
+                segment = cleaner.remove_ro_diacritics(segment)
+
         # tokenizing for either backend if applicable on corpus
         if self._tokenize:
             segment = tokenizer.tokenize(segment, split=False)
+
+        # masing and xml_strategy only for moses if chosen
         if self._process_xml:
             segment, _ = self._xml_processor.preprocess_markup(segment)
         if self._mask:
             segment, _ = self._masker.mask_segment(segment)
 
-        ###BH for now, cleaning depends on backend:
-        # for nematus, segmets need having diacritics removed
-        # return cleaner.clean(
-        #     segment,
-        #     normalized=True if self._normalize else False
-        # )
 
-        ###BH testing w/o cleaner, not robust so far
         return segment
-
 
     def _preprocess_bisegment(self, bisegment):
         '''
-        ###BH check text
-        Preprocesses a bisegment.
+        Preprocesses a bisegment using specifig normalizer and tokenizer objects. Language of the
+        segment is passed for further language specific processing of the segment (e.g. Romanian).
         '''
         segment_source, segment_target = bisegment
 
         segment_source = self._preprocess_segment(
             segment_source,
-            normalizer=self._normalizer_src, ###BH new
-            tokenizer=self._tokenizer_src
+            normalizer=self._normalizer_src,
+            tokenizer=self._tokenizer_src,
+            lang=self._src_lang
         )
 
         segment_target = self._preprocess_segment(
             segment_target,
-            normalizer=self._normalizer_trg, ###BH new
-            tokenizer=self._tokenizer_trg
+            normalizer=self._normalizer_trg,
+            tokenizer=self._tokenizer_trg,
+            lang=self._trg_lang
         )
 
         return segment_source, segment_target
