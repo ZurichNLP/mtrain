@@ -5,7 +5,7 @@ import argparse
 import sys
 import os
 
-from mtrain.training import Training
+from mtrain.training import TrainingBase, TrainingMoses, TrainingNematus
 from mtrain.constants import *
 from mtrain import checker, assertions
 
@@ -238,76 +238,103 @@ def main():
         # Theano ?
         # gpuarray ?
 
-    # make instance of Training class
-    training = Training(
-        basepath=args.output_dir,
-        src_lang=args.src_lang,
-        trg_lang=args.trg_lang,
-        backend=args.backend,
-        casing_strategy=args.caser,
-        masking_strategy=args.masking,
-        xml_strategy=args.xml_input,
-        tuning=args.tune,
-        evaluation=args.eval
-    )
+    # distinguish chosen backend
+    if args.backend == BACKEND_MOSES:
 
-    # initiate preprocessing
-    training.preprocess(
-        corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
-        min_tokens=args.min_tokens,
-        max_tokens=args.max_tokens,
-        mask=bool(args.masking),
-        preprocess_external=args.preprocess_external_tune,
-        process_xml=bool(args.xml_input)
-    )
-    
-    # continue preprocessing: apply casing strategy
-    if args.caser == TRUECASING:
-        training.train_truecaser()
-        training.truecase()
-    elif args.caser == RECASING:
-        training.train_recaser(
-            args.threads,
-            args.temp_dir,
-            args.keep_uncompressed_models
+        # make instance of Training class suiting backend
+        training = TrainingMoses(
+            basepath=args.output_dir,
+            src_lang=args.src_lang,
+            trg_lang=args.trg_lang,
+            casing_strategy=args.caser,
+            tuning=args.tune,
+            evaluation=args.eval,
+            masking_strategy=args.masking,
+            xml_strategy=args.xml_input
         )
 
-    # continue preprocessing: byte-pair encoding for backend nematus
-    if args.backend == BACKEND_NEMATUS:
-        training.bpe_encoding(
-            bpe_operations=args.bpe_ops
+        # initiate preprocessing
+        logging.info("Initiating preprocessing for backend %s", args.backend)
+        training.preprocess(
+            corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
+            min_tokens=args.min_tokens,
+            max_tokens=args.max_tokens,
+            mask=bool(args.masking),
+            preprocess_external=args.preprocess_external_tune,
+            process_xml=bool(args.xml_input)
         )
 
-    exit() ###BH testing exit ###
+        # continue preprocessing: apply casing strategy
+        if args.caser == TRUECASING:
+            training.train_truecaser()
+            training.truecase()
+        elif args.caser == RECASING:
+            training.train_recaser(
+                args.threads,
+                args.temp_dir,
+                args.keep_uncompressed_models
+            )
 
-    # initiate training
-    training.train_engine(
-        n=args.n_gram_order,
-        alignment='grow-diag-final-and', # todo: make changeable
-        max_phrase_length=7, # todo: make changeable
-        reordering='msd-bidirectional-fe', # todo: make changeable
-        num_threads=args.threads,
-        path_temp_files=args.temp_dir,
-        keep_uncompressed=args.keep_uncompressed_models
-    )
-
-    # initiate tuning
-    if args.tune:
-        training.tune(args.threads)
-
-    training.write_final_ini()
-
-    # initiate evaluation
-    if args.eval:
-        # abort if MULTEVAL_HOME environment variable is not set
-        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
-        training.evaluate(
+        # initiate training
+        training.train_engine(
+            n=args.n_gram_order,
+            alignment='grow-diag-final-and', # todo: make changeable
+            max_phrase_length=7, # todo: make changeable
+            reordering='msd-bidirectional-fe', # todo: make changeable
             num_threads=args.threads,
-            lowercase_eval=False,
-            detokenize_eval=True,
-            strip_markup_eval=False,
-            extended=args.extended_eval
+            path_temp_files=args.temp_dir,
+            keep_uncompressed=args.keep_uncompressed_models
         )
+
+        # initiate tuning
+        if args.tune:
+            training.tune(args.threads)
+
+        # symlink to final 'moses.ini'
+        training.write_final_ini()
+
+        # initiate evaluation
+        if args.eval:
+            # abort if MULTEVAL_HOME environment variable is not set
+            checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
+            training.evaluate(
+                num_threads=args.threads,
+                lowercase_eval=False,
+                detokenize_eval=True,
+                strip_markup_eval=False,
+                extended=args.extended_eval
+            )
+
+    # distinguish chosen backend
+    if args.backend == BACKEND_NEMATUS:
+
+        # make instance of Training class suiting backend
+        training = TrainingNematus(
+            basepath=args.output_dir,
+            src_lang=args.src_lang,
+            trg_lang=args.trg_lang,
+            casing_strategy=args.caser,
+            tuning=args.tune,
+            evaluation=args.eval
+        )
+        # initiate preprocessing
+        logging.info("Initiating preprocessing for backend %s", args.backend)
+        training.preprocess(
+            corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
+            min_tokens=args.min_tokens,
+            max_tokens=args.max_tokens,
+            preprocess_external=args.preprocess_external_tune,
+        )
+        # continue preprocessing: apply casing strategy
+        training.train_truecaser()
+
+        # continue preprocessing: byte-pair encoding for backend nematus
+        training.bpe_encoding(bpe_operations=args.bpe_ops)
+
+        ###BH todo: initiate training
+        ###BH todo: initiate tuning ?
+        ###BH todo: symlink ?
+        ###BH todo: initiate evaluation ? maybe same as for moses
 
 if __name__ == '__main__':
     # abort if Python version is not supported
@@ -317,3 +344,5 @@ if __name__ == '__main__':
     checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
     # run main routine
     main()
+
+    ###BH check if env vars to be distinguished for backends (e.g. FASTALIGN_HOME, depending on training etc.)

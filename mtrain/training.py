@@ -7,7 +7,9 @@ import errno
 import sys
 import os
 import re
+import abc
 
+from abc import ABCMeta
 from mtrain.corpus import ParallelCorpus
 from mtrain.constants import *
 from mtrain.preprocessing.masking import Masker, write_masking_patterns
@@ -20,14 +22,14 @@ from mtrain.translation import TranslationEngine
 from mtrain import assertions, commander
 from mtrain import evaluator
 
-class Training(object):
+class TrainingBase(object):
     '''
-    Models the training process of a Moses or Nematus engine, including all files and
-    folders that are required and generated.
+    Abstract class for either backend, moses or nematus
     '''
+    __metaclass__ = ABCMeta
 
-    def __init__(self, basepath, src_lang, trg_lang, backend, casing_strategy,
-                 masking_strategy, xml_strategy, tuning, evaluation):
+    def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation,
+                 masking_strategy=None, xml_strategy=None):
         '''
         Creates a new project structure at @param basepath.
 
@@ -36,12 +38,7 @@ class Training(object):
             directory; existing files will be overwritten
         @param src_lang the language code of the source language, e.g., `en`
         @param trg_lang the language code of the target language, e.g., `fr`
-        @param backend the backend to be used for training (moses or nematus)
         @param casing_strategy how case should be handled in preprocessing
-        @param masking_strategy whether and how mask tokens should be
-            introduced into segments
-        @param xml_strategy whether fragments of markup in the data should be
-            passed through, removed or masked
         @param tuning the tuning set to be used. The options are
             None:   do not tune (not recommended)
             INT:    select INT random lines from the base corpus for tuning
@@ -49,6 +46,10 @@ class Training(object):
                     without language code suffixes)
         @param evaluation the evaluation set to be used. The same options as in
             @param tuning apply.
+        @param masking_strategy whether and how mask tokens should be
+            introduced into segments
+        @param xml_strategy whether fragments of markup in the data should be
+            passed through, removed or masked
 
         Note: @param src_lang, @param trg_lang must be language codes recognised
             by the built-in Moses tokenizer.
@@ -58,8 +59,6 @@ class Training(object):
         self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
-        # set backend choice
-        self._backend = backend
         # set strategies
         self._masking_strategy = masking_strategy
         self._casing_strategy = casing_strategy
@@ -101,11 +100,9 @@ class Training(object):
             corpus = '.'.join(corpus)
         return self._get_path('corpus') + os.sep + corpus + "." + lang
 
+    @abc.abstractmethod # only for backend moses
     def _get_path_corpus_final(self, corpus, lang):
-        '''
-        Returns the absolute path to a final corpus related to this training.
-        '''
-        return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
+        pass
 
     def _symlink(self, orig, link_name):
         try:
@@ -115,137 +112,25 @@ class Training(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    def _get_path_masking_patterns(self, overall_strategy, detailed_strategy):
-        '''
-        Make sure a masking directory and masking strategy subfolder exist,
-        @return the path to the masking patterns file.
-        @param overall_strategy coarse-grained masking or XML strategy
-        @param detailed_strategy fine-grained masking or XML strategy
-        '''
-        protected_patterns_dir = os.sep.join([self._get_path('engine'), overall_strategy, detailed_strategy])
-        if not assertions.dir_exists(protected_patterns_dir):
-            os.makedirs(protected_patterns_dir, exist_ok=True)
-        return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
-
+    @abc.abstractmethod # only for backend nematus
     def _load_normalizer(self):
-        # create normalizer as additional preprocessing step for backend nematus
-        self._normalizer_source = Normalizer(self._src_lang)
-        self._normalizer_target = Normalizer(self._trg_lang)
+        pass
 
+    @abc.abstractmethod # different per backend
     def _load_tokenizer(self):
-        # create tokenizers: masking strategy has an impact on tokenizer behaviour
+        pass
 
-        # for backend choice moses
-        if self._backend == BACKEND_MOSES:
-
-            tokenizer_protects = False
-
-            if self._masking_strategy:
-                tokenizer_protects = True
-                protected_patterns_path = self._get_path_masking_patterns(
-                    overall_strategy=MASK,
-                    detailed_strategy=self._masking_strategy
-                )
-            elif self._xml_strategy == XML_MASK:
-                tokenizer_protects = True
-                protected_patterns_path = self._get_path_masking_patterns(
-                    overall_strategy=XML_MASK,
-                    detailed_strategy=XML_STRATEGIES_DEFAULTS[XML_MASK]
-                )
-            elif self._xml_strategy == XML_STRIP or self._xml_strategy == XML_STRIP_REINSERT:
-                tokenizer_protects=True
-                protected_patterns_path = self._get_path_masking_patterns(
-                    overall_strategy=self._xml_strategy,
-                    detailed_strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy]
-                )
-
-            if tokenizer_protects:
-                write_masking_patterns(
-                    protected_patterns_path,
-                    markup_only=bool(self._xml_strategy)
-                )
-
-                self._tokenizer_source = Tokenizer(
-                    self._src_lang,
-                    protect=True,
-                    protected_patterns_path=protected_patterns_path,
-                    escape=False
-                )
-                self._tokenizer_target = Tokenizer(
-                    self._trg_lang,
-                    protect=True,
-                    protected_patterns_path=protected_patterns_path,
-                    escape=False
-                )
-            else:
-                self._tokenizer_source = Tokenizer(self._src_lang)
-                self._tokenizer_target = Tokenizer(self._trg_lang)
-
-        # backend choice nematus (so far neither masking_strategy nor xml_strategy)
-        elif self._backend == BACKEND_NEMATUS:
-
-            self._tokenizer_source = Tokenizer(self._src_lang)
-            self._tokenizer_target = Tokenizer(self._trg_lang)
-
+    @abc.abstractmethod # only for backend moses
     def _load_masker(self):
-        if self._masking_strategy:
-            self._masker = Masker(self._masking_strategy, escape=True)
+        pass
 
+    @abc.abstractmethod # only for backend moses
     def _load_xmlprocessor(self):
-        self._xml_processor = XmlProcessor(self._xml_strategy)
+        pass
 
-    def preprocess(self, corpus_base_path, min_tokens, max_tokens, mask, preprocess_external, process_xml): ###BH changed 'base_corpus_path' to 'corpus_base_path'
-        '''
-        Preprocesses the given parallel corpus.
-
-        @param corpus_base_path the common file prefix of the training corpus'
-            source and target side
-        @param min_tokens the minimum number of tokens in a segment. Segments
-            with less tokens will be discarded
-        @param max_tokens the maximum number of tokens in a segment. Segments
-            with more tokens will be discarded
-        @param mask whether or not segments should be masked
-        @param preprocess_external whether or not external corpora (tune, eval)
-            should be preprocessed (tokenized, masked and markup processing)
-        @param process_xml whether or not the XML processing strategy should be
-            applied to segments or not
-
-        Note: The source and target side files of the parallel corpus are
-            induced from concatenating @param corpus_base_path with
-            self.src_lang and self.trg_lang, respectively. Example:
-            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
-            `/foo/corpus.fr`.
-        '''
-
-        # logging info for backend choice and processing
-        logging.info("Initiating preprocessing for backend %s", self._backend)
-        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
-
-        # tokenize, clean, mask and split base corpus
-        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml) ###BH changed 'base_corpus_path' to 'corpus_base_path'
-        # tokenize, clean, mask and xml-process separate tuning and training corpora (if applicable)
-        if isinstance(self._tuning, str):
-            self._preprocess_external_corpus(
-                self._tuning,
-                BASENAME_TUNING_CORPUS,
-                min_tokens,
-                max_tokens,
-                preprocess_external=preprocess_external,
-                process_xml=process_xml
-            )
-        if isinstance(self._evaluation, str):
-            self._preprocess_external_corpus(
-                self._evaluation,
-                BASENAME_EVALUATION_CORPUS,
-                min_tokens,
-                max_tokens,
-                preprocess_external=False, # never preprocess EVAL corpus
-                process_xml=process_xml
-            )
-        # lowercase as needed
-        self._lowercase()
-        # mark final files (.final symlinks)
-        self._mark_final_files()
+    @abc.abstractmethod # different per backend
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None): ###BH changed 'base_corpus_path' to 'corpus_base_path'
+        pass
 
     def train_truecaser(self):
         '''
@@ -288,6 +173,302 @@ class Training(object):
             commands.append(command(BASENAME_EVALUATION_CORPUS, self._src_lang))
             commands.append(command(BASENAME_EVALUATION_CORPUS, self._trg_lang))
         commander.run_parallel(commands, "Truecasing corpora")
+
+    @abc.abstractmethod # only for backend moses
+    def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
+        pass
+
+    @abc.abstractmethod # only for backend nematus
+    def bpe_encoding(self, bpe_operations):
+        pass
+
+    @abc.abstractmethod # different per backend
+    def train_engine(self, n=5, alignment='grow-diag-final-and',
+              max_phrase_length=7, reordering='msd-bidirectional-fe',
+              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
+        pass
+
+    @abc.abstractmethod # different per backend or only moses ###BH?
+    def tune(self, num_threads=1):
+        pass
+
+    @abc.abstractmethod # different per backend ###BH?
+    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
+                 strip_markup_eval=False, extended=False):
+        pass
+
+    @abc.abstractmethod # different per backend
+    def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
+            accurate=False):
+        pass
+
+    @abc.abstractmethod # different per backend
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
+        pass
+
+    @abc.abstractmethod # different per backend
+    def _preprocess_external_corpus(self, basepath_external_corpus, basename,
+                                    min_tokens, max_tokens, preprocess_external,
+                                    process_xml):
+        pass
+
+    def _lowercase(self):
+        '''
+        Lowercases the training and tuning corpora.
+        '''
+        files_to_be_lowercased = []
+        if self._casing_strategy == SELFCASING:
+            files_to_be_lowercased.append(
+                (BASENAME_TRAINING_CORPUS, self._src_lang)
+            )
+            if self._tuning:
+                files_to_be_lowercased.append(
+                    (BASENAME_TUNING_CORPUS, self._src_lang)
+                )
+        elif self._casing_strategy == RECASING:
+            files_to_be_lowercased.append(
+                (BASENAME_TRAINING_CORPUS, self._src_lang)
+            )
+            files_to_be_lowercased.append(
+                (BASENAME_TRAINING_CORPUS, self._trg_lang)
+            )
+            if self._tuning:
+                files_to_be_lowercased.append(
+                    (BASENAME_TUNING_CORPUS, self._src_lang)
+                )
+                files_to_be_lowercased.append(
+                    (BASENAME_TUNING_CORPUS, self._trg_lang)
+                )
+        elif self._casing_strategy == TRUECASING:
+            pass
+        for basename, lang in files_to_be_lowercased:
+            filepath_origin = self._get_path_corpus(basename, lang)
+            filepath_dest = self._get_path_corpus([basename, SUFFIX_LOWERCASED], lang)
+            lowercaser.lowercase_file(filepath_origin, filepath_dest)
+
+    def _mark_final_files(self):
+        '''
+        Creates a symlink to the final training, tuning, and evaluation files.
+        '''
+        fp = {
+            'train': {
+                'src': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang)
+            },
+            'tune': {
+                'src': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang)
+            },
+            'test': {
+                'src': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang)
+            }
+        }
+        def add_suffix(corpus, lang, suffix):
+            path = fp[corpus][lang].split('.')
+            path.insert(-1, suffix)
+            fp[corpus][lang] = '.'.join(path)
+        if self._casing_strategy == SELFCASING:
+            # lowercased input side, unmodified output side
+            add_suffix('train', 'src', SUFFIX_LOWERCASED)
+            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
+        elif self._casing_strategy == TRUECASING:
+            # truecased input side, truecased output side
+            add_suffix('train', 'src', SUFFIX_TRUECASED)
+            add_suffix('train', 'trg', SUFFIX_TRUECASED)
+            add_suffix('tune', 'src', SUFFIX_TRUECASED)
+            add_suffix('tune', 'trg', SUFFIX_TRUECASED)
+        elif self._casing_strategy == RECASING:
+            # truecased input side, truecased output side
+            add_suffix('train', 'src', SUFFIX_LOWERCASED)
+            add_suffix('train', 'trg', SUFFIX_LOWERCASED)
+            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
+            add_suffix('tune', 'trg', SUFFIX_LOWERCASED)
+        # create symlinks
+        def symlink_path(basename, lang):
+            return self._get_path_corpus([basename, SUFFIX_FINAL], lang)
+        self._symlink(
+            fp['train']['src'],
+            symlink_path(BASENAME_TRAINING_CORPUS, self._src_lang)
+        )
+        self._symlink(
+            fp['train']['trg'],
+            symlink_path(BASENAME_TRAINING_CORPUS, self._trg_lang)
+        )
+        if self._tuning:
+            self._symlink(
+                fp['tune']['src'],
+                symlink_path(BASENAME_TUNING_CORPUS, self._src_lang)
+            )
+            self._symlink(
+                fp['tune']['trg'],
+                symlink_path(BASENAME_TUNING_CORPUS, self._trg_lang)
+            )
+        if self._evaluation:
+            self._symlink(
+                fp['test']['src'],
+                symlink_path(BASENAME_EVALUATION_CORPUS, self._src_lang)
+            )
+            self._symlink(
+                fp['test']['trg'],
+                symlink_path(BASENAME_EVALUATION_CORPUS, self._trg_lang)
+            )
+
+
+    @abc.abstractmethod # only for backend moses ###BH???
+    def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
+        pass
+
+    @abc.abstractmethod # only for backend moses ###BH???
+    def _word_alignment(self, symmetrization_heuristic, num_threads=1):
+        pass
+
+    @abc.abstractmethod # only for backend moses
+    def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
+                            num_threads, path_temp_files, keep_uncompressed):
+        pass
+
+    @abc.abstractmethod # only for backend moses
+    def _MERT(self, num_threads):
+        pass
+
+    @abc.abstractmethod # only for backend moses ###BH???
+    def write_final_ini(self):
+        pass
+
+##################################################################################################################
+
+class TrainingMoses(TrainingBase):
+    '''
+    Models the training process of a Moses engine, including all files and
+    folders that are required and generated.
+    '''
+
+    def _get_path_masking_patterns(self, overall_strategy, detailed_strategy):
+        '''
+        Make sure a masking directory and masking strategy subfolder exist,
+        @return the path to the masking patterns file.
+        @param overall_strategy coarse-grained masking or XML strategy
+        @param detailed_strategy fine-grained masking or XML strategy
+        '''
+        protected_patterns_dir = os.sep.join([self._get_path('engine'), overall_strategy, detailed_strategy])
+        if not assertions.dir_exists(protected_patterns_dir):
+            os.makedirs(protected_patterns_dir, exist_ok=True)
+        return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
+
+    def _get_path_corpus_final(self, corpus, lang):
+        '''
+        Returns the absolute path to a final corpus related to this training.
+        '''
+        return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
+
+    def _load_normalizer(self):
+        return ###BH do nothing
+
+    def _load_tokenizer(self):
+        # create tokenizers: masking strategy has an impact on tokenizer behaviour
+
+        tokenizer_protects = False
+
+        if self._masking_strategy:
+            tokenizer_protects = True
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=MASK,
+                detailed_strategy=self._masking_strategy
+            )
+        elif self._xml_strategy == XML_MASK:
+            tokenizer_protects = True
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=XML_MASK,
+                detailed_strategy=XML_STRATEGIES_DEFAULTS[XML_MASK]
+            )
+        elif self._xml_strategy == XML_STRIP or self._xml_strategy == XML_STRIP_REINSERT:
+            tokenizer_protects=True
+            protected_patterns_path = self._get_path_masking_patterns(
+                overall_strategy=self._xml_strategy,
+                detailed_strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy]
+            )
+
+        if tokenizer_protects:
+            write_masking_patterns(
+                protected_patterns_path,
+                markup_only=bool(self._xml_strategy)
+            )
+
+            self._tokenizer_source = Tokenizer(
+                self._src_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
+            self._tokenizer_target = Tokenizer(
+                self._trg_lang,
+                protect=True,
+                protected_patterns_path=protected_patterns_path,
+                escape=False
+            )
+        else:
+            self._tokenizer_source = Tokenizer(self._src_lang)
+            self._tokenizer_target = Tokenizer(self._trg_lang)
+
+    def _load_masker(self):
+        if self._masking_strategy:
+            self._masker = Masker(self._masking_strategy, escape=True)
+
+    def _load_xmlprocessor(self):
+        self._xml_processor = XmlProcessor(self._xml_strategy)
+
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask, process_xml): ###BH changed 'base_corpus_path' to 'corpus_base_path'
+        '''
+        Preprocesses the given parallel corpus.
+
+        @param corpus_base_path the common file prefix of the training corpus'
+            source and target side
+        @param min_tokens the minimum number of tokens in a segment. Segments
+            with less tokens will be discarded
+        @param max_tokens the maximum number of tokens in a segment. Segments
+            with more tokens will be discarded
+        @param preprocess_external whether or not external corpora (tune, eval)
+            should be preprocessed (tokenized, masked and markup processing)
+        @param mask whether or not segments should be masked
+        @param process_xml whether or not the XML processing strategy should be
+            applied to segments or not
+
+        Note: The source and target side files of the parallel corpus are
+            induced from concatenating @param corpus_base_path with
+            self.src_lang and self.trg_lang, respectively. Example:
+            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
+            `/foo/corpus.fr`.
+        '''
+
+        # logging info for preprocessing
+        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
+
+        # tokenize, clean, mask and split base corpus
+        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml) ###BH changed 'base_corpus_path' to 'corpus_base_path'
+        # tokenize, clean, mask and xml-process separate tuning and training corpora (if applicable)
+        if isinstance(self._tuning, str):
+            self._preprocess_external_corpus(
+                self._tuning,
+                BASENAME_TUNING_CORPUS,
+                min_tokens,
+                max_tokens,
+                preprocess_external=preprocess_external,
+                process_xml=process_xml
+            )
+        if isinstance(self._evaluation, str):
+            self._preprocess_external_corpus(
+                self._evaluation,
+                BASENAME_EVALUATION_CORPUS,
+                min_tokens,
+                max_tokens,
+                preprocess_external=False, # never preprocess EVAL corpus
+                process_xml=process_xml
+            )
+        # lowercase as needed
+        self._lowercase()
+        # mark final files (.final symlinks)
+        self._mark_final_files()
 
     def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
         '''
@@ -346,37 +527,7 @@ class Training(object):
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
 
     def bpe_encoding(self, bpe_operations):
-        '''
-        Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
-
-        @param bpe_operations "Create this many new symbols (each representing a character n-gram)"
-                    Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
-                    Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
-        '''
-
-        # get input for learning: paths of truecased training corpus and (if any) evaluation corpus. no language ending
-        corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED
-        if self._evaluation: 
-            corpus_eval_tc=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED
-        else:
-            corpus_eval_tc=None
-
-        # create target directory for bpe model
-        bpe_model_path = os.sep.join([self._get_path('engine'), BPE])
-        if not assertions.dir_exists(bpe_model_path):
-            os.mkdir(bpe_model_path)
-
-        # create encoder instance
-        self._encoder = Encoder(corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang, self._evaluation)
-
-        # learn bpe model using truecased training corpus
-        self._encoder.learn_bpe_model()
-
-        # apply bpe model on truecased training corpus (and if present, truecased evaluation corpus)
-        self._encoder.apply_bpe_model()
-
-        # build bpe dictionary (JSON files) for truecased training corpus
-        self._encoder.build_bpe_dictionary()
+        return ###BH do nothing
 
     def train_engine(self, n=5, alignment='grow-diag-final-and',
               max_phrase_length=7, reordering='msd-bidirectional-fe',
@@ -482,28 +633,12 @@ class Training(object):
         corpus_source = open(corpus_base_path + "." + self._src_lang, 'r')
         corpus_target = open(corpus_base_path + "." + self._trg_lang, 'r')
 
-        # create parallel output corpora:
-        # As for now, backend choice has the following impact on
-        # the attributes and, thus, later actions on ParallelCorpus().
-        #
-        # backend moses (corresponding to previous settings):
-        #   training:   preprocess=True     (normalize=False,   tokenize=True)
-        #   tuning:     preprocess=True     (normalize=False,   tokenize=True)
-        #   evaluation: preprocess=False    (normalize=False,   tokenize=False)
-        # backend nematus:
-        #   training:   preprocess=True     (normalize=True,    tokenize=True)
-        #   tuning:     preprocess=True     (normalize=True,    tokenize=True) ###BH unclear if necessary in nematus
-        #   evaluation: preprocess=True     (normalize=True,    tokenize=True)
+        # create parallel output corpora
         corpus_train = ParallelCorpus(
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=None,
             preprocess=True,
-            normalize=True if self._backend == BACKEND_NEMATUS else False,
-            normalizer_src=self._normalizer_source,
-            normalizer_trg=self._normalizer_target,
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
@@ -515,13 +650,8 @@ class Training(object):
         corpus_tune = ParallelCorpus(
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=num_tune,
             preprocess=True,
-            normalize=True if self._backend == BACKEND_NEMATUS else False,
-            normalizer_src=self._normalizer_source,
-            normalizer_trg=self._normalizer_target,
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
@@ -533,16 +663,9 @@ class Training(object):
         corpus_eval = ParallelCorpus(
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=num_eval,
-            preprocess=True if self._backend == BACKEND_NEMATUS else False,
-            normalize=True if self._backend == BACKEND_NEMATUS else False,
-            normalizer_src=self._normalizer_source,
-            normalizer_trg=self._normalizer_target,
-            tokenize=True if self._backend == BACKEND_NEMATUS else False,
-            tokenizer_src=self._tokenizer_source,
-            tokenizer_trg=self._tokenizer_target
+            preprocess=False,
+            tokenize=False,
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
@@ -605,18 +728,12 @@ class Training(object):
 
         # preprocess external corpora:
         # User choice 'preprocess_external' influences whether or not external tuning and evaluation corpora
-        # shall be preprocessed (i.e. normalized and tokenized). However, normalization is exclusively done
-        # for backend nematus if user chooses preprocessing.
+        # shall be preprocessed (i.e. tokenized).
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=None,
             preprocess=preprocess_external,
-            normalize=True if preprocess_external and self._backend == BACKEND_NEMATUS else False,
-            normalizer_src=self._normalizer_source,
-            normalizer_trg=self._normalizer_target,
             tokenize=True if preprocess_external else False,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
@@ -646,108 +763,6 @@ class Training(object):
             logging.info("Tuning corpus: %s segments", corpus.get_size())
         elif basename == BASENAME_EVALUATION_CORPUS:
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
-
-    def _lowercase(self):
-        '''
-        Lowercases the training and tuning corpora.
-        '''
-        files_to_be_lowercased = []
-        if self._casing_strategy == SELFCASING:
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._src_lang)
-            )
-            if self._tuning:
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._src_lang)
-                )
-        elif self._casing_strategy == RECASING:
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._src_lang)
-            )
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._trg_lang)
-            )
-            if self._tuning:
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._src_lang)
-                )
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._trg_lang)
-                )
-        elif self._casing_strategy == TRUECASING:
-            pass
-        for basename, lang in files_to_be_lowercased:
-            filepath_origin = self._get_path_corpus(basename, lang)
-            filepath_dest = self._get_path_corpus([basename, SUFFIX_LOWERCASED], lang)
-            lowercaser.lowercase_file(filepath_origin, filepath_dest)
-
-    def _mark_final_files(self):
-        '''
-        Creates a symlink to the final training, tuning, and evaluation files.
-        '''
-        fp = {
-            'train': {
-                'src': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
-                'trg': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang)
-            },
-            'tune': {
-                'src': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
-                'trg': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang)
-            },
-            'test': {
-                'src': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
-                'trg': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang)
-            }
-        }
-        def add_suffix(corpus, lang, suffix):
-            path = fp[corpus][lang].split('.')
-            path.insert(-1, suffix)
-            fp[corpus][lang] = '.'.join(path)
-        if self._casing_strategy == SELFCASING:
-            # lowercased input side, unmodified output side
-            add_suffix('train', 'src', SUFFIX_LOWERCASED)
-            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
-        elif self._casing_strategy == TRUECASING:
-            # truecased input side, truecased output side
-            add_suffix('train', 'src', SUFFIX_TRUECASED)
-            add_suffix('train', 'trg', SUFFIX_TRUECASED)
-            add_suffix('tune', 'src', SUFFIX_TRUECASED)
-            add_suffix('tune', 'trg', SUFFIX_TRUECASED)
-        elif self._casing_strategy == RECASING:
-            # truecased input side, truecased output side
-            add_suffix('train', 'src', SUFFIX_LOWERCASED)
-            add_suffix('train', 'trg', SUFFIX_LOWERCASED)
-            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
-            add_suffix('tune', 'trg', SUFFIX_LOWERCASED)
-        # create symlinks
-        def symlink_path(basename, lang):
-            return self._get_path_corpus([basename, SUFFIX_FINAL], lang)
-        self._symlink(
-            fp['train']['src'],
-            symlink_path(BASENAME_TRAINING_CORPUS, self._src_lang)
-        )
-        self._symlink(
-            fp['train']['trg'],
-            symlink_path(BASENAME_TRAINING_CORPUS, self._trg_lang)
-        )
-        if self._tuning:
-            self._symlink(
-                fp['tune']['src'],
-                symlink_path(BASENAME_TUNING_CORPUS, self._src_lang)
-            )
-            self._symlink(
-                fp['tune']['trg'],
-                symlink_path(BASENAME_TUNING_CORPUS, self._trg_lang)
-            )
-        if self._evaluation:
-            self._symlink(
-                fp['test']['src'],
-                symlink_path(BASENAME_EVALUATION_CORPUS, self._src_lang)
-            )
-            self._symlink(
-                fp['test']['trg'],
-                symlink_path(BASENAME_EVALUATION_CORPUS, self._trg_lang)
-            )
 
     def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
         '''
@@ -943,3 +958,337 @@ class Training(object):
         else:
             moses_ini = self._get_path('engine') + os.sep + os.sep.join(['tm', 'compressed', 'moses.ini'])
         self._symlink(moses_ini, final_moses_ini)
+
+
+##################################################################################################################
+
+class TrainingNematus(TrainingBase):
+    '''
+    Models the training process of a Nematus engine, including all files and
+    folders that are required and generated.
+    '''
+
+    def _get_path_corpus_final(self, corpus, lang):
+        return ###BH do nothing
+
+    def _load_normalizer(self):
+        # create normalizer as additional preprocessing step for backend nematus
+        self._normalizer_source = Normalizer(self._src_lang)
+        self._normalizer_target = Normalizer(self._trg_lang)
+
+    def _load_tokenizer(self):
+        # so far neither masking_strategy nor xml_strategy for backend nematus
+        self._tokenizer_source = Tokenizer(self._src_lang)
+        self._tokenizer_target = Tokenizer(self._trg_lang)
+
+    def _load_masker(self):
+        return ###BH do nothing
+
+    def _load_xmlprocessor(self):
+        return ###BH do nothing
+
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None): ###BH changed 'base_corpus_path' to 'corpus_base_path'
+        '''
+        Preprocesses the given parallel corpus.
+
+        @param corpus_base_path the common file prefix of the training corpus'
+            source and target side
+        @param min_tokens the minimum number of tokens in a segment. Segments
+            with less tokens will be discarded
+        @param max_tokens the maximum number of tokens in a segment. Segments
+            with more tokens will be discarded
+        @param preprocess_external whether or not external corpora (tune, eval)
+            should be preprocessed (tokenized, masked and markup processing)
+        @param mask whether or not segments should be masked
+        @param process_xml whether or not the XML processing strategy should be
+            applied to segments or not
+
+        Note: The source and target side files of the parallel corpus are
+            induced from concatenating @param corpus_base_path with
+            self.src_lang and self.trg_lang, respectively. Example:
+            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
+            `/foo/corpus.fr`.
+        '''
+
+        # logging info for preprocessing
+        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
+
+        # tokenize, clean and split base corpus
+        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens) ###BH changed 'base_corpus_path' to 'corpus_base_path'
+        # tokenize and clean separate tuning and training corpora (if applicable)
+        if isinstance(self._tuning, str):
+            self._preprocess_external_corpus(
+                self._tuning,
+                BASENAME_TUNING_CORPUS,
+                min_tokens,
+                max_tokens,
+                preprocess_external=preprocess_external
+            )
+        if isinstance(self._evaluation, str):
+            self._preprocess_external_corpus(
+                self._evaluation,
+                BASENAME_EVALUATION_CORPUS,
+                min_tokens,
+                max_tokens,
+                preprocess_external=preprocess_external ###BH preprocess for nematus
+            )
+        # lowercase as needed
+        self._lowercase()
+        # mark final files (.final symlinks)
+        self._mark_final_files()
+
+    def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
+        return ###BH do nothing
+
+    def bpe_encoding(self, bpe_operations):
+        '''
+        Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
+
+        @param bpe_operations "Create this many new symbols (each representing a character n-gram)"
+                    Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
+                    Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+        '''
+
+        # get input for learning: paths of truecased training corpus and (if any) evaluation corpus. no language ending
+        corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED
+        if self._evaluation: 
+            corpus_eval_tc=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED
+        else:
+            corpus_eval_tc=None
+
+        # create target directory for bpe model
+        bpe_model_path = os.sep.join([self._get_path('engine'), BPE])
+        if not assertions.dir_exists(bpe_model_path):
+            os.mkdir(bpe_model_path)
+
+        # create encoder instance
+        self._encoder = Encoder(corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang, self._evaluation)
+
+        # learn bpe model using truecased training corpus
+        self._encoder.learn_bpe_model()
+
+        # apply bpe model on truecased training corpus (and if present, truecased evaluation corpus)
+        self._encoder.apply_bpe_model()
+
+        # build bpe dictionary (JSON files) for truecased training corpus
+        self._encoder.build_bpe_dictionary()
+
+    def train_engine(self, n=5, alignment='grow-diag-final-and',
+              max_phrase_length=7, reordering='msd-bidirectional-fe',
+              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
+        return ###BH IMPLEMENT!!!
+
+    def tune(self, num_threads=1):
+        return ###BH IMPLEMENT???
+
+    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
+                 strip_markup_eval=False, extended=False):
+        return ###BH IMPLEMENT???
+
+    def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
+            accurate=False):
+        '''
+        Checks the length of segments (in tokens). An accurate check strips,
+            tokenizes the segment and XML element tags count as single tokens.
+        @param segment the segment the length of which should be determined
+        @param min_tokens minimal number of tokens
+        @param max_tokens maximal number of tokens
+        @param tokenizer the right tokenizer depending on the language
+        @param whether the counting should be naive (faster) or accurate (slower)
+        @return the input segment. None means that the segment should be
+            discarded.
+        '''
+        original_segment = segment
+
+        # more accurate count if preprocessing steps are applied
+        if accurate:
+            segment = segment.strip()
+            segment = tokenizer.tokenize(segment, split=False)
+
+            ###BH delete?
+            try:
+                tokens = reinsertion.tokenize_keep_markup(segment)
+            except:
+                logging.debug("Segment is not well-formed: '%s'" % segment)
+                # segment is not well-formed, discard
+                self._num_malformed_segments += 1
+                return None
+        else:
+            tokens = [token for token in segment.split(" ") if token != '']
+        if len(tokens) < min_tokens or len(tokens) > max_tokens:
+            # None means segment should be discarded
+            return None
+
+        return original_segment
+
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask=None, process_xml=None):
+        '''
+        Splits @param corpus_base_path into training, tuning, and evaluation
+        sections (as applicable). Outputs are stored in /corpus.
+
+        '''
+        # determine number of segments for tuning and evaluation, if any
+        num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
+        num_eval = 0 if not isinstance(self._evaluation, int) else self._evaluation
+        # open parallel input corpus for reading
+        corpus_source = open(corpus_base_path + "." + self._src_lang, 'r')
+        corpus_target = open(corpus_base_path + "." + self._trg_lang, 'r')
+
+        # create parallel output corpora:
+        corpus_train = ParallelCorpus(
+            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
+            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang,
+            max_size=None,
+            preprocess=True,
+            normalize=True,
+            normalizer_src=self._normalizer_source,
+            normalizer_trg=self._normalizer_target,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+        )
+        corpus_tune = ParallelCorpus(
+            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
+            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang,
+            max_size=num_tune,
+            preprocess=True,
+            normalize=True,
+            normalizer_src=self._normalizer_source,
+            normalizer_trg=self._normalizer_target,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+        )
+        corpus_eval = ParallelCorpus(
+            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
+            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang,
+            max_size=num_eval,
+            preprocess=True,
+            normalize=True,
+            normalizer_src=self._normalizer_source,
+            normalizer_trg=self._normalizer_target,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target
+        )
+        # distribute segments from input corpus to output corpora
+        for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
+            # check lengths of segments
+            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_source, accurate=True)
+            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_target, accurate=True)
+            if None in [segment_source, segment_target]:
+                continue # discard segments with too few or too many tokens
+            # reservoir sampling (Algorithm R)
+            elif corpus_tune.get_size() < num_tune:
+                corpus_tune.insert(segment_source, segment_target)
+            elif corpus_eval.get_size() < num_eval:
+                corpus_eval.insert(segment_source, segment_target)
+            else:
+                if num_tune > 0 and random.randint(0, i) < (num_tune + num_eval):
+                    segment_source, segment_target = corpus_tune.insert(segment_source, segment_target)
+                elif num_eval > 0 and random.randint(0, i) < (num_tune + num_eval):
+                    segment_source, segment_target = corpus_eval.insert(segment_source, segment_target)
+                corpus_train.insert(segment_source, segment_target)
+        # close file handles
+        corpus_source.close()
+        corpus_target.close()
+        corpus_train.close()
+        # preprocess segments, then write to disk, the close file handle
+        corpus_tune.close()
+        corpus_eval.close()
+        # logging
+        logging.info("Training corpus: %s segments", corpus_train.get_size())
+        logging.debug("Discarded %i segments because they were not well-formed" % self._num_malformed_segments)
+        # delete empty corpora, if any
+        if num_tune == 0:
+            corpus_tune.delete()
+        else:
+            logging.info("Tuning corpus: %s segments", corpus_tune.get_size())
+        if num_eval == 0:
+            corpus_eval.delete()
+        else:
+            logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
+
+    def _preprocess_external_corpus(self, basepath_external_corpus, basename,
+                                    min_tokens, max_tokens, preprocess_external,
+                                    process_xml):
+        '''
+        Pre-processes an external corpus into /corpus.
+
+        @param basepath_external_corpus the basepath where the external corpus
+            is located, without language code suffixes. Example: `/foo/bar/eval`
+            will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
+            an EN to FR training
+        @param basename the basename of the external corpus in the context of this
+            training, e.g., `test`
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
+        @param preprocess_external whether the segments should be preprocessed
+        @param process_xml whether or not the XML processing strategy should be
+            applied to the segments in external corpora
+        '''
+
+        # preprocess external corpora:
+        # User choice 'preprocess_external' influences whether or not external tuning and evaluation corpora
+        # shall be preprocessed (i.e. normalized and tokenized)
+        corpus = ParallelCorpus(
+            self._get_path_corpus(basename, self._src_lang),
+            self._get_path_corpus(basename, self._trg_lang),
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang,
+            max_size=None,
+            preprocess=preprocess_external,
+            normalize=True if preprocess_external else False,
+            normalizer_src=self._normalizer_source,
+            normalizer_trg=self._normalizer_target,
+            tokenize=True if preprocess_external else False,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+        )
+        # pre-process segments
+        corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')
+        corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
+        for segment_source, segment_target in zip(corpus_source, corpus_target):
+            # tokenize, clean and mask segments (most importantly, remove trailing \n)
+            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_source, accurate=True)
+            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
+                tokenizer=self._tokenizer_target, accurate=True)
+            if None in [segment_source, segment_target]:
+                continue # discard segments with too few or too many tokens
+            else:
+                corpus.insert(segment_source, segment_target)
+        corpus.close()
+        corpus_source.close()
+        corpus_target.close()
+        # logging
+        if basename == BASENAME_TUNING_CORPUS:
+            logging.info("Tuning corpus: %s segments", corpus.get_size())
+        elif basename == BASENAME_EVALUATION_CORPUS:
+            logging.info("Evaluation corpus: %s segments", corpus.get_size())
+
+    def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
+        return
+
+    def _word_alignment(self, symmetrization_heuristic, num_threads=1):
+        return
+
+    def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
+                            num_threads, path_temp_files, keep_uncompressed):
+        return
+
+    ###BH todo def _train_nematus_engine()
+
+    def _MERT(self, num_threads):
+        return
+
+    def write_final_ini(self):
+        return
