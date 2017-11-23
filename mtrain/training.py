@@ -60,8 +60,8 @@ class TrainingBase(object):
         self._src_lang = src_lang
         self._trg_lang = trg_lang
         # set strategies
-        self._masking_strategy = masking_strategy
         self._casing_strategy = casing_strategy
+        self._masking_strategy = masking_strategy
         self._xml_strategy = xml_strategy
         # load components
         self._load_normalizer()
@@ -102,7 +102,7 @@ class TrainingBase(object):
 
     @abc.abstractmethod # only for backend moses
     def _get_path_corpus_final(self, corpus, lang):
-        pass
+        return
 
     def _symlink(self, orig, link_name):
         try:
@@ -114,23 +114,23 @@ class TrainingBase(object):
 
     @abc.abstractmethod # only for backend nematus
     def _load_normalizer(self):
-        pass
+        return
 
     @abc.abstractmethod # different per backend
     def _load_tokenizer(self):
-        pass
+        return
 
     @abc.abstractmethod # only for backend moses
     def _load_masker(self):
-        pass
+        return
 
     @abc.abstractmethod # only for backend moses
     def _load_xmlprocessor(self):
-        pass
+        return
 
     @abc.abstractmethod # different per backend
     def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None): ###BH changed 'base_corpus_path' to 'corpus_base_path'
-        pass
+        return
 
     def train_truecaser(self):
         '''
@@ -176,41 +176,44 @@ class TrainingBase(object):
 
     @abc.abstractmethod # only for backend moses
     def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
-        pass
+        return
 
     @abc.abstractmethod # only for backend nematus
     def bpe_encoding(self, bpe_operations):
-        pass
+        return
 
-    @abc.abstractmethod # different per backend
+    @abc.abstractmethod # different per backend or only moses?
+    ###BH check order and default of arguments, or create different method for nematus
     def train_engine(self, n=5, alignment='grow-diag-final-and',
               max_phrase_length=7, reordering='msd-bidirectional-fe',
               num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
-        pass
+        return
 
-    @abc.abstractmethod # different per backend or only moses ###BH?
+    @abc.abstractmethod # different per backend or only moses?
+    ###BH check order and default of arguments, or create different method for nematus
     def tune(self, num_threads=1):
-        pass
+        return
 
-    @abc.abstractmethod # different per backend ###BH?
+    @abc.abstractmethod # different per backend or only moses?
+    ###BH check order and default of arguments, or create different method for nematus
     def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
                  strip_markup_eval=False, extended=False):
-        pass
+        return
 
     @abc.abstractmethod # different per backend
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
-        pass
+        return
 
     @abc.abstractmethod # different per backend
-    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
-        pass
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask=None, process_xml=None):
+        return
 
     @abc.abstractmethod # different per backend
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
                                     min_tokens, max_tokens, preprocess_external,
-                                    process_xml):
-        pass
+                                    process_xml=None):
+        return
 
     def _lowercase(self):
         '''
@@ -315,28 +318,30 @@ class TrainingBase(object):
             )
 
 
-    @abc.abstractmethod # only for backend moses ###BH???
+    @abc.abstractmethod # different per backend or only moses?
+    ###BH check order and default of arguments, or create different method for nematus
     def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
-        pass
+        return
 
-    @abc.abstractmethod # only for backend moses ###BH???
+    @abc.abstractmethod # different per backend or only moses?
+    ###BH check order and default of arguments, or create different method for nematus
     def _word_alignment(self, symmetrization_heuristic, num_threads=1):
-        pass
+        return
 
     @abc.abstractmethod # only for backend moses
     def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
                             num_threads, path_temp_files, keep_uncompressed):
-        pass
+        return
 
     @abc.abstractmethod # only for backend moses
     def _MERT(self, num_threads):
-        pass
+        return
 
-    @abc.abstractmethod # only for backend moses ###BH???
+    @abc.abstractmethod # different per backend or only moses?
+    ###BH check order and default of arguments, or create different method for nematus
     def write_final_ini(self):
-        pass
+        return
 
-##################################################################################################################
 
 class TrainingMoses(TrainingBase):
     '''
@@ -960,8 +965,6 @@ class TrainingMoses(TrainingBase):
         self._symlink(moses_ini, final_moses_ini)
 
 
-##################################################################################################################
-
 class TrainingNematus(TrainingBase):
     '''
     Models the training process of a Nematus engine, including all files and
@@ -1138,44 +1141,47 @@ class TrainingNematus(TrainingBase):
         corpus_train = ParallelCorpus(
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=None,
             preprocess=True,
-            normalize=True,
-            normalizer_src=self._normalizer_source,
-            normalizer_trg=self._normalizer_target,
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
+            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
+            normalize=True,
+            normalizer_src=self._normalizer_source,
+            normalizer_trg=self._normalizer_target,
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang
         )
         corpus_tune = ParallelCorpus(
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=num_tune,
             preprocess=True,
-            normalize=True,
-            normalizer_src=self._normalizer_source,
-            normalizer_trg=self._normalizer_target,
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
+            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
+            normalize=True,
+            normalizer_src=self._normalizer_source,
+            normalizer_trg=self._normalizer_target,
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang
         )
         corpus_eval = ParallelCorpus(
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=num_eval,
             preprocess=True,
+            tokenize=True,
+            tokenizer_src=self._tokenizer_source,
+            tokenizer_trg=self._tokenizer_target,
+            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
             normalize=True,
             normalizer_src=self._normalizer_source,
             normalizer_trg=self._normalizer_target,
-            tokenize=True,
-            tokenizer_src=self._tokenizer_source,
-            tokenizer_trg=self._tokenizer_target
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
@@ -1219,7 +1225,7 @@ class TrainingNematus(TrainingBase):
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
                                     min_tokens, max_tokens, preprocess_external,
-                                    process_xml):
+                                    process_xml=None):
         '''
         Pre-processes an external corpus into /corpus.
 
@@ -1242,16 +1248,17 @@ class TrainingNematus(TrainingBase):
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
             max_size=None,
             preprocess=preprocess_external,
-            normalize=True if preprocess_external else False,
-            normalizer_src=self._normalizer_source,
-            normalizer_trg=self._normalizer_target,
             tokenize=True if preprocess_external else False,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
+            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
+            normalize=True if preprocess_external else False,
+            normalizer_src=self._normalizer_source,
+            normalizer_trg=self._normalizer_target,
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang
         )
         # pre-process segments
         corpus_source = open(basepath_external_corpus + "." + self._src_lang, 'r')

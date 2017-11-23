@@ -259,8 +259,8 @@ def main():
             corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
             min_tokens=args.min_tokens,
             max_tokens=args.max_tokens,
-            mask=bool(args.masking),
             preprocess_external=args.preprocess_external_tune,
+            mask=bool(args.masking),
             process_xml=bool(args.xml_input)
         )
 
@@ -323,10 +323,11 @@ def main():
             corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
             min_tokens=args.min_tokens,
             max_tokens=args.max_tokens,
-            preprocess_external=args.preprocess_external_tune,
+            preprocess_external=args.preprocess_external_tune
         )
         # continue preprocessing: apply casing strategy
         training.train_truecaser()
+        training.truecase()
 
         # continue preprocessing: byte-pair encoding for backend nematus
         training.bpe_encoding(bpe_operations=args.bpe_ops)

@@ -11,10 +11,10 @@ class ParallelCorpus(object):
     bi-segments.
     '''
 
-    def __init__(self, filepath_source, filepath_target, src_lang, trg_lang, max_size=None, preprocess=False,
-        normalize=False, normalizer_src=None, normalizer_trg=None,
+    def __init__(self, filepath_source, filepath_target, max_size=None, preprocess=False,
         tokenize=True, tokenizer_src=None, tokenizer_trg=None,
-        mask=False, masker=None, process_xml=False, xml_processor=None):
+        mask=False, masker=None, process_xml=False, xml_processor=None,
+        normalize=False, normalizer_src=None, normalizer_trg=None, src_lang=None, trg_lang=None):
         '''
         Creates an empty corpus stored at @param filepath_source (source side)
         and @param filepath_target (target side). Existing files will be
@@ -43,12 +43,7 @@ class ParallelCorpus(object):
         '''
 
         # set up preprocessing attributes
-        self._src_lang = src_lang
-        self._trg_lang = trg_lang
         self._preprocess = preprocess
-        self._normalize = normalize
-        self._normalizer_src = normalizer_src
-        self._normalizer_trg = normalizer_trg
         self._tokenize = tokenize
         self._tokenizer_src = tokenizer_src
         self._tokenizer_trg = tokenizer_trg
@@ -56,6 +51,11 @@ class ParallelCorpus(object):
         self._masker = masker
         self._process_xml = process_xml
         self._xml_processor = xml_processor
+        self._normalize = normalize
+        self._normalizer_src = normalizer_src
+        self._normalizer_trg = normalizer_trg
+        self._src_lang = src_lang
+        self._trg_lang = trg_lang
 
         # set up file paths and handles
         self._filepath_source = filepath_source
