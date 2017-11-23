@@ -33,7 +33,7 @@ def normalize_romanian(segment):
     '''
 
     # See http://www.fileformat.info/info/unicode/char:
-    # tested ok, e.g. 'Iniţiaţi' with cedilla changes to 'Inițiați' with comma below
+    # tested ok, e.g. 'Iniţiaţi' with cedilla replaced by 'Inițiați' with comma below
     segment = segment.replace("\u015e", "\u0218").replace("\u015f", "\u0219")
     segment = segment.replace("\u0162", "\u021a").replace("\u0163", "\u021b")
     return segment
@@ -45,7 +45,7 @@ def remove_ro_diacritics(segment):
     "Remove Romanian diacritics. Assumes s-comma and t-comma are normalised"
     '''
     # See http://www.fileformat.info/info/unicode/char:
-    # tested ok, e.g. 'Adică' changes to 'Adica'
+    # tested ok, e.g. 'Adică' replaced by 'Adica'
     segment = segment.replace("\u0218", "S").replace("\u0219", "s") #s-comma
     segment = segment.replace("\u021a", "T").replace("\u021b", "t") #t-comma
     segment = segment.replace("\u0102", "A").replace("\u0103", "a")

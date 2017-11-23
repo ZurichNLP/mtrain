@@ -36,6 +36,6 @@ class Normalizer(object):
         Normalizes punctuation of a single segment, applied for segments using backend nematus.
         '''
 
-        # tested ok, e.g. '«' or '»' changes to '&quot;'
+        # tested ok, e.g. '«' or '»' replaced by '&quot;'
         normalized_segment = self._processor.process(segment)
         return normalized_segment
