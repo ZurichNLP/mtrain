@@ -101,7 +101,7 @@ class TrainingBase(object):
         return self._get_path('corpus') + os.sep + corpus + "." + lang
 
     @abc.abstractmethod # only for backend moses
-    def _get_path_corpus_final(self, corpus, lang):
+    def _get_path_corpus_final():
         return
 
     def _symlink(self, orig, link_name):
@@ -113,23 +113,23 @@ class TrainingBase(object):
                 os.symlink(orig, link_name)
 
     @abc.abstractmethod # only for backend nematus
-    def _load_normalizer(self):
+    def _load_normalizer():
         return
 
     @abc.abstractmethod # different per backend
-    def _load_tokenizer(self):
+    def _load_tokenizer():
         return
 
     @abc.abstractmethod # only for backend moses
-    def _load_masker(self):
+    def _load_masker():
         return
 
     @abc.abstractmethod # only for backend moses
-    def _load_xmlprocessor(self):
+    def _load_xmlprocessor():
         return
 
     @abc.abstractmethod # different per backend
-    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None): ###BH changed 'base_corpus_path' to 'corpus_base_path'
+    def preprocess():
         return
 
     def train_truecaser(self):
@@ -175,44 +175,35 @@ class TrainingBase(object):
         commander.run_parallel(commands, "Truecasing corpora")
 
     @abc.abstractmethod # only for backend moses
-    def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
+    def train_recaser():
         return
 
     @abc.abstractmethod # only for backend nematus
-    def bpe_encoding(self, bpe_operations):
-        return
-
-    @abc.abstractmethod # different per backend or only moses?
-    ###BH check order and default of arguments, or create different method for nematus
-    def train_engine(self, n=5, alignment='grow-diag-final-and',
-              max_phrase_length=7, reordering='msd-bidirectional-fe',
-              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
-        return
-
-    @abc.abstractmethod # different per backend or only moses?
-    ###BH check order and default of arguments, or create different method for nematus
-    def tune(self, num_threads=1):
-        return
-
-    @abc.abstractmethod # different per backend or only moses?
-    ###BH check order and default of arguments, or create different method for nematus
-    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
-                 strip_markup_eval=False, extended=False):
+    def bpe_encoding():
         return
 
     @abc.abstractmethod # different per backend
-    def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
-            accurate=False):
+    def train_engine():
+        return
+
+    @abc.abstractmethod # different per backend or only moses? ###BH check
+    def tune():
+        return
+
+    @abc.abstractmethod # # different per backend or only moses? ###BH check
+    def evaluate():
         return
 
     @abc.abstractmethod # different per backend
-    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask=None, process_xml=None):
+    def _check_segment_length():
         return
 
     @abc.abstractmethod # different per backend
-    def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, preprocess_external,
-                                    process_xml=None):
+    def _preprocess_base_corpus():
+        return
+
+    @abc.abstractmethod # different per backend
+    def _preprocess_external_corpus():
         return
 
     def _lowercase(self):
@@ -318,30 +309,29 @@ class TrainingBase(object):
             )
 
 
-    @abc.abstractmethod # different per backend or only moses?
-    ###BH check order and default of arguments, or create different method for nematus
-    def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
+    @abc.abstractmethod # different per backend or only moses? ###BH check
+    def _train_language_model():
         return
 
-    @abc.abstractmethod # different per backend or only moses?
-    ###BH check order and default of arguments, or create different method for nematus
-    def _word_alignment(self, symmetrization_heuristic, num_threads=1):
-        return
-
-    @abc.abstractmethod # only for backend moses
-    def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
-                            num_threads, path_temp_files, keep_uncompressed):
+    @abc.abstractmethod # different per backend or only moses? ###BH check
+    def _word_alignment():
         return
 
     @abc.abstractmethod # only for backend moses
-    def _MERT(self, num_threads):
+    def _train_moses_engine():
         return
 
-    @abc.abstractmethod # different per backend or only moses?
-    ###BH check order and default of arguments, or create different method for nematus
-    def write_final_ini(self):
+    @abc.abstractmethod # only for backend moses
+    def _MERT():
         return
 
+    @abc.abstractmethod # different per backend or only moses? ###BH check
+    def write_final_ini():
+        return
+
+    @abc.abstractmethod # only for backend nematus
+    def _train_nematus_engine():
+        return
 
 class TrainingMoses(TrainingBase):
     '''
@@ -1076,17 +1066,12 @@ class TrainingNematus(TrainingBase):
         # build bpe dictionary (JSON files) for truecased training corpus
         self._encoder.build_bpe_dictionary()
 
-    def train_engine(self, n=5, alignment='grow-diag-final-and',
-              max_phrase_length=7, reordering='msd-bidirectional-fe',
-              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
-        return ###BH IMPLEMENT!!!
-
     def tune(self, num_threads=1):
-        return ###BH IMPLEMENT???
+        return
 
     def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
                  strip_markup_eval=False, extended=False):
-        return ###BH IMPLEMENT???
+        return
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
@@ -1292,10 +1277,54 @@ class TrainingNematus(TrainingBase):
                             num_threads, path_temp_files, keep_uncompressed):
         return
 
-    ###BH todo def _train_nematus_engine()
-
     def _MERT(self, num_threads):
         return
 
     def write_final_ini(self):
         return
+
+    def train_engine(self):
+        '''
+        Trains the language model for backend nematus.
+        ###BH check text and @param
+        '''
+
+        self._train_nematus_engine()
+
+    def _train_nematus_engine(self):
+        # create target directory
+        base_dir_tm = self._get_path('engine') + os.sep + 'tm'
+        if not assertions.dir_exists(base_dir_tm):
+            os.mkdir(base_dir_tm)
+        base_dir_model = base_dir_tm + os.sep + 'model'
+        if not assertions.dir_exists(base_dir_model):
+            os.mkdir(base_dir_model)
+
+        ###BH add dedication to namatus stuff !!!!
+
+        # setting up training commands for nematus engine
+        theano_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 '.format(
+            device='cuda4', ###BH from command line, choose free gpu
+            preallocate='0.8' ###BH from command line, choose max 80% => Value '0.8'
+        )
+        nematus_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries} '.format(
+            script='/home/user/horat/nematus/nematus/nmt.py',
+            model_path=base_dir_model,
+            datasets='/home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.es /home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.en', # path to training datasets (source and target)
+            valid_datasets='/home/user/horat/mtraintest/currentoutput/corpus/eval.truecased.bpe.es /home/user/horat/mtraintest/currentoutput/corpus/eval.truecased.bpe.en', # path to validation datasets (source and target)
+            dictionaries='/home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.es.json /home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.en.json' # path to dictionaries (json file created with ../data/build_dictionary.py). One dictionary per input factor; last dictionary is target-side dictionary.
+        )
+        nematus_options = '--dispFreq {dispFreq} --max_epochs {max_epochs} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
+            dispFreq=10, # default 1000
+            max_epochs=5000, # default 5000
+            validFreq=10000, # defailt 10000 ###BH geht nur wenn -e NNNN oder external validation set !!!! Ev. fix verlangen bei der Eingabe als args.XY
+            saveFreq=10,   # save the parameters after every saveFreq updates, default 30000
+            sampleFreq=10000 # generate some samples after every sampleFreq, default 10000
+        )
+        ### --external_validation_sript='? ev. methode die translate.py aufruft ?' \
+
+        # train Nematus engine
+        nematus_command = theano_flags + nematus_files + nematus_options
+        logging.info("###BH training nematus: %s", nematus_command)
+
+        commander.run(nematus_command, "Training Nematus engine: cudaN, bla, bla")

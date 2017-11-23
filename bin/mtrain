@@ -332,7 +332,9 @@ def main():
         # continue preprocessing: byte-pair encoding for backend nematus
         training.bpe_encoding(bpe_operations=args.bpe_ops)
 
-        ###BH todo: initiate training
+        # initiate training
+        training.train_engine()
+
         ###BH todo: initiate tuning ?
         ###BH todo: symlink ?
         ###BH todo: initiate evaluation ? maybe same as for moses
