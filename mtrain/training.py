@@ -28,8 +28,8 @@ class TrainingBase(object):
     '''
     __metaclass__ = ABCMeta
 
-    def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation,
-                 masking_strategy=None, xml_strategy=None):
+    def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
+
         '''
         Creates a new project structure at @param basepath.
 
@@ -61,13 +61,6 @@ class TrainingBase(object):
         self._trg_lang = trg_lang
         # set strategies
         self._casing_strategy = casing_strategy
-        self._masking_strategy = masking_strategy
-        self._xml_strategy = xml_strategy
-        # load components
-        self._load_normalizer()
-        self._load_tokenizer()
-        self._load_masker()
-        self._load_xmlprocessor()
         self._tuning = tuning
         self._evaluation = evaluation
         self._num_malformed_segments = 0
@@ -100,10 +93,6 @@ class TrainingBase(object):
             corpus = '.'.join(corpus)
         return self._get_path('corpus') + os.sep + corpus + "." + lang
 
-    @abc.abstractmethod # only for backend moses
-    def _get_path_corpus_final():
-        return
-
     def _symlink(self, orig, link_name):
         try:
             os.symlink(orig, link_name)
@@ -112,25 +101,13 @@ class TrainingBase(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    @abc.abstractmethod # only for backend nematus
-    def _load_normalizer():
-        return
-
     @abc.abstractmethod # different per backend
     def _load_tokenizer():
-        return
-
-    @abc.abstractmethod # only for backend moses
-    def _load_masker():
-        return
-
-    @abc.abstractmethod # only for backend moses
-    def _load_xmlprocessor():
-        return
+        pass
 
     @abc.abstractmethod # different per backend
     def preprocess():
-        return
+        pass
 
     def train_truecaser(self):
         '''
@@ -174,37 +151,21 @@ class TrainingBase(object):
             commands.append(command(BASENAME_EVALUATION_CORPUS, self._trg_lang))
         commander.run_parallel(commands, "Truecasing corpora")
 
-    @abc.abstractmethod # only for backend moses
-    def train_recaser():
-        return
-
-    @abc.abstractmethod # only for backend nematus
-    def bpe_encoding():
-        return
-
     @abc.abstractmethod # different per backend
     def train_engine():
-        return
-
-    @abc.abstractmethod # different per backend or only moses? ###BH check
-    def tune():
-        return
-
-    @abc.abstractmethod # # different per backend or only moses? ###BH check
-    def evaluate():
-        return
+        pass
 
     @abc.abstractmethod # different per backend
     def _check_segment_length():
-        return
+        pass
 
     @abc.abstractmethod # different per backend
     def _preprocess_base_corpus():
-        return
+        pass
 
     @abc.abstractmethod # different per backend
     def _preprocess_external_corpus():
-        return
+        pass
 
     def _lowercase(self):
         '''
@@ -308,36 +269,20 @@ class TrainingBase(object):
                 symlink_path(BASENAME_EVALUATION_CORPUS, self._trg_lang)
             )
 
-
-    @abc.abstractmethod # different per backend or only moses? ###BH check
-    def _train_language_model():
-        return
-
-    @abc.abstractmethod # different per backend or only moses? ###BH check
-    def _word_alignment():
-        return
-
-    @abc.abstractmethod # only for backend moses
-    def _train_moses_engine():
-        return
-
-    @abc.abstractmethod # only for backend moses
-    def _MERT():
-        return
-
-    @abc.abstractmethod # different per backend or only moses? ###BH check
-    def write_final_ini():
-        return
-
-    @abc.abstractmethod # only for backend nematus
-    def _train_nematus_engine():
-        return
-
 class TrainingMoses(TrainingBase):
     '''
     Models the training process of a Moses engine, including all files and
     folders that are required and generated.
     '''
+    def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation,
+                 masking_strategy=None, xml_strategy=None):
+        super(TrainingMoses, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
+
+        self._masking_strategy = masking_strategy
+        self._xml_strategy = xml_strategy
+        self._load_masker()
+        self._load_xmlprocessor()
+        self._load_tokenizer()
 
     def _get_path_masking_patterns(self, overall_strategy, detailed_strategy):
         '''
@@ -356,9 +301,6 @@ class TrainingMoses(TrainingBase):
         Returns the absolute path to a final corpus related to this training.
         '''
         return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
-
-    def _load_normalizer(self):
-        return ###BH do nothing
 
     def _load_tokenizer(self):
         # create tokenizers: masking strategy has an impact on tokenizer behaviour
@@ -520,9 +462,6 @@ class TrainingMoses(TrainingBase):
         if not keep_uncompressed:
             os.remove("%s/cased.kenlm.gz" % base_dir_recaser)
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
-
-    def bpe_encoding(self, bpe_operations):
-        return ###BH do nothing
 
     def train_engine(self, n=5, alignment='grow-diag-final-and',
               max_phrase_length=7, reordering='msd-bidirectional-fe',
@@ -961,8 +900,11 @@ class TrainingNematus(TrainingBase):
     folders that are required and generated.
     '''
 
-    def _get_path_corpus_final(self, corpus, lang):
-        return ###BH do nothing
+    def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
+        super(TrainingNematus, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
+
+        self._load_normalizer()
+        self._load_tokenizer()
 
     def _load_normalizer(self):
         # create normalizer as additional preprocessing step for backend nematus
@@ -973,12 +915,6 @@ class TrainingNematus(TrainingBase):
         # so far neither masking_strategy nor xml_strategy for backend nematus
         self._tokenizer_source = Tokenizer(self._src_lang)
         self._tokenizer_target = Tokenizer(self._trg_lang)
-
-    def _load_masker(self):
-        return ###BH do nothing
-
-    def _load_xmlprocessor(self):
-        return ###BH do nothing
 
     def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None): ###BH changed 'base_corpus_path' to 'corpus_base_path'
         '''
@@ -1030,10 +966,7 @@ class TrainingNematus(TrainingBase):
         # mark final files (.final symlinks)
         self._mark_final_files()
 
-    def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
-        return ###BH do nothing
-
-    def bpe_encoding(self, bpe_operations):
+    def bpe_encoding(self, bpe_operations=1000):
         '''
         Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
 
@@ -1065,13 +998,6 @@ class TrainingNematus(TrainingBase):
 
         # build bpe dictionary (JSON files) for truecased training corpus
         self._encoder.build_bpe_dictionary()
-
-    def tune(self, num_threads=1):
-        return
-
-    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
-                 strip_markup_eval=False, extended=False):
-        return
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
@@ -1267,64 +1193,171 @@ class TrainingNematus(TrainingBase):
         elif basename == BASENAME_EVALUATION_CORPUS:
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
-    def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
-        return
-
-    def _word_alignment(self, symmetrization_heuristic, num_threads=1):
-        return
-
-    def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
-                            num_threads, path_temp_files, keep_uncompressed):
-        return
-
-    def _MERT(self, num_threads):
-        return
-
-    def write_final_ini(self):
-        return
-
-    def train_engine(self):
+    def train_engine(self, device_train, preallocate_train, device_validate, preallocate_validate):
         '''
-        Trains the language model for backend nematus.
-        ###BH check text and @param
+        Prepares and trains the language model for backend nematus.
+        ###BH todo: check text and @param
         '''
 
-        self._train_nematus_engine()
-
-    def _train_nematus_engine(self):
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
         if not assertions.dir_exists(base_dir_tm):
             os.mkdir(base_dir_tm)
-        base_dir_model = base_dir_tm + os.sep + 'model'
-        if not assertions.dir_exists(base_dir_model):
-            os.mkdir(base_dir_model)
+        self._base_dir_model = base_dir_tm + os.sep + 'model'
+        if not assertions.dir_exists(self._base_dir_model):
+            os.mkdir(self._base_dir_model)
 
-        ###BH add dedication to namatus stuff !!!!
+        # prepare and execute nematus training
+        self._prepare_external_validation(device_validate, preallocate_validate)
+        self._prepare_external_postprocessing()
+        self._train_nematus_engine(device_train, preallocate_train)
+        #self._remove_external_scripts()
 
-        # setting up training commands for nematus engine
-        theano_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 '.format(
-            device='cuda4', ###BH from command line, choose free gpu
-            preallocate='0.8' ###BH from command line, choose max 80% => Value '0.8'
+        ###BH todo: further steps...
+
+    def _prepare_external_validation(self, device_validate, preallocate_validate):
+        '''
+        Setting up external validation script that is called during training of nematus engine.
+        ###BH todo: check text and @param and add dedication !!!
+        '''
+
+        # write external validation script
+        with open(self._basepath + os.sep + 'validate.sh', 'w') as f:
+
+            ###BH maybe use constants to translate.py, multi-bleu.perl instead of homes
+            f.write('#!/bin/sh\n\nnematus={nematus}\nmosesdecoder={moses}\n\n' \
+                'dev={dev}\nref={ref}\n\n' \
+                'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 ' \
+                '$nematus/nematus/translate.py -m {prefix}.dev.npz -i $dev -o $dev.output.dev -k 12 -n -p 1\n\n' \
+                './postprocess-dev.sh < $dev.output.dev > $dev.output.postprocessed.dev\n\n' \
+                'BEST=`cat {prefix}_best_bleu || echo 0`\n' \
+                '$mosesdecoder/scripts/generic/multi-bleu.perl $ref < $dev.output.postprocessed.dev >> {prefix}_bleu_scores\n' \
+                'BLEU=`$mosesdecoder/scripts/generic/multi-bleu.perl $ref < $dev.output.postprocessed.dev | cut -f 3 -d \' \' | cut -f 1 -d \',\'`\n' \
+                'BETTER=`echo "$BLEU > $BEST" | bc`\n' \
+                'echo "BLEU = $BLEU"\n' \
+                'if [ "$BETTER" = "1" ]; then\n' \
+                '  echo "new best; saving"\n' \
+                '  echo $BLEU > {prefix}_best_bleu\n' \
+                '  cp {prefix}.dev.npz {prefix}.npz.best_bleu\n' \
+                'fi\n'.format(
+                    nematus=NEMATUS_HOME,
+                    moses=MOSES_HOME,
+                    dev=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._src_lang,
+                    ref=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + self._trg_lang,
+                    device=device_validate,
+                    preallocate=preallocate_validate,
+                    prefix=self._base_dir_model + '/model.npz'
+                )
+            )
+        # close script
+        f.close()
+
+        # chmod script to be executable during training
+        filepath = self._basepath + os.sep + 'validate.sh'
+        os.chmod(filepath, 0o755)
+
+    def _prepare_external_postprocessing(self):
+        '''
+        Setting up postprocessing script that is called by external validation script during training of nematus engine.
+        ###BH todo: check text and @param and add dedication !!!
+        '''
+
+        # write postprocessing script
+        with open(self._basepath + os.sep + 'postprocess-dev.sh', 'w') as f:
+
+            ###BH maybe use constants to detruecase.perl instead of home
+            f.write("#/bin/sh\nmosesdecoder={moses}\nlng={lang}\nsed 's/\@\@ //g' | $mosesdecoder/scripts/recaser/detruecase.perl".format(
+                    moses=MOSES_HOME,
+                    lang=self._trg_lang,
+                )
+            )
+        # close script
+        f.close()
+
+        # chmod script to be executable during validation
+        filepath = self._basepath + os.sep + 'postprocess-dev.sh'
+        os.chmod(filepath, 0o755)
+
+    def _train_nematus_engine(self, device_train, preallocate_train):
+        '''
+        ###BH todo: check text and @param and add dedication !!!
+        '''
+
+        # setting up training and validation command for nematus engine
+
+        # theano flags in training
+        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/train.sh
+        theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 '.format(
+            device=device_train,
+            preallocate=preallocate_train
         )
-        nematus_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries} '.format(
-            script='/home/user/horat/nematus/nematus/nmt.py',
-            model_path=base_dir_model,
-            datasets='/home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.es /home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.en', # path to training datasets (source and target)
-            valid_datasets='/home/user/horat/mtraintest/currentoutput/corpus/eval.truecased.bpe.es /home/user/horat/mtraintest/currentoutput/corpus/eval.truecased.bpe.en', # path to validation datasets (source and target)
-            dictionaries='/home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.es.json /home/user/horat/mtraintest/currentoutput/corpus/train.truecased.bpe.en.json' # path to dictionaries (json file created with ../data/build_dictionary.py). One dictionary per input factor; last dictionary is target-side dictionary.
+        # nematus files in training
+        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        nematus_train_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries} '.format(
+            script=NEMATUS_NMT,
+            model_path=self._base_dir_model,
+            datasets=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._src_lang + ' ' + \
+                     self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._trg_lang,
+                     # truecased and byte-pair encoded training sets
+                     # e.g. 'train.truecased.bpe.ro train.truecased.bpe.en' split by a space
+            valid_datasets=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._src_lang + ' ' + \
+                           self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._trg_lang,
+                           # truecased and byte-pair encoded evaluation sets
+                           # e.g. 'eval.truecased.bpe.ro eval.truecased.bpe.en' split by a space
+            dictionaries=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._src_lang + '.json ' + \
+                         self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._trg_lang + '.json',
+                         # path to dictionaries (json files)
+                         # e.g. 'train.truecased.bpe.ro.json train.truecased.bpe.en.json' split by a space
         )
-        nematus_options = '--dispFreq {dispFreq} --max_epochs {max_epochs} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
-            dispFreq=10, # default 1000
+        # nematus options in training (split in sections for better overview)
+        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        nematus_train_options_a = '--max_epochs {max_epochs} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
             max_epochs=5000, # default 5000
-            validFreq=10000, # defailt 10000 ###BH geht nur wenn -e NNNN oder external validation set !!!! Ev. fix verlangen bei der Eingabe als args.XY
-            saveFreq=10,   # save the parameters after every saveFreq updates, default 30000
+            dispFreq=100, # default 1000
+            validFreq=100, # default 10000 ###BH only works with -e INT or external validation set !!! make user choose accordingly
+            saveFreq=30000,   # save the parameters after every saveFreq updates, default 30000
             sampleFreq=10000 # generate some samples after every sampleFreq, default 10000
         )
-        ### --external_validation_sript='? ev. methode die translate.py aufruft ?' \
+        nematus_train_options_b = '--batch_size {batch_size} --valid_batch_size {valid_batch_size} --use_dropout {use_dropout} --dropout_embedding {dropout_embedding} ' \
+            '--dropout_hidden {dropout_hidden} --dropout_source {dropout_source} --dropout_target {dropout_target} {overwrite} '.format(
+            batch_size=80,
+            valid_batch_size=80,
+            use_dropout='', # for default=False leave empty. for True provide '--use_dropout' to cause "action="store_true"
+            dropout_embedding=0.2,
+            dropout_hidden=0.2,
+            dropout_source=0.1,
+            dropout_target=0.1,
+            overwrite='' # for default=False leave empty. for True provide '--overwrite' to cause "action="store_true"
+        )
+        nematus_train_options_c = '{reload} --dim_word {dim_word} --dim {dim} --n_words {n_words} --n_words_src {n_words_src} --decay_c {decay_c} --clip_c {clip_c} ' \
+            ' --lrate {lrate} --optimizer {optimizer} --maxlen {maxlen} '.format(
+            reload='--reload', # for default=False leave empty. for True provide '--reload' to cause "action="store_true"
+            dim_word=500,
+            dim=1024,
+            n_words=90000,
+            n_words_src=90000,
+            decay_c=0.,
+            clip_c=1.,
+            lrate=0.0001,
+            optimizer='adadelta',
+            maxlen=50
+        )
+        # external validation script
+        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        external_validation = '--external_validation_script={script_path_full}'.format(
+            script_path_full=self._basepath + os.sep + 'validate.sh'
+        )
 
-        # train Nematus engine
-        nematus_command = theano_flags + nematus_files + nematus_options
-        logging.info("###BH training nematus: %s", nematus_command)
+        # train nematus engine
+        commander.run(
+            '{nematus_command}'.format(
+                nematus_command=theano_train_flags + nematus_train_files + nematus_train_options_a + nematus_train_options_b + nematus_train_options_c + external_validation
+            ),
+            "Training Nematus engine: device %s" % self._device_train
+        )
 
-        commander.run(nematus_command, "Training Nematus engine: cudaN, bla, bla")
+    def _remove_external_scripts():
+        filepath = self._basepath + os.sep + 'validate.sh'
+        filepath.delete()
+        filepath = self._basepath + os.sep + 'postprocess-dev.sh'
+        filepath.delete()

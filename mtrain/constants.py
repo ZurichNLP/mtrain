@@ -43,6 +43,7 @@ SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py'
 SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py'
 # Paths to Nematus files/scripts
 NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py'
+NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py'
 
 # Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'

@@ -164,8 +164,46 @@ def get_argument_parser():
         "--bpe_ops",
         type=int,
         help="decide how many byte-pair operations are to be performed when learning the " +
-        "byte-pair encoding model. Default is 89500 operations.",
-        default=10000 ###BH Testing value, reset to default 89500
+        "byte-pair encoding model. Default is 89500 operations."
+        # set default in bpe_encoding() but not here ###BH current default 1000, reset to default 89500
+    )
+    parser.add_argument(
+        "--skip_preprocessing",
+        action="store_true",
+        help="choose to skip preprocessing", ###BH add more desc
+        default=False
+    )
+    parser.add_argument(
+        "--skip_training",
+        action="store_true",
+        help="choose to skip training", ###BH add more desc
+        default=False
+    )
+    parser.add_argument(
+        "--device_train",
+        type=str,
+        help="choose a free cpu or gpu for training", ###BH add more desc
+        default='cuda4'
+    )
+    parser.add_argument(
+        "--preallocate_train",
+        type=str,
+        help="preallocate cpu/gpu memory for training. Do not choose more than a value of '0.8' = 80 percent or risk running out of memory. " +
+            "The system will use more memory if available and safe.", ###BH add more desc
+        default='0.8'
+    )
+    parser.add_argument(
+        "--device_validate",
+        type=str,
+        help="choose a free cpu or gpu for validation", ###BH add more desc
+        default='cuda7'
+    )
+    parser.add_argument(
+        "--preallocate_validate",
+        type=str,
+        help="preallocate cpu/gpu memory for validation. Do not choose more than a value of '0.3' = 30 percent so other users' processes do not get blocked. " +
+            "The system will use more memory if available and safe.", ###BH add more desc
+        default='0.3'
     )
     return parser
 
@@ -218,10 +256,10 @@ def main():
 
     # currently no casing other than truecasing for backend nematus
     if args.backend == BACKEND_NEMATUS and args.caser != TRUECASING:
-        logging.critical("Invalid command line options. For '--backend %s', " +
-            "only '%s' is applicable as casing strategy. " +
+        logging.warning("Invalid command line options. For '--backend %s', " +
+            "only '%s' is applicable as casing strategy and will therefore be used. " +
             "See '-h'/'--help' for more information.", BACKEND_NEMATUS, TRUECASING)
-        sys.exit()
+        args.caser = TRUECASING
 
     # ignore bpe operations for backend moses, warn user but continue processing
     if args.backend == BACKEND_MOSES and args.bpe_ops:
@@ -317,23 +355,36 @@ def main():
             tuning=args.tune,
             evaluation=args.eval
         )
-        # initiate preprocessing
-        logging.info("Initiating preprocessing for backend %s", args.backend)
-        training.preprocess(
-            corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
-            min_tokens=args.min_tokens,
-            max_tokens=args.max_tokens,
-            preprocess_external=args.preprocess_external_tune
-        )
-        # continue preprocessing: apply casing strategy
-        training.train_truecaser()
-        training.truecase()
 
-        # continue preprocessing: byte-pair encoding for backend nematus
-        training.bpe_encoding(bpe_operations=args.bpe_ops)
+        ###BH testing: choose skip to keep preprocessing data
+        if args.skip_preprocessing != True:
 
-        # initiate training
-        training.train_engine()
+            # initiate preprocessing
+            logging.info("Initiating preprocessing for backend %s", args.backend)
+            training.preprocess(
+                corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
+                min_tokens=args.min_tokens,
+                max_tokens=args.max_tokens,
+                preprocess_external=args.preprocess_external_tune
+            )
+            # continue preprocessing: apply casing strategy
+            training.train_truecaser()
+            training.truecase()
+
+            # continue preprocessing: byte-pair encoding for backend nematus
+            training.bpe_encoding(bpe_operations=args.bpe_ops)
+
+        else:
+            logging.warning("You chose to skip preprocessing!")
+
+        ###BH testing: choose skip to keep training data
+        if args.skip_training != True:
+
+            # initiate training
+            training.train_engine(args.device_train, args.preallocate_train, args.device_validate, args.preallocate_validate)
+
+        else:
+            logging.warning("You chose to skip training!")
 
         ###BH todo: initiate tuning ?
         ###BH todo: symlink ?
