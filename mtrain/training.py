@@ -27,9 +27,7 @@ class TrainingBase(object):
     Abstract class for either backend, moses or nematus
     '''
     __metaclass__ = ABCMeta
-
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
-
         '''
         Creates a new project structure at @param basepath.
 
@@ -46,10 +44,6 @@ class TrainingBase(object):
                     without language code suffixes)
         @param evaluation the evaluation set to be used. The same options as in
             @param tuning apply.
-        @param masking_strategy whether and how mask tokens should be
-            introduced into segments
-        @param xml_strategy whether fragments of markup in the data should be
-            passed through, removed or masked
 
         Note: @param src_lang, @param trg_lang must be language codes recognised
             by the built-in Moses tokenizer.
@@ -61,6 +55,7 @@ class TrainingBase(object):
         self._trg_lang = trg_lang
         # set strategies
         self._casing_strategy = casing_strategy
+        # set behaviour
         self._tuning = tuning
         self._evaluation = evaluation
         self._num_malformed_segments = 0
@@ -80,20 +75,24 @@ class TrainingBase(object):
     def _get_path(self, component):
         '''
         Returns the absolute path to the base directory of the given
-        @param component.
+            @param component.
         '''
         assert component in PATH_COMPONENT, "Unknown component %s" % component
         return os.path.sep.join([self._basepath, PATH_COMPONENT[component]])
 
     def _get_path_corpus(self, corpus, lang):
         '''
-        Returns the absolute path to a corpus related to this training.
+        Returns the absolute path to a corpus related to this training,
+            to @param corpus the file ending @param lang is appended.
         '''
         if isinstance(corpus, list):
             corpus = '.'.join(corpus)
         return self._get_path('corpus') + os.sep + corpus + "." + lang
 
     def _symlink(self, orig, link_name):
+        '''
+        Creates a symlink @param link_name to file or path @param orig.
+        '''
         try:
             os.symlink(orig, link_name)
         except OSError as e:
@@ -101,13 +100,33 @@ class TrainingBase(object):
                 os.remove(link_name)
                 os.symlink(orig, link_name)
 
-    @abc.abstractmethod # different per backend
+    @abc.abstractmethod
     def _load_tokenizer():
         pass
 
-    @abc.abstractmethod # different per backend
-    def preprocess():
-        pass
+    @abc.abstractmethod
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external):
+        '''
+        Preprocesses the given parallel corpus.
+
+        @param corpus_base_path the common file prefix of the training corpus'
+            source and target side
+        @param min_tokens the minimum number of tokens in a segment. Segments
+            with less tokens will be discarded
+        @param max_tokens the maximum number of tokens in a segment. Segments
+            with more tokens will be discarded
+        @param preprocess_external whether or not external corpora (tune, eval)
+            should be preprocessed (tokenized, masked and markup processing)
+
+        Note: The source and target side files of the parallel corpus are
+            induced from concatenating @param corpus_base_path with
+            self.src_lang and self.trg_lang, respectively. Example:
+            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
+            `/foo/corpus.fr`.
+        '''
+
+        # logging info for preprocessing
+        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
 
     def train_truecaser(self):
         '''
@@ -151,20 +170,54 @@ class TrainingBase(object):
             commands.append(command(BASENAME_EVALUATION_CORPUS, self._trg_lang))
         commander.run_parallel(commands, "Truecasing corpora")
 
-    @abc.abstractmethod # different per backend
+    @abc.abstractmethod
     def train_engine():
         pass
 
-    @abc.abstractmethod # different per backend
-    def _check_segment_length():
+    @abc.abstractmethod
+    def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
+        accurate=False):
+        '''
+        Checks the length of segments (in tokens). An accurate check strips,
+            tokenizes the segment and XML element tags count as single tokens.
+
+        @param segment the segment the length of which should be determined
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
+        @param tokenizer the right tokenizer depending on the language
+        @param accurate whether the counting should be naive (faster) or accurate (slower)
+        @return the input segment. None means that the segment should be
+            discarded.
+        '''
         pass
 
-    @abc.abstractmethod # different per backend
-    def _preprocess_base_corpus():
+    @abc.abstractmethod
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
+        '''
+        Splits @param corpus_base_path into training, tuning, and evaluation
+            sections (as applicable). Outputs are stored in /corpus.
+
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
+        '''
         pass
 
-    @abc.abstractmethod # different per backend
-    def _preprocess_external_corpus():
+    @abc.abstractmethod
+    def _preprocess_external_corpus(self, basepath_external_corpus, basename,
+                                    min_tokens, max_tokens, preprocess_external):
+        '''
+        Pre-processes an external corpus into /corpus.
+
+        @param basepath_external_corpus the basepath where the external corpus
+            is located, without language code suffixes. Example: `/foo/bar/eval`
+            will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
+            an EN to FR training
+        @param basename the basename of the external corpus in the context of this
+            training, e.g., `test`
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
+        @param preprocess_external whether the segments should be preprocessed
+        '''
         pass
 
     def _lowercase(self):
@@ -271,15 +324,24 @@ class TrainingBase(object):
 
 class TrainingMoses(TrainingBase):
     '''
-    Models the training process of a Moses engine, including all files and
-    folders that are required and generated.
+    Models the training process of a Moses engine, including all files
+    that are required and generated.
     '''
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation,
                  masking_strategy=None, xml_strategy=None):
         super(TrainingMoses, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
+        '''
+        In addition to Metaclass @params:
+        @param masking_strategy whether and how mask tokens should be
+            introduced into segments
+        @param xml_strategy whether fragments of markup in the data should be
+            passed through, removed or masked
+        '''
 
+        # set strategies
         self._masking_strategy = masking_strategy
         self._xml_strategy = xml_strategy
+        # load components (order relevant for subclass, thus, none are loaded in Metaclass)
         self._load_masker()
         self._load_xmlprocessor()
         self._load_tokenizer()
@@ -298,13 +360,15 @@ class TrainingMoses(TrainingBase):
 
     def _get_path_corpus_final(self, corpus, lang):
         '''
-        Returns the absolute path to a final corpus related to this training.
+        Returns the absolute path to a final @param corpus related to this training. In addition
+            to the suffix 'final' the language stortcut @param lang is added.
         '''
         return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
 
     def _load_tokenizer(self):
-        # create tokenizers: masking strategy has an impact on tokenizer behaviour
-
+        '''
+        Create tokenizers: Masking and XML masking strategies have impact on tokenizer behaviour.
+        '''
         tokenizer_protects = False
 
         if self._masking_strategy:
@@ -349,40 +413,29 @@ class TrainingMoses(TrainingBase):
             self._tokenizer_target = Tokenizer(self._trg_lang)
 
     def _load_masker(self):
+        '''
+        Create masker: Masking strategy impacts tokenizer behaviour.
+        '''
         if self._masking_strategy:
             self._masker = Masker(self._masking_strategy, escape=True)
 
     def _load_xmlprocessor(self):
+        '''
+        Create xml prozessor: xml strategy impacts tokenizer behaviour.
+        '''
         self._xml_processor = XmlProcessor(self._xml_strategy)
 
-    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask, process_xml): ###BH changed 'base_corpus_path' to 'corpus_base_path'
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None):
+        super(TrainingMoses, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
         '''
-        Preprocesses the given parallel corpus.
-
-        @param corpus_base_path the common file prefix of the training corpus'
-            source and target side
-        @param min_tokens the minimum number of tokens in a segment. Segments
-            with less tokens will be discarded
-        @param max_tokens the maximum number of tokens in a segment. Segments
-            with more tokens will be discarded
-        @param preprocess_external whether or not external corpora (tune, eval)
-            should be preprocessed (tokenized, masked and markup processing)
+        In addition to abstract method @params:
         @param mask whether or not segments should be masked
         @param process_xml whether or not the XML processing strategy should be
             applied to segments or not
-
-        Note: The source and target side files of the parallel corpus are
-            induced from concatenating @param corpus_base_path with
-            self.src_lang and self.trg_lang, respectively. Example:
-            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
-            `/foo/corpus.fr`.
         '''
 
-        # logging info for preprocessing
-        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
-
         # tokenize, clean, mask and split base corpus
-        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml) ###BH changed 'base_corpus_path' to 'corpus_base_path'
+        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml)
         # tokenize, clean, mask and xml-process separate tuning and training corpora (if applicable)
         if isinstance(self._tuning, str):
             self._preprocess_external_corpus(
@@ -486,6 +539,8 @@ class TrainingMoses(TrainingBase):
     def tune(self, num_threads=1):
         '''
         Maximises the engine's performance on the tuning corpus
+
+        @param num_threads the maximum number of threads to be used
         '''
         self._MERT(num_threads)
 
@@ -493,6 +548,7 @@ class TrainingMoses(TrainingBase):
                  strip_markup_eval=False, extended=False):
         '''
         Evaluates the engine by translating and scoring an evaluation set.
+
         @param num_threads the maximum number of threads to be used
         @param lowercase_eval whether to lowercase all segments before evaluation
         @param detokenize_eval whether to detokenize all segments before evaluation
@@ -520,17 +576,12 @@ class TrainingMoses(TrainingBase):
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
+        super(TrainingMoses, self)._check_segment_length(segment, min_tokens, max_tokens, tokenizer,
+            accurate)
         '''
-        Checks the length of segments (in tokens). An accurate check strips,
-            tokenizes the segment and XML element tags count as single tokens.
-        @param segment the segment the length of which should be determined
-        @param min_tokens minimal number of tokens
-        @param max_tokens maximal number of tokens
-        @param tokenizer the right tokenizer depending on the language
-        @param whether the counting should be naive (faster) or accurate (slower)
-        @return the input segment. None means that the segment should be
-            discarded.
+        No addition to abstract method @params.
         '''
+
         original_segment = segment
 
         # more accurate count if preprocessing steps are applied
@@ -554,12 +605,15 @@ class TrainingMoses(TrainingBase):
 
         return original_segment
 
-    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask=None, process_xml=None):
+        super(TrainingMoses, self)._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens)
         '''
-        Splits @param corpus_base_path into training, tuning, and evaluation
-        sections (as applicable). Outputs are stored in /corpus.
+        In addition to abstract method @params:
+        @param mask whether or not masking is applied
+        @param process_xml whether or not the XML processing strategy should be
+            applied to the segments in base corpus
+        '''
 
-        '''
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
         num_eval = 0 if not isinstance(self._evaluation, int) else self._evaluation
@@ -641,21 +695,12 @@ class TrainingMoses(TrainingBase):
         else:
             logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
-    def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, preprocess_external,
-                                    process_xml):
+    def _preprocess_external_corpus(self, basepath_external_corpus, basename, 
+        min_tokens, max_tokens, preprocess_external, process_xml=None):
+        super(TrainingMoses, self)._preprocess_external_corpus(basepath_external_corpus, basename,
+            min_tokens, max_tokens, preprocess_external)
         '''
-        Pre-processes an external corpus into /corpus.
-
-        @param basepath_external_corpus the basepath where the external corpus
-            is located, without language code suffixes. Example: `/foo/bar/eval`
-            will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
-            an EN to FR training
-        @param basename the basename of the external corpus in the context of this
-            training, e.g., `test`
-        @param min_tokens minimal number of tokens in a segment
-        @param max_tokens maximal number of tokens in a segment
-        @param preprocess_external whether the segments should be preprocessed
+        In addition to abstract method @params:
         @param process_xml whether or not the XML processing strategy should be
             applied to the segments in external corpora
         '''
@@ -702,6 +747,8 @@ class TrainingMoses(TrainingBase):
         '''
         Trains an n-gram language model with modified Kneser-Ney smoothing of
         order @param n.
+
+        @param #todo add desc
         '''
         # create target directory
         base_dir_lm = self._get_path('engine') + os.sep + 'lm'
@@ -742,6 +789,8 @@ class TrainingMoses(TrainingBase):
     def _word_alignment(self, symmetrization_heuristic, num_threads=1):
         '''
         Performs word alignment using fast_align
+
+        @param #todo add desc
         '''
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
@@ -794,6 +843,10 @@ class TrainingMoses(TrainingBase):
 
     def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
                             num_threads, path_temp_files, keep_uncompressed):
+        '''
+        @param #todo add desc
+        '''
+
         # create target directory (normally created in self._word_alignment() already)
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
         if not assertions.dir_exists(base_dir_tm):
@@ -861,6 +914,8 @@ class TrainingMoses(TrainingBase):
     def _MERT(self, num_threads):
         '''
         Tunes the system through Minimum Error Rate Trainign (MERT)
+
+        @param #todo add desc
         '''
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
@@ -896,54 +951,41 @@ class TrainingMoses(TrainingBase):
 
 class TrainingNematus(TrainingBase):
     '''
-    Models the training process of a Nematus engine, including all files and
-    folders that are required and generated.
+    Models the training process of a Nematus engine, including all files
+    that are required and generated.
     '''
-
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
         super(TrainingNematus, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
+        '''
+        No addition to Metaclass @params.
+        '''
 
+        # load components (order relevant for subclass, thus, none are loaded in Metaclass)
         self._load_normalizer()
         self._load_tokenizer()
 
     def _load_normalizer(self):
-        # create normalizer as additional preprocessing step for backend nematus
+        '''
+        Create normalizer: additional preprocessing step for backend nematus
+        '''
         self._normalizer_source = Normalizer(self._src_lang)
         self._normalizer_target = Normalizer(self._trg_lang)
 
     def _load_tokenizer(self):
-        # so far neither masking_strategy nor xml_strategy for backend nematus
+        '''
+        Create tokenizers: So far neither masking_strategy nor xml_strategy for backend nematus.
+        '''
         self._tokenizer_source = Tokenizer(self._src_lang)
         self._tokenizer_target = Tokenizer(self._trg_lang)
 
-    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None): ###BH changed 'base_corpus_path' to 'corpus_base_path'
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external):
+        super(TrainingNematus, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
         '''
-        Preprocesses the given parallel corpus.
-
-        @param corpus_base_path the common file prefix of the training corpus'
-            source and target side
-        @param min_tokens the minimum number of tokens in a segment. Segments
-            with less tokens will be discarded
-        @param max_tokens the maximum number of tokens in a segment. Segments
-            with more tokens will be discarded
-        @param preprocess_external whether or not external corpora (tune, eval)
-            should be preprocessed (tokenized, masked and markup processing)
-        @param mask whether or not segments should be masked
-        @param process_xml whether or not the XML processing strategy should be
-            applied to segments or not
-
-        Note: The source and target side files of the parallel corpus are
-            induced from concatenating @param corpus_base_path with
-            self.src_lang and self.trg_lang, respectively. Example:
-            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
-            `/foo/corpus.fr`.
+        No addition to abstract method @params.
         '''
-
-        # logging info for preprocessing
-        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
 
         # tokenize, clean and split base corpus
-        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens) ###BH changed 'base_corpus_path' to 'corpus_base_path'
+        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens)
         # tokenize and clean separate tuning and training corpora (if applicable)
         if isinstance(self._tuning, str):
             self._preprocess_external_corpus(
@@ -959,14 +1001,14 @@ class TrainingNematus(TrainingBase):
                 BASENAME_EVALUATION_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external=preprocess_external ###BH preprocess for nematus
+                preprocess_external=preprocess_external # enable preprocess of EVAL for nematus
             )
         # lowercase as needed
         self._lowercase()
         # mark final files (.final symlinks)
         self._mark_final_files()
 
-    def bpe_encoding(self, bpe_operations=1000):
+    def bpe_encoding(self, bpe_operations):
         '''
         Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
 
@@ -1001,25 +1043,18 @@ class TrainingNematus(TrainingBase):
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
+        super(TrainingNematus, self)._check_segment_length(segment, min_tokens, max_tokens, tokenizer,
+            accurate)
         '''
-        Checks the length of segments (in tokens). An accurate check strips,
-            tokenizes the segment and XML element tags count as single tokens.
-        @param segment the segment the length of which should be determined
-        @param min_tokens minimal number of tokens
-        @param max_tokens maximal number of tokens
-        @param tokenizer the right tokenizer depending on the language
-        @param whether the counting should be naive (faster) or accurate (slower)
-        @return the input segment. None means that the segment should be
-            discarded.
+        No addition to abstract method @params.
         '''
+
         original_segment = segment
 
         # more accurate count if preprocessing steps are applied
         if accurate:
             segment = segment.strip()
             segment = tokenizer.tokenize(segment, split=False)
-
-            ###BH delete?
             try:
                 tokens = reinsertion.tokenize_keep_markup(segment)
             except:
@@ -1035,12 +1070,12 @@ class TrainingNematus(TrainingBase):
 
         return original_segment
 
-    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask=None, process_xml=None):
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
+        super(TrainingNematus, self)._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens)
         '''
-        Splits @param corpus_base_path into training, tuning, and evaluation
-        sections (as applicable). Outputs are stored in /corpus.
+        No addition to abstract method @params.
+        '''
 
-        '''
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
         num_eval = 0 if not isinstance(self._evaluation, int) else self._evaluation
@@ -1057,7 +1092,7 @@ class TrainingNematus(TrainingBase):
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
-            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
+            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional arguments
             normalize=True,
             normalizer_src=self._normalizer_source,
             normalizer_trg=self._normalizer_target,
@@ -1072,7 +1107,7 @@ class TrainingNematus(TrainingBase):
             tokenize=True,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
-            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
+            mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional arguments
             normalize=True,
             normalizer_src=self._normalizer_source,
             normalizer_trg=self._normalizer_target,
@@ -1135,22 +1170,11 @@ class TrainingNematus(TrainingBase):
             logging.info("Evaluation corpus: %s segments", corpus_eval.get_size())
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, preprocess_external,
-                                    process_xml=None):
+        min_tokens, max_tokens, preprocess_external):
+        super(TrainingNematus, self)._preprocess_external_corpus(basepath_external_corpus, basename,
+            min_tokens, max_tokens, preprocess_external)
         '''
-        Pre-processes an external corpus into /corpus.
-
-        @param basepath_external_corpus the basepath where the external corpus
-            is located, without language code suffixes. Example: `/foo/bar/eval`
-            will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
-            an EN to FR training
-        @param basename the basename of the external corpus in the context of this
-            training, e.g., `test`
-        @param min_tokens minimal number of tokens in a segment
-        @param max_tokens maximal number of tokens in a segment
-        @param preprocess_external whether the segments should be preprocessed
-        @param process_xml whether or not the XML processing strategy should be
-            applied to the segments in external corpora
+        No addition to abstract method @params.
         '''
 
         # preprocess external corpora:
@@ -1193,10 +1217,15 @@ class TrainingNematus(TrainingBase):
         elif basename == BASENAME_EVALUATION_CORPUS:
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
-    def train_engine(self, device_train, preallocate_train, device_validate, preallocate_validate):
+    def train_engine(self, device_train=None, preallocate_train=None, device_validate=None, preallocate_validate=None, external_validation_script=None):
         '''
-        Prepares and trains the language model for backend nematus.
-        ###BH todo: check text and @param
+        Prepares and executes the training engine for backend nematus.
+
+        @param device_train defines the processor (cpu, gpuN or cudaN) for training
+        @param preallocate_train defines the percentage of memory to be preallocated for training
+        @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
+        @param preallocate_validate defines the percentage of memory to be preallocated for validation
+        @param external_validation_script path to own external validation script if provided
         '''
 
         # create target directory
@@ -1207,81 +1236,110 @@ class TrainingNematus(TrainingBase):
         if not assertions.dir_exists(self._base_dir_model):
             os.mkdir(self._base_dir_model)
 
+        # define validation and postprocessing strategy, path for scripts
+        if isinstance(external_validation_script, str):
+            self._mtrain_managed_val=False
+            self._path_ext_val=external_validation_script
+        else:
+            self._mtrain_managed_val=True
+            self._path_ext_val=self._base_dir_model
+
         # prepare and execute nematus training
-        self._prepare_external_validation(device_validate, preallocate_validate)
-        self._prepare_external_postprocessing()
+        self._prepare_validation(device_validate, preallocate_validate)
+        self._prepare_postprocessing()
         self._train_nematus_engine(device_train, preallocate_train)
-        #self._remove_external_scripts()
 
         ###BH todo: further steps...
 
-    def _prepare_external_validation(self, device_validate, preallocate_validate):
+    def _prepare_validation(self, device_validate, preallocate_validate):
         '''
         Setting up external validation script that is called during training of nematus engine.
-        ###BH todo: check text and @param and add dedication !!!
+
+        @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
+        @param preallocate_validate defines the percentage of memory to be preallocated for validation
+
+        ###BH todo add dedication !!!
         '''
 
-        # write external validation script
-        with open(self._basepath + os.sep + 'validate.sh', 'w') as f:
-
-            ###BH maybe use constants to translate.py, multi-bleu.perl instead of homes
-            f.write('#!/bin/sh\n\nnematus={nematus}\nmosesdecoder={moses}\n\n' \
-                'dev={dev}\nref={ref}\n\n' \
-                'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 ' \
-                '$nematus/nematus/translate.py -m {prefix}.dev.npz -i $dev -o $dev.output.dev -k 12 -n -p 1\n\n' \
-                './postprocess-dev.sh < $dev.output.dev > $dev.output.postprocessed.dev\n\n' \
-                'BEST=`cat {prefix}_best_bleu || echo 0`\n' \
-                '$mosesdecoder/scripts/generic/multi-bleu.perl $ref < $dev.output.postprocessed.dev >> {prefix}_bleu_scores\n' \
-                'BLEU=`$mosesdecoder/scripts/generic/multi-bleu.perl $ref < $dev.output.postprocessed.dev | cut -f 3 -d \' \' | cut -f 1 -d \',\'`\n' \
-                'BETTER=`echo "$BLEU > $BEST" | bc`\n' \
-                'echo "BLEU = $BLEU"\n' \
-                'if [ "$BETTER" = "1" ]; then\n' \
-                '  echo "new best; saving"\n' \
-                '  echo $BLEU > {prefix}_best_bleu\n' \
-                '  cp {prefix}.dev.npz {prefix}.npz.best_bleu\n' \
-                'fi\n'.format(
-                    nematus=NEMATUS_HOME,
-                    moses=MOSES_HOME,
-                    dev=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._src_lang,
-                    ref=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + self._trg_lang,
-                    device=device_validate,
-                    preallocate=preallocate_validate,
-                    prefix=self._base_dir_model + '/model.npz'
+        # check if mtrain-managed external validation
+        if self._mtrain_managed_val:
+            # mtrain-managed: write external validation script
+            with open(self._path_ext_val + os.sep + 'validate.sh', 'w') as f:
+                f.write('#!/bin/sh\n\n' \
+                    '# This script was generated by mtrain according to the example:\n' \
+                    '# https://github.com/rsennrich/wmt16-scripts/blob/master/sample/validate.sh\n\n' \
+                    'nematus={nematus}\nmosesdecoder={moses}\n\n' \
+                    'dev={dev}\nref={ref}\n\n' \
+                    'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 ' \
+                    '$nematus/nematus/translate.py -m {prefix}.dev.npz -i $dev -o $dev.output.dev -k 12 -n -p 1\n\n' \
+                    'sh {script_path}/postprocess-dev.sh < $dev.output.dev > $dev.output.postprocessed.dev\n\n' \
+                    'BEST=`cat {prefix}_best_bleu || echo 0`\n' \
+                    '$mosesdecoder/scripts/generic/multi-bleu.perl $ref < $dev.output.postprocessed.dev >> {prefix}_bleu_scores\n' \
+                    'BLEU=`$mosesdecoder/scripts/generic/multi-bleu.perl $ref < $dev.output.postprocessed.dev | cut -f 3 -d \' \' | cut -f 1 -d \',\'`\n' \
+                    'BETTER=`echo "$BLEU > $BEST" | bc`\n' \
+                    'echo "BLEU = $BLEU"\n' \
+                    'if [ "$BETTER" = "1" ]; then\n' \
+                    '  echo "new best; saving"\n' \
+                    '  echo $BLEU > {prefix}_best_bleu\n' \
+                    '  cp {prefix}.dev.npz {prefix}.npz.best_bleu\n' \
+                    'fi\n'.format(
+                        nematus=NEMATUS_HOME,
+                        moses=MOSES_HOME,
+                        dev=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED + '.' + BPE + '.' + self._src_lang,
+                        ref=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + self._trg_lang,
+                        device=device_validate,
+                        preallocate=preallocate_validate,
+                        prefix=self._base_dir_model + '/model.npz',
+                        script_path=self._path_ext_val # absolute path to postprocessing script, otherwise not found if mtrain executed in other directory
+                    )
                 )
-            )
-        # close script
-        f.close()
+            # close script
+            f.close()
+            # chmod script to be executable during training
+            filepath = self._path_ext_val + os.sep + 'validate.sh'
+            os.chmod(filepath, 0o755)
 
-        # chmod script to be executable during training
-        filepath = self._basepath + os.sep + 'validate.sh'
-        os.chmod(filepath, 0o755)
-
-    def _prepare_external_postprocessing(self):
+    def _prepare_postprocessing(self):
         '''
         Setting up postprocessing script that is called by external validation script during training of nematus engine.
-        ###BH todo: check text and @param and add dedication !!!
+
+        ###BH todo add dedication !!!
         '''
 
-        # write postprocessing script
-        with open(self._basepath + os.sep + 'postprocess-dev.sh', 'w') as f:
-
-            ###BH maybe use constants to detruecase.perl instead of home
-            f.write("#/bin/sh\nmosesdecoder={moses}\nlng={lang}\nsed 's/\@\@ //g' | $mosesdecoder/scripts/recaser/detruecase.perl".format(
-                    moses=MOSES_HOME,
-                    lang=self._trg_lang,
+        # check if mtrain-managed postprocessing
+        if self._mtrain_managed_val:
+            # mtrain-managed: write postprocessing script
+            with open(self._path_ext_val + os.sep + 'postprocess-dev.sh', 'w') as f:
+                f.write("#/bin/sh\n\n" \
+                    "# This script was generated by mtrain according to the example:\n" \
+                    "# https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-dev.sh\n\n" \
+                    "mosesdecoder={moses}\nlng={lang}\nsed 's/\@\@ //g' | $mosesdecoder/scripts/recaser/detruecase.perl".format(
+                        moses=MOSES_HOME,
+                        lang=self._trg_lang,
+                    )
                 )
-            )
-        # close script
-        f.close()
-
-        # chmod script to be executable during validation
-        filepath = self._basepath + os.sep + 'postprocess-dev.sh'
-        os.chmod(filepath, 0o755)
+            # close script
+            f.close()
+            # chmod script to be executable during validation
+            filepath = self._path_ext_val + os.sep + 'postprocess-dev.sh'
+            os.chmod(filepath, 0o755)
 
     def _train_nematus_engine(self, device_train, preallocate_train):
         '''
-        ###BH todo: check text and @param and add dedication !!!
+        Executes the training engine for backend nematus.
+
+        @param device_train defines the processor (cpu, gpuN or cudaN) for training
+        @param preallocate_train defines the percentage of memory to be preallocated for training
+
+        ###BH todo add dedication !!!
         '''
+
+        # distinguish 
+        if self._mtrain_managed_val:
+            script_path_full=self._path_ext_val + os.sep + 'validate.sh'
+        else:
+            # user must provide path including filename
+            script_path_full=self._path_ext_val
 
         # setting up training and validation command for nematus engine
 
@@ -1312,40 +1370,40 @@ class TrainingNematus(TrainingBase):
         # nematus options in training (split in sections for better overview)
         # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         nematus_train_options_a = '--max_epochs {max_epochs} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
-            max_epochs=5000, # default 5000
+            max_epochs=100, # default 5000
             dispFreq=100, # default 1000
             validFreq=100, # default 10000 ###BH only works with -e INT or external validation set !!! make user choose accordingly
-            saveFreq=30000,   # save the parameters after every saveFreq updates, default 30000
-            sampleFreq=10000 # generate some samples after every sampleFreq, default 10000
+            saveFreq=30000,   # default 30000
+            sampleFreq=10000 # default 10000
         )
         nematus_train_options_b = '--batch_size {batch_size} --valid_batch_size {valid_batch_size} --use_dropout {use_dropout} --dropout_embedding {dropout_embedding} ' \
             '--dropout_hidden {dropout_hidden} --dropout_source {dropout_source} --dropout_target {dropout_target} {overwrite} '.format(
-            batch_size=80,
-            valid_batch_size=80,
-            use_dropout='', # for default=False leave empty. for True provide '--use_dropout' to cause "action="store_true"
-            dropout_embedding=0.2,
-            dropout_hidden=0.2,
-            dropout_source=0.1,
-            dropout_target=0.1,
-            overwrite='' # for default=False leave empty. for True provide '--overwrite' to cause "action="store_true"
+            batch_size=80, # default 80
+            valid_batch_size=40, # default 80
+            use_dropout='', # default=False (leave empty '')
+            dropout_embedding=0.2, # default 0.2
+            dropout_hidden=0.2, # default 0.2
+            dropout_source=0.1, # default 0.1
+            dropout_target=0.1, # default 0.1
+            overwrite='' # default=False (leave empty '')
         )
         nematus_train_options_c = '{reload} --dim_word {dim_word} --dim {dim} --n_words {n_words} --n_words_src {n_words_src} --decay_c {decay_c} --clip_c {clip_c} ' \
             ' --lrate {lrate} --optimizer {optimizer} --maxlen {maxlen} '.format(
-            reload='--reload', # for default=False leave empty. for True provide '--reload' to cause "action="store_true"
-            dim_word=500,
-            dim=1024,
-            n_words=90000,
-            n_words_src=90000,
-            decay_c=0.,
-            clip_c=1.,
-            lrate=0.0001,
-            optimizer='adadelta',
-            maxlen=50
+            reload='--reload', # default=True ('--reload')
+            dim_word=500, # default 500
+            dim=1024, # default 1024
+            n_words=90000, # default 90000
+            n_words_src=90000, # default 90000
+            decay_c=0., # default 0.
+            clip_c=1., # default 1.
+            lrate=0.0001, # default 0.0001
+            optimizer='adadelta', # default 'adadelta'
+            maxlen=50 # default 50
         )
         # external validation script
         # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
-        external_validation = '--external_validation_script={script_path_full}'.format(
-            script_path_full=self._basepath + os.sep + 'validate.sh'
+        external_validation = '--external_validation_script={script}'.format(
+            script=script_path_full
         )
 
         # train nematus engine
@@ -1353,11 +1411,5 @@ class TrainingNematus(TrainingBase):
             '{nematus_command}'.format(
                 nematus_command=theano_train_flags + nematus_train_files + nematus_train_options_a + nematus_train_options_b + nematus_train_options_c + external_validation
             ),
-            "Training Nematus engine: device %s" % self._device_train
+            "Training Nematus engine: device %s" % device_train
         )
-
-    def _remove_external_scripts():
-        filepath = self._basepath + os.sep + 'validate.sh'
-        filepath.delete()
-        filepath = self._basepath + os.sep + 'postprocess-dev.sh'
-        filepath.delete()
