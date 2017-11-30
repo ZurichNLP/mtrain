@@ -1219,7 +1219,7 @@ class TrainingNematus(TrainingBase):
 
     def train_engine(self, device_train=None, preallocate_train=None, device_validate=None, preallocate_validate=None, external_validation_script=None):
         '''
-        Prepares and executes the training engine for backend nematus.
+        Prepares and executes the training of the nematus engine.
 
         @param device_train defines the processor (cpu, gpuN or cudaN) for training
         @param preallocate_train defines the percentage of memory to be preallocated for training
@@ -1236,7 +1236,7 @@ class TrainingNematus(TrainingBase):
         if not assertions.dir_exists(self._base_dir_model):
             os.mkdir(self._base_dir_model)
 
-        # define validation and postprocessing strategy, path for scripts
+        # define validation / postprocessing strategy and path for scripts
         if isinstance(external_validation_script, str):
             self._mtrain_managed_val=False
             self._path_ext_val=external_validation_script
@@ -1249,16 +1249,17 @@ class TrainingNematus(TrainingBase):
         self._prepare_postprocessing()
         self._train_nematus_engine(device_train, preallocate_train)
 
-        ###BH todo: further steps...
-
     def _prepare_validation(self, device_validate, preallocate_validate):
         '''
         Setting up external validation script that is called during training of nematus engine.
+        This does not execute validation but enabling validation during training to work properly.
 
         @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
 
-        ###BH todo add dedication !!!
+        ###BH todo
+        add dedication !!!
+        use constants to scripts instead of NEMATUS_HOME, MOSES_HOME? if yes replace all $nematus.. and $mosesdecoder..
         '''
 
         # check if mtrain-managed external validation
@@ -1290,20 +1291,23 @@ class TrainingNematus(TrainingBase):
                         device=device_validate,
                         preallocate=preallocate_validate,
                         prefix=self._base_dir_model + '/model.npz',
-                        script_path=self._path_ext_val # absolute path to postprocessing script, otherwise not found if mtrain executed in other directory
+                        script_path=self._path_ext_val # absolute path to where postprocessing script is stored, otherwise not found if mtrain executed in other directory
                     )
                 )
             # close script
             f.close()
-            # chmod script to be executable during training
+            # chmod script to be executable
             filepath = self._path_ext_val + os.sep + 'validate.sh'
             os.chmod(filepath, 0o755)
 
     def _prepare_postprocessing(self):
         '''
         Setting up postprocessing script that is called by external validation script during training of nematus engine.
+        This does not execute postprocessing but enabling postprocessing during training's validation steps to work properly.
 
-        ###BH todo add dedication !!!
+        ###BH todo
+        add dedication !!!
+        use constants MOSES_DETRUECASER to scripts instead of MOSES_HOME? if yes replace all $mosesdecoder..
         '''
 
         # check if mtrain-managed postprocessing
@@ -1320,13 +1324,13 @@ class TrainingNematus(TrainingBase):
                 )
             # close script
             f.close()
-            # chmod script to be executable during validation
+            # chmod script to be executable
             filepath = self._path_ext_val + os.sep + 'postprocess-dev.sh'
             os.chmod(filepath, 0o755)
 
     def _train_nematus_engine(self, device_train, preallocate_train):
         '''
-        Executes the training engine for backend nematus.
+        Trains the nematus engine.
 
         @param device_train defines the processor (cpu, gpuN or cudaN) for training
         @param preallocate_train defines the percentage of memory to be preallocated for training
@@ -1341,7 +1345,7 @@ class TrainingNematus(TrainingBase):
             # user must provide path including filename
             script_path_full=self._path_ext_val
 
-        # setting up training and validation command for nematus engine
+        # setting up training and validation command for nematus engine (postprocessing is managed by external validation script)
 
         # theano flags in training
         # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/train.sh
@@ -1412,4 +1416,86 @@ class TrainingNematus(TrainingBase):
                 nematus_command=theano_train_flags + nematus_train_files + nematus_train_options_a + nematus_train_options_b + nematus_train_options_c + external_validation
             ),
             "Training Nematus engine: device %s" % device_train
+        )
+
+    def postprocess(self):
+        '''
+        Executes the postprocessing steps necessary after training nematus engine.
+
+        ###BH todo
+        @param if any
+        '''
+
+        # create target directory, recheck necessary in case training was skipped
+        ###BH todo avoid code repetiton, but in method
+        base_dir_tm = self._get_path('engine') + os.sep + 'tm'
+        if not assertions.dir_exists(base_dir_tm):
+            os.mkdir(base_dir_tm)
+        self._base_dir_model = base_dir_tm + os.sep + 'model'
+        if not assertions.dir_exists(self._base_dir_model):
+            os.mkdir(self._base_dir_model)
+
+        self._translate()
+        self._postprocess_test()
+
+    def _translate(self):
+        '''
+        ###BH todo
+        text
+        @param if any
+        make adjustable / own scipt?
+        add dedication !!!
+        use constants to scripts, variables to path, files, lang
+        '''
+
+        # translate output of nematus engine
+        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/translate.sh
+        commander.run(
+            'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} ' \
+                '-m {model_path}/model.npz -i {input} -o {output} -k 12 -n -p 1'.format(
+                device='cuda7', ###BH device_trans
+                preallocate=0.8, ###BH preallocate_trans
+                script='/home/user/horat/nematus/nematus/translate.py', ###BH constant
+                model_path=self._base_dir_model,
+                input='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.truecased.bpe.ro', ###BH vars data/newsdev2016.bpe.ro
+                output='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.output' ###BH vars data/newsdev2016.output
+            ),
+            "###BH translating..."
+        )
+
+    def _postprocess_test(self):
+        '''
+        ###BH todo
+        text
+        @param if any
+        make adjustable / own scipt?
+        add dedication !!!
+        use constants MOSES_DETRUECASER and MOSES_DETOKENIZER to scripts, variables to path, files, lang
+        '''
+
+        ###BH text
+        ###BH self._base_dir_model only when mtrain-managed, else replace with self._path_ext_val or self._path_ext_postproc
+        with open(self._base_dir_model + os.sep + 'postprocess-test.sh', 'w') as f:
+            f.write("#/bin/sh\n\n" \
+                "# This script was generated by mtrain according to the example:\n" \
+                "# https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-test.sh\n\n" \
+                "mosesdecoder={moses}\nlng={lang}\nsed 's/\@\@ //g' | $mosesdecoder/scripts/recaser/detruecase.perl | $mosesdecoder/scripts/tokenizer/detokenizer.perl -l $lng".format(
+                    moses=MOSES_HOME,
+                    lang=self._trg_lang,
+                )
+            )
+        # close script
+        f.close()
+        # chmod script to be executable
+        filepath = self._base_dir_model + os.sep + 'postprocess-test.sh'
+        os.chmod(filepath, 0o755)
+
+        ###BH text
+        commander.run(
+            'sh {script} < {input} > {output}'.format(
+                script=self._base_dir_model + os.sep + 'postprocess-test.sh',
+                input='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.output', ###BH vars data/newsdev2016.output,
+                output='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.postprocessed' ###BH vars data/newsdev2016.postprocessed
+            ),
+            "###BH postprocessing test..."
         )

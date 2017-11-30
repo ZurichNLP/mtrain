@@ -131,7 +131,7 @@ def get_argument_parser():
     parser.add_argument(
         "--temp_dir",
         help="directory for temporary files created during trainig",
-        default="/tmp" ###BH ???
+        default="/tmp"
     )
     parser.add_argument(
         "--keep_uncompressed_models",
@@ -181,6 +181,13 @@ def get_argument_parser():
         default=False
     )
     parser.add_argument(
+        "--skip_postprocessing", # only for backend nematus
+        action="store_true",
+        help="choose to skip postprocessing in backend nematus, e.g. if you want to verify " +
+        "your training data beforehand",
+        default=False
+    )
+    parser.add_argument(
         "--device_train", # only for backend nematus
         type=str,
         help="choose a free gpu for nematus training, consult your server responsible " +
@@ -217,7 +224,7 @@ def get_argument_parser():
         ###BH remove testing defaults from train_engine() of instance TrainingNematus() if any
     )
     parser.add_argument(
-        "--external_validation_script",
+        "--external_validation_script", # only for backend nematus
         type=str,
         help="optional path to external validation script that is called during " +
             "training of nematus engine. If chosen, also a preprocessing script " +
@@ -439,7 +446,7 @@ def main():
             # set default if  no '--bpe_ops' chosen from command line
             training.bpe_encoding(bpe_operations=1000 if args.bpe_ops == None else args.bpe_ops)
         else:
-            # chosen to skip preprocessing (e.g. to leave preprocessed data untouched)
+            # chosen to skip preprocessing
             logging.warning("You chose to skip preprocessing!")
 
         # check for training to be executed
@@ -452,12 +459,19 @@ def main():
                 preallocate_validate=args.preallocate_validate,
                 external_validation_script=args.external_validation_script)
         else:
-            # chosen to skip training (e.g. to leave training data untouched)
+            # chosen to skip training
             logging.warning("You chose to skip training!")
 
-        ###BH todo: initiate tuning ?
-        ###BH todo: symlink ???
-        ###BH todo: initiate evaluation ? maybe same as for moses
+        # check for postprocessing to be executed
+        if args.skip_postprocessing != True:
+            # initiate postprocessing
+            training.postprocess( ###BH todo args
+            )
+        else:
+            # chosen to skip postprocessing
+            logging.warning("You chose to skip postprocessing!")
+
+        ###BH todo: tuning, symlink, evaluation?
 
 if __name__ == '__main__':
     # abort if Python version is not supported
