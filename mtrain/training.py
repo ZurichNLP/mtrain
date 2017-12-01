@@ -213,7 +213,7 @@ class TrainingBase(object):
             will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
             an EN to FR training
         @param basename the basename of the external corpus in the context of this
-            training, e.g., `test`
+            training, e.g., `tune`
         @param min_tokens minimal number of tokens in a segment
         @param max_tokens maximal number of tokens in a segment
         @param preprocess_external whether the segments should be preprocessed
@@ -652,8 +652,7 @@ class TrainingMoses(TrainingBase):
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
             max_size=num_eval,
-            preprocess=False,
-            tokenize=False,
+            preprocess=False
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
@@ -706,7 +705,7 @@ class TrainingMoses(TrainingBase):
         '''
 
         # preprocess external corpora:
-        # User choice 'preprocess_external' influences whether or not external tuning and evaluation corpora
+        # User choice 'preprocess_external' influences whether or not external tuning corpus
         # shall be preprocessed (i.e. tokenized).
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
@@ -1001,28 +1000,25 @@ class TrainingNematus(TrainingBase):
                 BASENAME_EVALUATION_CORPUS,
                 min_tokens,
                 max_tokens,
-                preprocess_external=preprocess_external # enable preprocess of EVAL for nematus
+                preprocess_external=False, # never preprocess EVAL corpus
             )
         # lowercase as needed
-        self._lowercase()
+        ###BH? no effect when truecasing strategy # self._lowercase()
         # mark final files (.final symlinks)
-        self._mark_final_files()
+        ###BH? effect in nematus unclear yet # self._mark_final_files()
 
     def bpe_encoding(self, bpe_operations):
         '''
-        Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
+        Further preprocessing for nematus backend: byte-pair encoding the given parallel corpora.
 
         @param bpe_operations "Create this many new symbols (each representing a character n-gram)"
                     Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
                     Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
         '''
 
-        # get input for learning: paths of truecased training corpus and (if any) evaluation corpus. no language ending
+        # get input for learning: paths of truecased training and truecased tuning corpora. no language ending
         corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED
-        if self._evaluation: 
-            corpus_eval_tc=self._get_path('corpus') + os.sep + BASENAME_EVALUATION_CORPUS + '.' + SUFFIX_TRUECASED
-        else:
-            corpus_eval_tc=None
+        corpus_tune_tc=self._get_path('corpus') + os.sep + BASENAME_TUNING_CORPUS + '.' + SUFFIX_TRUECASED
 
         # create target directory for bpe model
         bpe_model_path = os.sep.join([self._get_path('engine'), BPE])
@@ -1030,7 +1026,7 @@ class TrainingNematus(TrainingBase):
             os.mkdir(bpe_model_path)
 
         # create encoder instance
-        self._encoder = Encoder(corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang, self._evaluation)
+        self._encoder = Encoder(corpus_train_tc, corpus_tune_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang)
 
         # learn bpe model using truecased training corpus
         self._encoder.learn_bpe_model()
@@ -1118,12 +1114,12 @@ class TrainingNematus(TrainingBase):
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
             max_size=num_eval,
-            preprocess=True,
-            tokenize=True,
+            preprocess=False, ###BH for eval corpus preprocessing later in evaluation step
+            tokenize=False, ###BH for eval corpus preprocessing later in evaluation step
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
             mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
-            normalize=True,
+            normalize=False, ###BH for eval corpus preprocessing later in evaluation step
             normalizer_src=self._normalizer_source,
             normalizer_trg=self._normalizer_target,
             src_lang=self._src_lang,
@@ -1178,7 +1174,7 @@ class TrainingNematus(TrainingBase):
         '''
 
         # preprocess external corpora:
-        # User choice 'preprocess_external' influences whether or not external tuning and evaluation corpora
+        # User choice 'preprocess_external' influences whether or not external tuning corpus
         # shall be preprocessed (i.e. normalized and tokenized)
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
@@ -1246,20 +1242,20 @@ class TrainingNematus(TrainingBase):
 
         # prepare and execute nematus training
         self._prepare_validation(device_validate, preallocate_validate)
-        self._prepare_postprocessing()
+        self._prepare_valid_postprocessing()
         self._train_nematus_engine(device_train, preallocate_train)
 
     def _prepare_validation(self, device_validate, preallocate_validate):
         '''
         Setting up external validation script that is called during training of nematus engine.
-        This does not execute validation but enabling validation during training to work properly.
+        This does not execute validation, but enabling validation during training to work properly.
 
         @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
 
         ###BH todo
         add dedication !!!
-        use constants to scripts instead of NEMATUS_HOME, MOSES_HOME? if yes replace all $nematus.. and $mosesdecoder..
+        use constants NEMATUS_TRANSLATE, MOSES_MULTI_BLEU instead of NEMATUS_HOME, MOSES_HOME? if yes replace all $nematus.. and $mosesdecoder..
         '''
 
         # check if mtrain-managed external validation
@@ -1296,14 +1292,14 @@ class TrainingNematus(TrainingBase):
                 )
             # close script
             f.close()
-            # chmod script to be executable
+            # chmod script to make executable
             filepath = self._path_ext_val + os.sep + 'validate.sh'
             os.chmod(filepath, 0o755)
 
-    def _prepare_postprocessing(self):
+    def _prepare_valid_postprocessing(self):
         '''
         Setting up postprocessing script that is called by external validation script during training of nematus engine.
-        This does not execute postprocessing but enabling postprocessing during training's validation steps to work properly.
+        This does not execute postprocessing, but enabling postprocessing during training's validation steps to work properly.
 
         ###BH todo
         add dedication !!!
@@ -1324,7 +1320,7 @@ class TrainingNematus(TrainingBase):
                 )
             # close script
             f.close()
-            # chmod script to be executable
+            # chmod script to make executable
             filepath = self._path_ext_val + os.sep + 'postprocess-dev.sh'
             os.chmod(filepath, 0o755)
 
@@ -1396,6 +1392,9 @@ class TrainingNematus(TrainingBase):
             reload='--reload', # default=True ('--reload')
             dim_word=500, # default 500
             dim=1024, # default 1024
+            # for n_words and n_words_src cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh:
+            # "Network vocabulary should be slightly larger [than BPE operations] (to include characters),
+            # or smaller if the operations are learned on the joint vocabulary".
             n_words=90000, # default 90000
             n_words_src=90000, # default 90000
             decay_c=0., # default 0.
@@ -1416,86 +1415,4 @@ class TrainingNematus(TrainingBase):
                 nematus_command=theano_train_flags + nematus_train_files + nematus_train_options_a + nematus_train_options_b + nematus_train_options_c + external_validation
             ),
             "Training Nematus engine: device %s" % device_train
-        )
-
-    def postprocess(self):
-        '''
-        Executes the postprocessing steps necessary after training nematus engine.
-
-        ###BH todo
-        @param if any
-        '''
-
-        # create target directory, recheck necessary in case training was skipped
-        ###BH todo avoid code repetiton, but in method
-        base_dir_tm = self._get_path('engine') + os.sep + 'tm'
-        if not assertions.dir_exists(base_dir_tm):
-            os.mkdir(base_dir_tm)
-        self._base_dir_model = base_dir_tm + os.sep + 'model'
-        if not assertions.dir_exists(self._base_dir_model):
-            os.mkdir(self._base_dir_model)
-
-        self._translate()
-        self._postprocess_test()
-
-    def _translate(self):
-        '''
-        ###BH todo
-        text
-        @param if any
-        make adjustable / own scipt?
-        add dedication !!!
-        use constants to scripts, variables to path, files, lang
-        '''
-
-        # translate output of nematus engine
-        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/translate.sh
-        commander.run(
-            'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} ' \
-                '-m {model_path}/model.npz -i {input} -o {output} -k 12 -n -p 1'.format(
-                device='cuda7', ###BH device_trans
-                preallocate=0.8, ###BH preallocate_trans
-                script='/home/user/horat/nematus/nematus/translate.py', ###BH constant
-                model_path=self._base_dir_model,
-                input='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.truecased.bpe.ro', ###BH vars data/newsdev2016.bpe.ro
-                output='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.output' ###BH vars data/newsdev2016.output
-            ),
-            "###BH translating..."
-        )
-
-    def _postprocess_test(self):
-        '''
-        ###BH todo
-        text
-        @param if any
-        make adjustable / own scipt?
-        add dedication !!!
-        use constants MOSES_DETRUECASER and MOSES_DETOKENIZER to scripts, variables to path, files, lang
-        '''
-
-        ###BH text
-        ###BH self._base_dir_model only when mtrain-managed, else replace with self._path_ext_val or self._path_ext_postproc
-        with open(self._base_dir_model + os.sep + 'postprocess-test.sh', 'w') as f:
-            f.write("#/bin/sh\n\n" \
-                "# This script was generated by mtrain according to the example:\n" \
-                "# https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-test.sh\n\n" \
-                "mosesdecoder={moses}\nlng={lang}\nsed 's/\@\@ //g' | $mosesdecoder/scripts/recaser/detruecase.perl | $mosesdecoder/scripts/tokenizer/detokenizer.perl -l $lng".format(
-                    moses=MOSES_HOME,
-                    lang=self._trg_lang,
-                )
-            )
-        # close script
-        f.close()
-        # chmod script to be executable
-        filepath = self._base_dir_model + os.sep + 'postprocess-test.sh'
-        os.chmod(filepath, 0o755)
-
-        ###BH text
-        commander.run(
-            'sh {script} < {input} > {output}'.format(
-                script=self._base_dir_model + os.sep + 'postprocess-test.sh',
-                input='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.output', ###BH vars data/newsdev2016.output,
-                output='/mnt/storage/walle/users/horat/facharbeit/mtraintest/currentrattle/corpus/eval.postprocessed' ###BH vars data/newsdev2016.postprocessed
-            ),
-            "###BH postprocessing test..."
         )
