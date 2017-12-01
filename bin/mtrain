@@ -177,14 +177,7 @@ def get_argument_parser():
     parser.add_argument(
         "--skip_training", # only for backend nematus
         action="store_true",
-        help="choose to skip training in backend nematus, e.g. to leave training data untouched",
-        default=False
-    )
-    parser.add_argument(
-        "--skip_postprocessing", # only for backend nematus
-        action="store_true",
-        help="choose to skip postprocessing in backend nematus, e.g. if you want to verify " +
-        "your training data beforehand",
+        help="choose to skip training in backend nematus, e.g. to leave training model untouched",
         default=False
     )
     parser.add_argument(
@@ -461,17 +454,6 @@ def main():
         else:
             # chosen to skip training
             logging.warning("You chose to skip training!")
-
-        # check for postprocessing to be executed
-        if args.skip_postprocessing != True:
-            # initiate postprocessing
-            training.postprocess( ###BH todo args
-            )
-        else:
-            # chosen to skip postprocessing
-            logging.warning("You chose to skip postprocessing!")
-
-        ###BH todo: tuning, symlink, evaluation?
 
 if __name__ == '__main__':
     # abort if Python version is not supported
