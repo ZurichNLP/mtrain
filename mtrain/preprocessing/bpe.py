@@ -17,25 +17,22 @@ class Encoder(object):
     Furthermore, neither generic masking nor XML masking are applicable.
     '''
 
-    def __init__(self, corpus_train_tc, corpus_eval_tc, bpe_model_path, bpe_operations, src_lang, trg_lang, evaluation):
+    def __init__(self, corpus_train_tc, corpus_tune_tc, bpe_model_path, bpe_operations, src_lang, trg_lang):
         '''
         @params corpus_train_tc location of truecased training corpus (no language ending)
-        @params corpus_eval_tc location of truecased evaluation corpus (no language ending)
+        @params corpus_tune_tc location of truecased tuning corpus (no language ending)
         @params bpe_model_path path of byte-pair encoding model to be stored (no filename)
         @params bpe_operations number of n-grams to be created ###BH ref?
         @params src_lang language identifier of source language
         @params trg_lang language identifier of target language
-        @params evaluation whether a evaluation corpus exists that may be included in encoding
         '''
 
         self._corpus_train_tc=corpus_train_tc
-        self._corpus_eval_tc=corpus_eval_tc
+        self._corpus_tune_tc=corpus_tune_tc
         self._bpe_model_path=bpe_model_path
         self._bpe_operations=bpe_operations
         self._src_lang=src_lang
         self._trg_lang=trg_lang
-        self._evaluation=evaluation
-
 
     def learn_bpe_model(self):
         '''
@@ -61,9 +58,8 @@ class Encoder(object):
 
     def apply_bpe_model(self):
         '''
-        Apply bpe model on truecased training corpus (and if present, truecased evaluation corpus).
-        Creates the files in the basepath's subfolder 'corpus', file names such as train.truecased.bpe.SRC, train.truecased.bpe.TRG
-        (and eval.truecased.bpe.SRC, eval.truecased.bpe.TRG if applicable).
+        Apply bpe model on truecased training corpus and truecased tuning corpus. Creates the files in the
+        basepath's subfolder 'corpus', file names train.truecased.bpe.SRC|TRG and tune.truecased.bpe.SRC|TRG.
 
         Script reference https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py:
             Rico Sennrich, Barry Haddow and Alexandra Birch (2015). Neural Machine Translation of Rare Words with Subword Units.
@@ -76,17 +72,16 @@ class Encoder(object):
             bpe_model=self._bpe_model_path,
             src=self._src_lang,
             trg=self._trg_lang,
-            corpus=current_corpus,  # either truecased training or evaluation corpus, depending on commander
+            corpus=current_corpus,  # either truecased training or tuning corpus, depending on commander
             lang=current_lang       # either source or target language, depending on commander
             )
 
         commands = [
             command(self._corpus_train_tc, self._src_lang),
             command(self._corpus_train_tc, self._trg_lang),
+            command(self._corpus_tune_tc, self._src_lang),
+            command(self._corpus_tune_tc, self._trg_lang),
         ]
-        if self._evaluation:
-            commands.append(command(self._corpus_eval_tc, self._src_lang))
-            commands.append(command(self._corpus_eval_tc, self._trg_lang))
         commander.run_parallel(commands, "Applying BPE model")
 
     def build_bpe_dictionary(self):
