@@ -20,19 +20,11 @@ class ParallelCorpus(object):
         and @param filepath_target (target side). Existing files will be
         overwritten. Preprocesses segments before writing them to disk.
 
-        @param src_lang language of source side of parallel corpus, for language
-            specific processing of segments if needed (e.g. in Romanian)
-        @param trg_lang language of target side of parallel corpus, for language
-            specific processing of segments if needed (e.g. in Romanian)
         @param max_size the maximum number of segments to be stored. If given,
             the `self.insert` method will remove and return a random segment
             that is already stored in this corpus.
         @param preprocess whether segments in this corpus should be preprocessed
             before they are written to disk
-        @param normalize whether segments in this corpus should be normalized
-            before they are written to disk, applied for backend choice nematus
-        @param normalizer_src normalizer object for the source language
-        @param normalizer_trg normalizer object for the target language
         @param tokenize whether segments should be tokenized
         @param tokenizer_src tokenizer object for the source language
         @param tokenizer_trg tokenizer object for the target language
@@ -40,6 +32,14 @@ class ParallelCorpus(object):
         @param masker masking.Masker object
         @param process_xml whether XML should be dealt with
         @param xml_processor an xmlprocessing.XmlProcessor object
+        @param normalize whether segments in this corpus should be normalized
+            before they are written to disk, applied only for backend choice nematus
+        @param normalizer_src normalizer object for the source language
+        @param normalizer_trg normalizer object for the target language
+        @param src_lang language of source side of parallel corpus, for language
+            specific processing of segments if needed (e.g. in Romanian) for nematus
+        @param trg_lang language of target side of parallel corpus, for language
+            specific processing of segments if needed (e.g. in Romanian) for nematus
         '''
 
         # set up preprocessing attributes
@@ -71,9 +71,9 @@ class ParallelCorpus(object):
 
     def insert(self, segment_source, segment_target):
         '''
-        Inserts a bi-segment into this corpus. If the maximum number of entries
-        is exhausted, a random segment already contained in this corpus will
-        be returned.
+        Inserts a bi-segment (@param segment_source and corresponding @param segment_target)
+        into this corpus. If the maximum number of entries is exhausted, a random segment
+        already contained in this corpus will be returned.
         '''
         assert self._closed == False, "Can't manipulate a closed corpus."
         bisegment = (segment_source, segment_target)
@@ -136,7 +136,7 @@ class ParallelCorpus(object):
             segment = normalizer.normalize_punctuation(segment)
 
             # if normalized (i.e. backend nematus), segments in Romanian need further normalization,
-            # whereas normalize_romanian() must be called before remove_ro_diacritics()
+            # normalize_romanian() must be called before remove_ro_diacritics()
             if lang == 'ro':
                 segment = cleaner.normalize_romanian(segment)
                 segment = cleaner.remove_ro_diacritics(segment)
@@ -151,13 +151,12 @@ class ParallelCorpus(object):
         if self._mask:
             segment, _ = self._masker.mask_segment(segment)
 
-
         return segment
 
     def _preprocess_bisegment(self, bisegment):
         '''
-        Preprocesses a bisegment using specifig normalizer and tokenizer objects. Language of the
-        segment is passed for further language specific processing of the segment (e.g. Romanian).
+        Preprocesses a @param bisegment using specific normalizer and tokenizer objects. Language of the
+        individual segments is used for further language specific processing of a segment (e.g. Romanian).
         '''
         segment_source, segment_target = bisegment
 
