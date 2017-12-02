@@ -18,7 +18,7 @@ class Tokenizer(object):
         @param lang_code language identifier
         @param protect whether the tokenizer should respect patterns that should not be tokenized
         @param protected_patterns_path path to file with protected patterns
-        @param whether characters critical to the decoder should be escaped
+        @param escape whether characters critical to the decoder should be escaped
         '''
         arguments = [
             '-l %s' % lang_code,
@@ -46,7 +46,9 @@ class Tokenizer(object):
 
     def tokenize(self, segment, split=True):
         '''
-        Tokenizes a single segment.
+        Tokenizes a single @param segment.
+
+        @param split determines if a tokenized segmet should be split by a space
         '''
         tokenized_segment = self._processor.process(segment)
         if split:
@@ -62,6 +64,7 @@ class Detokenizer(object):
 
     def __init__(self, lang_code, uppercase_first_letter=False):
         '''
+        @param lang_code language identifier
         @param uppercase_first_letter whether or not to uppercase the first
             letter in the detokenized output.
         '''
@@ -82,6 +85,6 @@ class Detokenizer(object):
 
     def detokenize(self, tokens):
         '''
-        Detokenizes a list of tokens into a segment
+        Detokenizes a list of @param tokens into a segment
         '''
         return self._processor.process(" ".join(tokens))

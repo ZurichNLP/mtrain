@@ -4,13 +4,13 @@ from mtrain.constants import *
 from mtrain.preprocessing.external import ExternalProcessor
 
 '''
-Normalize punctuation using the default Moses normalizer script.
-However, the normalizer is only applied and tested on backend nematus.
+Normalize punctuation using the default Moses normalizer script,
+applied for segments using backend nematus.
 '''
 
 class Normalizer(object):
     '''
-    Creates a normalizer for processing sentence by sentence, allowing
+    Creates a normalizer for processing segment per segment, allowing
     interaction with a normalizer process kept in memory.
     '''
 
@@ -33,7 +33,7 @@ class Normalizer(object):
 
     def normalize_punctuation(self, segment):
         '''
-        Normalizes punctuation of a single segment, applied for segments using backend nematus.
+        Normalizes punctuation of a single @param segment.
         '''
 
         # tested ok, e.g. '«' or '»' replaced by '&quot;'

@@ -5,7 +5,7 @@ from mtrain import commander
 
 '''
 ###BH check for completeness, esp. dedication
-Provides further processing steps in order to use neural network training enabled by backend nematus.
+Provides further processing steps in order to use neural network training in backend nematus.
 Processing steps are implemented according to guidance in https://github.com/rsennrich/wmt16-scripts/tree/master/sample
 
 '''
@@ -13,6 +13,7 @@ Processing steps are implemented according to guidance in https://github.com/rse
 class Encoder(object):
     '''
     Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
+
     The encoding is limited to input that is already processed using 'truecased' casing strategy.
     Furthermore, neither generic masking nor XML masking are applicable.
     '''
