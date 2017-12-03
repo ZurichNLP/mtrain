@@ -329,7 +329,6 @@ class TrainingMoses(TrainingBase):
     '''
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation,
                  masking_strategy=None, xml_strategy=None):
-        super(TrainingMoses, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
         '''
         In addition to Metaclass @params:
         @param masking_strategy whether and how mask tokens should be
@@ -337,6 +336,7 @@ class TrainingMoses(TrainingBase):
         @param xml_strategy whether fragments of markup in the data should be
             passed through, removed or masked
         '''
+        super(TrainingMoses, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
 
         # set strategies
         self._masking_strategy = masking_strategy
@@ -426,13 +426,13 @@ class TrainingMoses(TrainingBase):
         self._xml_processor = XmlProcessor(self._xml_strategy)
 
     def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None):
-        super(TrainingMoses, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
         '''
         In addition to abstract method @params:
         @param mask whether or not segments should be masked
         @param process_xml whether or not the XML processing strategy should be
             applied to segments or not
         '''
+        super(TrainingMoses, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
 
         # tokenize, clean, mask and split base corpus
         self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml)
@@ -576,12 +576,9 @@ class TrainingMoses(TrainingBase):
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
-        super(TrainingMoses, self)._check_segment_length(segment, min_tokens, max_tokens, tokenizer,
-            accurate)
         '''
         No addition to abstract method @params.
         '''
-
         original_segment = segment
 
         # more accurate count if preprocessing steps are applied
@@ -606,14 +603,12 @@ class TrainingMoses(TrainingBase):
         return original_segment
 
     def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask=None, process_xml=None):
-        super(TrainingMoses, self)._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens)
         '''
         In addition to abstract method @params:
         @param mask whether or not masking is applied
         @param process_xml whether or not the XML processing strategy should be
             applied to the segments in base corpus
         '''
-
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
         num_eval = 0 if not isinstance(self._evaluation, int) else self._evaluation
@@ -696,14 +691,11 @@ class TrainingMoses(TrainingBase):
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename, 
         min_tokens, max_tokens, preprocess_external, process_xml=None):
-        super(TrainingMoses, self)._preprocess_external_corpus(basepath_external_corpus, basename,
-            min_tokens, max_tokens, preprocess_external)
         '''
         In addition to abstract method @params:
         @param process_xml whether or not the XML processing strategy should be
             applied to the segments in external corpora
         '''
-
         # preprocess external corpora:
         # User choice 'preprocess_external' influences whether or not external tuning corpus
         # shall be preprocessed (i.e. tokenized).
@@ -954,10 +946,10 @@ class TrainingNematus(TrainingBase):
     that are required and generated.
     '''
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
-        super(TrainingNematus, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
         '''
         No addition to Metaclass @params.
         '''
+        super(TrainingNematus, self).__init__(basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation)
 
         # load components (order relevant for subclass, thus, none are loaded in Metaclass)
         self._load_normalizer()
@@ -978,10 +970,10 @@ class TrainingNematus(TrainingBase):
         self._tokenizer_target = Tokenizer(self._trg_lang)
 
     def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external):
-        super(TrainingNematus, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
         '''
         No addition to abstract method @params.
         '''
+        super(TrainingNematus, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
 
         # tokenize, clean and split base corpus
         self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens)
@@ -1039,12 +1031,9 @@ class TrainingNematus(TrainingBase):
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
             accurate=False):
-        super(TrainingNematus, self)._check_segment_length(segment, min_tokens, max_tokens, tokenizer,
-            accurate)
         '''
         No addition to abstract method @params.
         '''
-
         original_segment = segment
 
         # more accurate count if preprocessing steps are applied
@@ -1067,11 +1056,9 @@ class TrainingNematus(TrainingBase):
         return original_segment
 
     def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
-        super(TrainingNematus, self)._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens)
         '''
         No addition to abstract method @params.
         '''
-
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
         num_eval = 0 if not isinstance(self._evaluation, int) else self._evaluation
@@ -1167,12 +1154,9 @@ class TrainingNematus(TrainingBase):
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
         min_tokens, max_tokens, preprocess_external):
-        super(TrainingNematus, self)._preprocess_external_corpus(basepath_external_corpus, basename,
-            min_tokens, max_tokens, preprocess_external)
         '''
         No addition to abstract method @params.
         '''
-
         # preprocess external corpora:
         # User choice 'preprocess_external' influences whether or not external tuning corpus
         # shall be preprocessed (i.e. normalized and tokenized)
