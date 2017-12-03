@@ -160,6 +160,11 @@ def get_argument_parser():
             "lowercased or not, detokenized or not, with markup or without.",
         default=False
     )
+
+    ###BH todo group nematus args
+    # nematus_args = parser.add_argument_group("Nematus arguments")
+    # nematus_args.add_argument()
+
     parser.add_argument(
         "--bpe_ops", # only for backend nematus
         type=int,
@@ -169,15 +174,17 @@ def get_argument_parser():
         ###BH current testing default 1000, reset to default 89500
     )
     parser.add_argument(
-        "--skip_preprocessing", # only for backend nematus
+        "--preprocessing_only", # only for backend nematus
         action="store_true",
-        help="choose to skip preprocessing in backend nematus, e.g. to leave preprocessed data untouched",
+        help="choose when only preprocessing for backend nematus shall be executed, " +
+        "e.g. when you need to verify or backup preprocessed data before training",
         default=False
     )
     parser.add_argument(
-        "--skip_training", # only for backend nematus
+        "--training_only", # only for backend nematus
         action="store_true",
-        help="choose to skip training in backend nematus, e.g. to leave training model untouched",
+        help="choose when only training for backend nematus shall be executed, " +
+        "e.g. when you already preprocessed data",
         default=False
     )
     parser.add_argument(
@@ -363,6 +370,23 @@ def main():
         checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
         ###BH todo check for further env variables necessary for nematus
 
+        # prevent argument combination that results in the program doing nothing
+        if args.preprocessing_only and args.training_only:
+            logging.critical("Invalid command line options. For '--backend %s', " +
+                "do not choose '--preprocessing_only' and '--training_only' " +
+                "simultaneously as the program would not process anything. " +
+                "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
+            sys.exit()
+
+        # ensure tuning corpus is being provided in preprocessing for later training,
+        # either --tune INT or --tune STR (if preprocessed) is fine
+        if args.training_only != True and args.tune == None:
+            logging.critical("Invalid command line options. For '--backend %s', " +
+                "you need to choose '--tune' in preprocessing as subsequent " +
+                "training will not work without a preprocessed tuning corpus. "
+                "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
+            sys.exit()
+
         # currently neither generic masking nor XML masking for backend nematus
         if args.masking or args.xml_input:
             logging.critical("Invalid command line options. For '--backend %s', " +
@@ -381,7 +405,7 @@ def main():
         # ensures that user is not wasting time when training is impossible
 
         # check for training to be executed
-        if args.skip_training != True:
+        if args.preprocessing_only != True:
             # check if mtrain-managed external validation chosen
             if not isinstance(args.external_validation_script, str):
                 # check arguments necessary for training and mtrain-managed external validation
@@ -423,7 +447,7 @@ def main():
         )
 
         # check for preprocessing to be executed
-        if args.skip_preprocessing != True:
+        if args.training_only != True:
             # initiate preprocessing
             logging.info("Initiating preprocessing for backend %s", args.backend)
             training.preprocess(
@@ -440,10 +464,10 @@ def main():
             training.bpe_encoding(bpe_operations=1000 if args.bpe_ops == None else args.bpe_ops)
         else:
             # chosen to skip preprocessing
-            logging.warning("You chose to skip preprocessing!")
+            logging.warning("No preprocessing: Only training chosen to be executed")
 
         # check for training to be executed
-        if args.skip_training != True:
+        if args.preprocessing_only != True:
             # initiate training
             training.train_engine(
                 device_train=args.device_train,
@@ -453,7 +477,7 @@ def main():
                 external_validation_script=args.external_validation_script)
         else:
             # chosen to skip training
-            logging.warning("You chose to skip training!")
+            logging.warning("No training: Only preprocessing chosen to be executed")
 
 if __name__ == '__main__':
     # abort if Python version is not supported
