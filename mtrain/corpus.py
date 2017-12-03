@@ -12,7 +12,7 @@ class ParallelCorpus(object):
     '''
 
     def __init__(self, filepath_source, filepath_target, max_size=None, preprocess=False,
-        tokenize=True, tokenizer_src=None, tokenizer_trg=None,
+        tokenize=False, tokenizer_src=None, tokenizer_trg=None,
         mask=False, masker=None, process_xml=False, xml_processor=None,
         normalize=False, normalizer_src=None, normalizer_trg=None, src_lang=None, trg_lang=None):
         '''
