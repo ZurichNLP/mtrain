@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import abc
+
+from abc import ABCMeta
 from mtrain.constants import *
 from mtrain.engine import Engine
 from mtrain.preprocessing import lowercaser
@@ -11,25 +14,38 @@ from mtrain.preprocessing.external import ExternalProcessor
 from mtrain.preprocessing.recaser import Recaser
 from mtrain import inspector
 
-class TranslationEngine(object):
+class TranslationEngineBase(object):
     '''
-    An engine trained using `mtrain`
+    Abstract class for engine trained using `mtrain`
     '''
-    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None, 
-        quiet=False):
+    __metaclass__ = ABCMeta
+
+    def __init__(self, basepath, src_lang, trg_lang):
         '''
         @param basepath the path to the engine, i.e., `mtrain`'s output
             directory (-o).
         @param src_lang the source language
         @param trg_lang the target language
+        '''
+        assert(inspector.is_mtrain_engine(basepath)) ###BH check details, if applicable for nematus
+        self._basepath = basepath.rstrip(os.sep)
+        self._src_lang = src_lang
+        self._trg_lang = trg_lang
+
+class TranslationEngineMoses(TranslationEngineBase):
+    '''
+    Moses translation engine trained using `mtrain`
+    '''
+    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None, 
+        quiet=False):
+        '''
+        In addition to Metaclass @params:
         @param uppercase_first_letter uppercase first letter of translation
         @param xml_strategy how XML is dealt with during translation
         @param quiet if quiet, do not INFO log events
         '''
-        assert(inspector.is_mtrain_engine(basepath))
-        self._basepath = basepath.rstrip(os.sep)
-        self._src_lang = src_lang
-        self._trg_lang = trg_lang
+        super(TranslationEngineMoses, self).__init__(basepath, src_lang, trg_lang)
+
         self._quiet = quiet
         # set strategies
         self._casing_strategy = inspector.get_casing_strategy(self._basepath, quiet=self._quiet)
@@ -153,8 +169,8 @@ class TranslationEngine(object):
         return source_segment, segment, mask_mapping, xml_mapping
 
     def _postprocess_segment(self, source_segment, target_segment, masked_source_segment=None,
-                             lowercase=False, detokenize=True, mask_mapping=None,
-                             xml_mapping=None, strip_markup=False):
+        lowercase=False, detokenize=True, mask_mapping=None,
+        xml_mapping=None, strip_markup=False):
         if self._masking_strategy is not None:
             target_segment.translation = self._masker.unmask_segment(masked_source_segment, target_segment.translation, mask_mapping)
         if lowercase:
@@ -210,3 +226,16 @@ class TranslationEngine(object):
             mask_mapping=mask_mapping,
             xml_mapping=xml_mapping
         )
+
+class TranslationEngineNematus(TranslationEngineBase):
+    '''
+    Nematus translation engine trained using `mtrain`
+    '''
+    def __init__(self, basepath, src_lang, trg_lang):
+        '''
+        @param basepath the path to the engine, i.e., `mtrain`'s output
+            directory (-o).
+        @param src_lang the source language
+        @param trg_lang the target language
+        '''
+        super(TranslationEngineNematus, self).__init__(basepath, src_lang, trg_lang)

@@ -6,18 +6,21 @@ import argparse
 import sys
 import os
 
-from mtrain.translation import TranslationEngine
+from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEnginNematus
 from mtrain.constants import *
 from mtrain import checker
 
 def get_argument_parser():
     parser = argparse.ArgumentParser()
-    parser.description = "Translates text using a Moses-based machine translation system trained with `mtrain`."
+    parser.description = ("Translates text using a Moses-based or Nematus-based machine " +
+        "translation system trained with `mtrain`.")
+
+    # positional arguments for either backend
     parser.add_argument(
         "basepath",
         type=str,
         help="base path of the machine translation system, i.e., the output " +
-        "directory (-o) used in `mtrans`."
+        "directory (-o) used in `mtrain`."
     )
     parser.add_argument(
         "src_lang",
@@ -35,17 +38,16 @@ def get_argument_parser():
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
         metavar='trg_lang' #overrides ugly double-listing of available choices in --help
     )
+
+    # optional arguments for either backend
     parser.add_argument(
-        "-l", "--lowercase",
-        help="lowercase translated segments",
-        default=False,
-        action='store_true'
-    )
-    parser.add_argument(
-        "--logging",
-        help="logging level in stderr",
-        choices=LOGGING_LEVELS.keys(),
-        default="DEBUG"
+        "--backend", # "-b" removed, conflicting with --bpe_ops
+        type=str,
+        help="indicate which backend was used as training engine in `mtrain`." +
+            " Valid choices are: " +
+            "; ".join(["`%s`: %s" % (name, descr) for name, descr in BACKEND_CHOICES.items()]),
+        choices=BACKEND_CHOICES.keys(),
+        default='moses'
     )
     parser.add_argument(
         "--skip_preprocess",
@@ -60,6 +62,16 @@ def get_argument_parser():
         action="store_true"
     )
     parser.add_argument(
+        "--logging",
+        help="logging level in stderr",
+        choices=LOGGING_LEVELS.keys(),
+        default="DEBUG"
+    )
+
+    # arguments specific for moses backend ###BH todo revise
+    moses_args = parser.add_argument_group("Moses arguments")
+
+    moses_args.add_argument(
         "--xml_input",
         type=str,
         help="decide how XML fragments in the input segments should " +
@@ -67,6 +79,16 @@ def get_argument_parser():
             "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES.items()]),
         choices=XML_STRATEGIES.keys()
     )
+    moses_args.add_argument(
+        "-l", "--lowercase",
+        help="lowercase translated segments",
+        default=False,
+        action='store_true'
+    )
+
+    # arguments specific for nematus backend ###BH todo revise
+    nematus_args = parser.add_argument_group("Nematus arguments")
+
     return parser
 
 def main():
@@ -78,26 +100,39 @@ def main():
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
-    # translation
-    engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
-    for line in sys.stdin: # read stdin
-        source_segment = line.strip()
-        if source_segment != '':
-            translation = engine.translate(
-                source_segment,
-                preprocess=not(args.skip_preprocess),
-                lowercase=args.lowercase,
-                detokenize=not(args.skip_detokenize)
-            )
-            # uppercase translation's first letter if first letter in source_segment is uppercased
-            if not args.lowercase and source_segment[0].isupper():
-                translation = translation[0].upper() + translation[1:]
-            print(translation)
+
+    # distinguish chosen backend
+    if args.backend == BACKEND_MOSES:
+
+        # translation using moses engine
+        ###BH args missing, old line: engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
+        engine = TranslationEngineMoses(args.basepath, args.src_lang, args.trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
+        for line in sys.stdin: # read stdin
+            source_segment = line.strip()
+            if source_segment != '':
+                translation = engine.translate(
+                    source_segment,
+                    preprocess=not(args.skip_preprocess),
+                    lowercase=args.lowercase,
+                    detokenize=not(args.skip_detokenize)
+                )
+                # uppercase translation's first letter if first letter in source_segment is uppercased
+                if not args.lowercase and source_segment[0].isupper():
+                    translation = translation[0].upper() + translation[1:]
+                print(translation)
+
+    # distinguish chosen backend
+    if args.backend == BACKEND_NEMATUS:
+
+        # translation using nematus engine
+        ###BH todo implement nemtus tranlation
+        engine = TranslationEnginNematus(args.basepath, args.src_lang, args.trg_lang)
 
 if __name__ == '__main__':
     # abort if Python version is not supported
     checker.check_python_version()
-    # abort if MOSES_HOME environment variable is not set
+    # abort if environment variables necessary for either backend are not set
+    ###BH # (check env variables specific for a backend in respective method)
     checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
     # run main routine
     main()

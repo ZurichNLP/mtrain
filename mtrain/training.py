@@ -18,7 +18,7 @@ from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing.bpe import Encoder
 from mtrain.preprocessing import lowercaser, cleaner, reinsertion
-from mtrain.translation import TranslationEngine ###BH @MM obsolete in training.py?
+from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEnginNematus ###BH @MM obsolete in training.py?
 from mtrain import assertions, commander
 from mtrain import evaluator
 

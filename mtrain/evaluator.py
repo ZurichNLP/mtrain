@@ -11,7 +11,7 @@ import itertools
 from mtrain.constants import *
 from mtrain import assertions
 from mtrain import commander
-from mtrain.translation import TranslationEngine
+from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEnginNematus
 from mtrain.preprocessing import cleaner
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.reinsertion import tokenize_keep_markup
