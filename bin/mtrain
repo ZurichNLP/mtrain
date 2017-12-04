@@ -21,6 +21,8 @@ def get_argument_parser():
     parser = argparse.ArgumentParser()
     parser.description = ("Trains either a Moses-based statistical machine translation system " +
         "or a Nematus-based neural network translation system.")
+
+    # positional arguments for either backend
     parser.add_argument(
         "basepath",
         type=str,
@@ -43,6 +45,8 @@ def get_argument_parser():
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
         metavar='trg_lang' #overrides ugly double-listing of available choices in --help
     )
+
+    # optional arguments for either backend
     parser.add_argument(
         "--backend", # "-b" removed, conflicting with --bpe_ops
         type=str,
@@ -60,6 +64,20 @@ def get_argument_parser():
         default=os.getcwd()
     )
     parser.add_argument(
+        "--min_tokens",
+        type=int,
+        help="the minimum number of tokens per segments; segments with less " +
+            "tokens will be discarded, default=1",
+        default=1
+    )
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        help="the maximum number of tokens per segments; segments with more " +
+            "tokens will be discarded, default=80",
+        default=80
+    )
+    parser.add_argument(
         "-c", "--caser",
         type=str,
         help="casing strategy: " +
@@ -73,6 +91,13 @@ def get_argument_parser():
             "segments will be randomly taken from the training corpus " +
             "(basepath). Alternatively, the basepath to a separate tuning " +
             "corpus can be provided. Examples: `2000`, `/foo/bar/tuning_corpus`"
+    )
+    parser.add_argument(
+        "--preprocess_external_tune",
+        help="preprocess external tuning corpus. Don't use if " +
+            "the external files provided in '--tune' are already preprocessed.",
+        default=False,
+        action='store_true'
     )
     parser.add_argument(
         "-e", "--eval",
@@ -89,62 +114,30 @@ def get_argument_parser():
         action='store_true'
     )
     parser.add_argument(
-        "--preprocess_external_tune",
-        help="preprocess external tuning corpus. Don't use if " +
-            "the external files provided in --tune are already preprocessed.",
-        default=False,
-        action='store_true'
+        "--extended_eval",
+        action="store_true",
+        help="perform multiple evaluations that vary the appearance of the test files: " +
+            "lowercased or not, detokenized or not, with markup or without.",
+        default=False
     )
     parser.add_argument(
+        "--logging",
+        help="logging level in STDERR, default=INFO",
+        choices=LOGGING_LEVELS.keys(),
+        default="INFO"
+    )
+
+    # arguments specifically for moses backend ###BH todo revise e.g. move --eval_lowercase, --extended_eval here if only for moses
+    moses_args = parser.add_argument_group("Moses arguments")
+
+    moses_args.add_argument(
         "--masking",
         help="enable masking. Valid strategies are: " +
             "; ".join(["`%s`: %s" % (name, descr) for name, descr in MASKING_STRATEGIES.items()]),
         choices=MASKING_STRATEGIES.keys(),
         default=None
     )
-    parser.add_argument(
-        "-n", "--n_gram_order",
-        type=int,
-        help="the language model's n-gram order",
-        default=5
-    )
-    parser.add_argument(
-        "--min_tokens",
-        type=int,
-        help="the minimum number of tokens per segments; segments with less " +
-            "tokens will be discarded",
-        default=1
-    )
-    parser.add_argument(
-        "--max_tokens",
-        type=int,
-        help="the maximum number of tokens per segments; segments with more " +
-            "tokens will be discarded",
-        default=80
-    )
-    parser.add_argument(
-        "--threads",
-        type=int,
-        help="the number of threads to be used at most",
-        default=8
-    )
-    parser.add_argument(
-        "--temp_dir",
-        help="directory for temporary files created during trainig",
-        default="/tmp"
-    )
-    parser.add_argument(
-        "--keep_uncompressed_models",
-        help="do not delete uncompressed models created during training",
-        action='store_true'
-    )
-    parser.add_argument(
-        "--logging",
-        help="logging level in STDERR",
-        choices=LOGGING_LEVELS.keys(),
-        default="INFO"
-    )
-    parser.add_argument(
+    moses_args.add_argument(
         "--xml_input",
         type=str,
         help="decide how XML fragments in the input segments should " +
@@ -153,48 +146,63 @@ def get_argument_parser():
         choices=XML_STRATEGIES.keys(),
         default=None
     )
+    moses_args.add_argument(
+        "-n", "--n_gram_order",
+        type=int,
+        help="the language model's n-gram order, default=5",
+        default=5
+    )
     parser.add_argument(
-        "--extended_eval",
-        action="store_true",
-        help="perform multiple evaluations that vary the appearance of the test files: " +
-            "lowercased or not, detokenized or not, with markup or without.",
-        default=False
+        "--threads",
+        type=int,
+        help="the number of threads to be used at most, default=8",
+        default=8
+    )
+    parser.add_argument(
+        "--temp_dir",
+        help="directory for temporary files created during trainig, default=/tmp",
+        default="/tmp"
+    )
+    moses_args.add_argument(
+        "--keep_uncompressed_models",
+        help="do not delete uncompressed models created during training",
+        action='store_true'
     )
 
-    # arguments specifically for backend nematus ###BH todo test checking of nematus args
+    # arguments specifically for nematus backend
     nematus_args = parser.add_argument_group("Nematus arguments")
 
     nematus_args.add_argument(
-        "--bpe_ops", # only for backend nematus
+        "--bpe_ops",
         type=int,
         help="decide how many byte-pair operations are to be performed when learning the " +
-        "byte-pair encoding model with nematus backend. Default is 89500 operations."
+        "byte-pair encoding model with nematus backend, default=89500 operations"
         # set default when calling bpe_encoding() below, but NOT here as it would trigger warning for backend moses
         ###BH current testing default 1000, reset to default 89500
     )
     nematus_args.add_argument(
-        "--preprocessing_only", # only for backend nematus
+        "--preprocessing_only",
         action="store_true",
         help="choose when only preprocessing for backend nematus shall be executed, " +
         "e.g. when you need to verify or backup preprocessed data before training",
         default=False
     )
     nematus_args.add_argument(
-        "--training_only", # only for backend nematus
+        "--training_only",
         action="store_true",
         help="choose when only training for backend nematus shall be executed, " +
         "e.g. when you already preprocessed data",
         default=False
     )
     nematus_args.add_argument(
-        "--device_train", # only for backend nematus
+        "--device_train",
         type=str,
         help="choose a free gpu for nematus training, consult your server responsible " +
             "to learn about appropriate settings"
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
     nematus_args.add_argument(
-        "--preallocate_train", # only for backend nematus
+        "--preallocate_train",
         type=str,
         help="preallocate gpu memory for nematus training if applicable on your server. " +
             "Do not preallocate more than '0.8' = 80 percent of memory. " +
@@ -202,24 +210,24 @@ def get_argument_parser():
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
     nematus_args.add_argument(
-        "--device_validate", # only for backend nematus
+        "--device_validate",
         type=str,
         help="choose a free gpu for nematus validation, consult your server responsible " +
             "to learn about appropriate settings. " + 
-            "Omit if --external_validation_script is provided."
+            "Omit if '--external_validation'_script is provided."
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
     nematus_args.add_argument(
-        "--preallocate_validate", # only for backend nematus
+        "--preallocate_validate",
         type=str,
         help="preallocate gpu memory for nematus validation if applicable on your server. " +
             "Do not preallocate more than '0.3' = 30 percent of memory. " +
-            "The system will automatically use more memory if available and safe."
-            "Omit if --external_validation_script is provided."
+            "The system will automatically use more memory if available and safe. " +
+            "Omit if '--external_validation_script' is provided."
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
     nematus_args.add_argument(
-        "--external_validation_script", # only for backend nematus
+        "--external_validation_script",
         type=str,
         help="optional path to external validation script that is called during " +
             "training of nematus engine. If chosen, also a preprocessing script " +
@@ -232,10 +240,28 @@ def get_argument_parser():
     )
     return parser
 
-###BH todo test
+###BH todo test and check if complete
+def check_environment_moses():
+    '''
+    Abort if environment variables specific for moses backend are not set.
+
+    Note: MULTEVAL_HOME ist specific for evaluation and thus, checked if
+    evaluation chosen
+    '''
+    checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
+
+###BH todo test and check if complete
+def check_environment_nematus():
+    '''
+    Abort if environment variables specific for nematus backend are not set.
+    '''
+    checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
+    checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
+
+###BH todo test and check if complete
 def check_arguments_moses(args):
     '''
-    Check for arguments unfit for moses, either combination or specific argument may
+    Check for arguments if fit for moses, either combination or specific argument may
     be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
     program terminated.
 
@@ -262,10 +288,10 @@ def check_arguments_moses(args):
             "and '--external_validation_script' are not applicable and will be ignored. " +
             "See '-h'/'--help' for more information.", BACKEND_MOSES)
 
-###BH todo test
+###BH todo test and check if complete
 def check_arguments_nematus(args):
     '''
-    Check for arguments unfit for nematus, either combination or specific argument may
+    Check for arguments if fit for nematus, either combination or specific argument may
     be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
     program terminated.
 
@@ -303,7 +329,7 @@ def check_arguments_nematus(args):
         args.caser = TRUECASING
 
     # preemptive measures: exit when arguments and/or external scripts necessary for training are missing,
-    # ensures that user is not wasting time when training is impossible
+    # ensures that user is not loosing time when training is unable to provide serviceable model
 
     # check for training to be executed
     if args.preprocessing_only != True:
@@ -374,6 +400,9 @@ def main():
     # distinguish chosen backend
     if args.backend == BACKEND_MOSES:
 
+        # abort if environment variables for moses backend are not set
+        check_environment_moses()
+
         # check if arguments suiting moses
         check_arguments_moses(args)
 
@@ -443,14 +472,8 @@ def main():
     # distinguish chosen backend
     if args.backend == BACKEND_NEMATUS:
 
-        ##BH todo
-        #check_environment_nematus()
-
-        # abort if environment variables needed for nematus backend are not set
-        ###BH obsolete?# checker.check_environment_variable(WMT16_HOME, 'WMT16_HOME', 'wmt16-scripts')
-        checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
-        checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
-        ###BH todo check for further env variables necessary for nematus
+        # abort if environment variables for nematus backend are not set
+        check_environment_nematus()
 
         # check if arguments suiting nematus
         check_arguments_nematus(args)
@@ -501,10 +524,8 @@ def main():
 if __name__ == '__main__':
     # abort if Python version is not supported
     checker.check_python_version()
-    # abort if environment variables are not set
+    # abort if environment variables necessary for either backend are not set
+    # (check env variables specific for a backend in respective method)
     checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
-    checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
     # run main routine
     main()
-
-    ###BH check if further env vars to be distinguished for backends (e.g. FASTALIGN_HOME, depending on training etc.)

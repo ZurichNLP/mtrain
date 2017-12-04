@@ -27,6 +27,7 @@ class TrainingBase(object):
     Abstract class for either backend, moses or nematus
     '''
     __metaclass__ = ABCMeta
+
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
         '''
         Creates a new project structure at @param basepath.

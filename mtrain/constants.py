@@ -15,8 +15,6 @@ MOSES_BIN = MOSES_HOME + os.sep + 'bin'
 FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
 MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
 # Paths to 3rd party packages for nematus backend implementation
-###BH add full dedication to https://github.com/rsennrich/wmt16-scripts/
-###BH obsolete?# WMT16_HOME = os.environ.get('WMT16_HOME') if os.environ.get('WMT16_HOME') else '' # WMT16 Scripts base directory ###BH new
 ###BH add full dedication to https://github.com/rsennrich/subword-nmt
 SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else '' # Subword NMT base directory ###BH new
 ###BH add full dedication to https://github.com/EdinburghNLP/nematus
@@ -37,9 +35,14 @@ MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTable
 MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl' ###BH new
 MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl' ###BH new
 MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl' ###BH new
-# Paths to WMT16 files/scripts
-###BH obsolete?# WMT16_NORMALIZE_RO = WMT16_HOME + os.sep + 'preprocess/normalise-romanian.py'
-###BH obsolete?# WMT16_REMOVE_RO_DIACRITICS = WMT16_HOME + os.sep + 'preprocess/remove-diacritics.py'
+# Paths to KenLM files/scripts (included in Moses)
+KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
+KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary' ###BH @MM: maybe a / too much, results in '//bin..' ?
+# Paths to fast_align files/scripts
+FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'
+ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
+# Path to multeval script
+MULTEVAL = MULTEVAL_HOME + os.sep + 'multeval.sh'
 # Paths to Subword NMT files/scripts
 SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py' ###BH new
 SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py' ###BH new
@@ -47,17 +50,6 @@ SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py' ###BH new
 NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py' ###BH new
 NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py' ###BH new
 NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py' ###BH new
-
-# Paths to KenLM files/scripts (included in Moses)
-KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
-KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary' ###BH @MM: maybe a / too much, results in '//bin..' ?
-
-# Paths to fast_align files/scripts
-FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'
-ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
-
-# Path to multeval script
-MULTEVAL = MULTEVAL_HOME + os.sep + 'multeval.sh'
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.
@@ -164,7 +156,7 @@ CASING_STRATEGIES = {
     SELFCASING: "the decoder is trained on lowercased input and cased output",
     TRUECASING: "the decoder is trained on truecased input and output " +
         "(trains a separate truecasing model)",
-    RECASING: "the decoder is trained on lowercased input and output " +
+    RECASING: "default, the decoder is trained on lowercased input and output " +
         "(trains a separate recasing model)"
 }
 
@@ -246,6 +238,6 @@ BACKEND_MOSES = 'moses'
 BACKEND_NEMATUS = 'nematus'
 # Valid backend choices
 BACKEND_CHOICES = {
-    BACKEND_MOSES: "SMT training based on Moses (default)",
-    BACKEND_NEMATUS: "NN training based on Nematus. Note that '--masking', '--xml_input' and '--caser' other than 'truecasing' are not applicaple for Nematus."
+    BACKEND_MOSES: "Trains a Statistical Machine Translation system based on Moses (default)",
+    BACKEND_NEMATUS: "Trains a Neural Network system based on Nematus"
 }
