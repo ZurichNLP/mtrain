@@ -18,7 +18,7 @@ from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing.bpe import Encoder
 from mtrain.preprocessing import lowercaser, cleaner, reinsertion
-from mtrain.translation import TranslationEngine
+from mtrain.translation import TranslationEngine ###BH @MM obsolete in training.py?
 from mtrain import assertions, commander
 from mtrain import evaluator
 
@@ -205,7 +205,7 @@ class TrainingBase(object):
 
     @abc.abstractmethod
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
-                                    min_tokens, max_tokens, preprocess_external):
+        min_tokens, max_tokens, preprocess_external):
         '''
         Pre-processes an external corpus into /corpus.
 
@@ -329,7 +329,7 @@ class TrainingMoses(TrainingBase):
     that are required and generated.
     '''
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation,
-                 masking_strategy=None, xml_strategy=None):
+        masking_strategy=None, xml_strategy=None):
         '''
         In addition to Metaclass @params:
         @param masking_strategy whether and how mask tokens should be
@@ -518,8 +518,8 @@ class TrainingMoses(TrainingBase):
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
 
     def train_engine(self, n=5, alignment='grow-diag-final-and',
-              max_phrase_length=7, reordering='msd-bidirectional-fe',
-              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
+        max_phrase_length=7, reordering='msd-bidirectional-fe',
+        num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
         '''
         Trains the language, translation, and reordering models.
 
@@ -546,7 +546,7 @@ class TrainingMoses(TrainingBase):
         self._MERT(num_threads)
 
     def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
-                 strip_markup_eval=False, extended=False):
+        strip_markup_eval=False, extended=False):
         '''
         Evaluates the engine by translating and scoring an evaluation set.
 
@@ -576,7 +576,7 @@ class TrainingMoses(TrainingBase):
         )
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
-            accurate=False):
+        accurate=False):
         '''
         No addition to abstract method @params.
         '''
@@ -834,7 +834,7 @@ class TrainingMoses(TrainingBase):
         os.remove(path_joined_corpus + '.backward')
 
     def _train_moses_engine(self, n, max_phrase_length, alignment, reordering,
-                            num_threads, path_temp_files, keep_uncompressed):
+        num_threads, path_temp_files, keep_uncompressed):
         '''
         @param #todo add desc
         '''
@@ -1031,7 +1031,7 @@ class TrainingNematus(TrainingBase):
         self._encoder.build_bpe_dictionary()
 
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
-            accurate=False):
+        accurate=False):
         '''
         No addition to abstract method @params.
         '''
@@ -1198,7 +1198,8 @@ class TrainingNematus(TrainingBase):
         elif basename == BASENAME_EVALUATION_CORPUS:
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
-    def train_engine(self, device_train=None, preallocate_train=None, device_validate=None, preallocate_validate=None, external_validation_script=None):
+    def train_engine(self, device_train=None, preallocate_train=None,
+        device_validate=None, preallocate_validate=None, external_validation_script=None):
         '''
         Prepares and executes the training of the nematus engine.
 
