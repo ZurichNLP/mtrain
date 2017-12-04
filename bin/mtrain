@@ -67,14 +67,14 @@ def get_argument_parser():
         "--min_tokens",
         type=int,
         help="the minimum number of tokens per segments; segments with less " +
-            "tokens will be discarded, default=1",
+            "tokens will be discarded, default=`1`",
         default=1
     )
     parser.add_argument(
         "--max_tokens",
         type=int,
         help="the maximum number of tokens per segments; segments with more " +
-            "tokens will be discarded, default=80",
+            "tokens will be discarded, default=`80`",
         default=80
     )
     parser.add_argument(
@@ -122,12 +122,12 @@ def get_argument_parser():
     )
     parser.add_argument(
         "--logging",
-        help="logging level in STDERR, default=INFO",
+        help="logging level in STDERR, default=`INFO`",
         choices=LOGGING_LEVELS.keys(),
         default="INFO"
     )
 
-    # arguments specifically for moses backend ###BH todo revise e.g. move --eval_lowercase, --extended_eval here if only for moses
+    # arguments specific for moses backend ###BH todo revise e.g. move --eval_lowercase, --extended_eval here if only for moses
     moses_args = parser.add_argument_group("Moses arguments")
 
     moses_args.add_argument(
@@ -149,18 +149,18 @@ def get_argument_parser():
     moses_args.add_argument(
         "-n", "--n_gram_order",
         type=int,
-        help="the language model's n-gram order, default=5",
+        help="the language model's n-gram order, default=`5`",
         default=5
     )
-    parser.add_argument(
+    moses_args.add_argument(
         "--threads",
         type=int,
-        help="the number of threads to be used at most, default=8",
+        help="the number of threads to be used at most, default=`8`",
         default=8
     )
-    parser.add_argument(
+    moses_args.add_argument(
         "--temp_dir",
-        help="directory for temporary files created during trainig, default=/tmp",
+        help="directory for temporary files created during trainig, default=`/tmp`",
         default="/tmp"
     )
     moses_args.add_argument(
@@ -169,14 +169,14 @@ def get_argument_parser():
         action='store_true'
     )
 
-    # arguments specifically for nematus backend
+    # arguments specific for nematus backend
     nematus_args = parser.add_argument_group("Nematus arguments")
 
     nematus_args.add_argument(
         "--bpe_ops",
         type=int,
         help="decide how many byte-pair operations are to be performed when learning the " +
-        "byte-pair encoding model with nematus backend, default=89500 operations"
+        "byte-pair encoding model with nematus backend, default=`89500` operations"
         # set default when calling bpe_encoding() below, but NOT here as it would trigger warning for backend moses
         ###BH current testing default 1000, reset to default 89500
     )
@@ -205,7 +205,7 @@ def get_argument_parser():
         "--preallocate_train",
         type=str,
         help="preallocate gpu memory for nematus training if applicable on your server. " +
-            "Do not preallocate more than '0.8' = 80 percent of memory. " +
+            "Do not preallocate more than `0.8` = 80 percent of memory. " +
             "The system will automatically use more memory if available and safe."
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
@@ -214,14 +214,14 @@ def get_argument_parser():
         type=str,
         help="choose a free gpu for nematus validation, consult your server responsible " +
             "to learn about appropriate settings. " + 
-            "Omit if '--external_validation'_script is provided."
+            "Omit if '--external_validation_script' is provided."
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
     nematus_args.add_argument(
         "--preallocate_validate",
         type=str,
         help="preallocate gpu memory for nematus validation if applicable on your server. " +
-            "Do not preallocate more than '0.3' = 30 percent of memory. " +
+            "Do not preallocate more than `0.3` = 30 percent of memory. " +
             "The system will automatically use more memory if available and safe. " +
             "Omit if '--external_validation_script' is provided."
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
@@ -406,7 +406,7 @@ def main():
         # check if arguments suiting moses
         check_arguments_moses(args)
 
-        # create instance of Training subclass suiting backend
+        # create instance of TrainingBase subclass suiting backend
         training = TrainingMoses(
             basepath=args.output_dir,
             src_lang=args.src_lang,
@@ -478,7 +478,7 @@ def main():
         # check if arguments suiting nematus
         check_arguments_nematus(args)
 
-        # create instance of Training subclass suiting backend
+        # create instance of TrainingBase subclass suiting backend
         training = TrainingNematus(
             basepath=args.output_dir,
             src_lang=args.src_lang,
@@ -502,7 +502,7 @@ def main():
             training.train_truecaser()
             training.truecase()
             # continue preprocessing: byte-pair encoding for backend nematus
-            # set default if  no '--bpe_ops' chosen from command line
+            # set default for '--bpe_ops' here
             training.bpe_encoding(bpe_operations=1000 if args.bpe_ops == None else args.bpe_ops)
         else:
             # chosen not to preprocess data

@@ -15,8 +15,8 @@ class TranslationEngine(object):
     '''
     An engine trained using `mtrain`
     '''
-    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None,
-                 quiet=False):
+    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None, 
+        quiet=False):
         '''
         @param basepath the path to the engine, i.e., `mtrain`'s output
             directory (-o).
