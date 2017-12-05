@@ -6,7 +6,7 @@ import argparse
 import sys
 import os
 
-from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEnginNematus
+from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus
 from mtrain.constants import *
 from mtrain import checker
 
@@ -105,7 +105,9 @@ def main():
     if args.backend == BACKEND_MOSES:
 
         # translation using moses engine
-        ###BH args missing, old line: engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
+        ###BH @MM: positional args 'uppercase_first_letter' and 'quiet' were missing
+        ###old line was: engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
+        ###possibly resulting in 'xml_strategy=args.xml_input' passed to 'uppercase_first_letter=False' when creating instance of TranlationEngine
         engine = TranslationEngineMoses(args.basepath, args.src_lang, args.trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
@@ -125,8 +127,9 @@ def main():
     if args.backend == BACKEND_NEMATUS:
 
         # translation using nematus engine
-        ###BH todo implement nemtus tranlation
+        ###BH todo implement nematus translation
         engine = TranslationEnginNematus(args.basepath, args.src_lang, args.trg_lang)
+        pass
 
 if __name__ == '__main__':
     # abort if Python version is not supported

@@ -36,7 +36,7 @@ class TranslationEngineMoses(TranslationEngineBase):
     '''
     Moses translation engine trained using `mtrain`
     '''
-    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None, 
+    def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None,
         quiet=False):
         '''
         In addition to Metaclass @params:
@@ -233,9 +233,7 @@ class TranslationEngineNematus(TranslationEngineBase):
     '''
     def __init__(self, basepath, src_lang, trg_lang):
         '''
-        @param basepath the path to the engine, i.e., `mtrain`'s output
-            directory (-o).
-        @param src_lang the source language
-        @param trg_lang the target language
+        No addition to Metaclass @params.
         '''
         super(TranslationEngineNematus, self).__init__(basepath, src_lang, trg_lang)
+
