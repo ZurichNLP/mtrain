@@ -27,10 +27,28 @@ class TranslationEngineBase(object):
         @param src_lang the source language
         @param trg_lang the target language
         '''
-        assert(inspector.is_mtrain_engine(basepath)) ###BH check details, if applicable for nematus
+        assert(inspector.is_mtrain_engine(basepath)) ###BH check if applicable for nematus
         self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
+
+    @abc.abstractmethod
+    def translate(self, segment):
+        '''
+        Translates a single @param segment.
+        '''
+        pass
+
+    @abc.abstractmethod
+    def _preprocess_segment(self, segment):
+        '''
+        Preprocesses a single @param segment.
+        '''
+        pass
+
+    @abc.abstractmethod
+    def _postprocess_segment():
+        pass
 
 class TranslationEngineMoses(TranslationEngineBase):
     '''
@@ -142,6 +160,9 @@ class TranslationEngineMoses(TranslationEngineBase):
         self._xml_processor = XmlProcessor(self._xml_strategy)
 
     def _preprocess_segment(self, segment):
+        '''
+        No addition to abstract method @params.
+        '''
         # general preprocessing
         tokens = self._tokenizer.tokenize(segment)
         if self._casing_strategy == TRUECASING:
@@ -171,6 +192,9 @@ class TranslationEngineMoses(TranslationEngineBase):
     def _postprocess_segment(self, source_segment, target_segment, masked_source_segment=None,
         lowercase=False, detokenize=True, mask_mapping=None,
         xml_mapping=None, strip_markup=False):
+        '''
+        todo @params
+        '''
         if self._masking_strategy is not None:
             target_segment.translation = self._masker.unmask_segment(masked_source_segment, target_segment.translation, mask_mapping)
         if lowercase:
@@ -201,7 +225,8 @@ class TranslationEngineMoses(TranslationEngineBase):
 
     def translate(self, segment, preprocess=True, lowercase=False, detokenize=True):
         '''
-        Translates a single segment.
+        In addition to abstract method @params:
+
         @param preprocess whether to apply preprocessing steps to segment
         @param lowercase whether to lowercase (True) or restore the original
             casing (False) of the output segment.
@@ -237,3 +262,54 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         super(TranslationEngineNematus, self).__init__(basepath, src_lang, trg_lang)
 
+        ###BH todo load all sorts of *-izers =)
+
+    def translate(self, segment):
+        '''
+        No addition to abstract method @params.
+        '''
+
+        ###BH todo finish
+
+        # preprocess segment
+        preprocessed_segment = self._preprocess_segment(segment)
+        # translate segment
+        translated_segment = self._engine.translate_segment(preprocessed_segment)
+        # postprocess segment
+        postprocessed_segment = self._postprocess_segment(translated_segment)
+        # return segment to `mtrans`
+        return postprocessed_segment
+
+    def _preprocess_segment(self, segment):
+        '''
+        No addition to abstract method @params.
+        '''
+
+        ###BH todo finish
+
+        # normalize segment
+        normalized_segment = self._normalizer.normalize_segment(segment)
+        # tokenize segment
+        tokenized_segment = self._tokenizer.tokenize_segment(normalized_segment)
+        # truecase segment
+        truecased_segment = self._truecaser.truecase_segment(tokenized_segment)
+        # encode segment
+        encoded_segment = self._encoder.encode_segment(truecased_segment)
+        # return to translate() method
+        return encoded_segment
+
+    def _postprocess_segment(self, segment):
+        '''
+        Postprocesses a single @param segment.
+        '''
+
+        ###BH todo finish
+
+        # decode segment
+        decoded_segment = self._decoder.decode_segment(segment)
+        # detruecase segment
+        detruecased_segment = self._detruecaser.detruecase_segment(decoded_segment)
+        # detokenize segment
+        detokenized_segment = self._detokenizer.detokenize_segment(detruecased_segment)
+        # return to translate() method
+        return detokenized_segment

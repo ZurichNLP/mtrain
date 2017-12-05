@@ -128,8 +128,15 @@ def main():
 
         # translation using nematus engine
         ###BH todo implement nematus translation
-        engine = TranslationEnginNematus(args.basepath, args.src_lang, args.trg_lang)
-        pass
+        engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang)
+        for line in sys.stdin: # read stdin
+            source_segment = line.strip()
+            if source_segment != '':
+                translation = engine.translate(source_segment)
+                print(translation)
+
+                ###BH todo check if optional: preprocess, lowercase, detokenize
+                ###BH todo check if uppercase first letter of segment necessary
 
 if __name__ == '__main__':
     # abort if Python version is not supported
