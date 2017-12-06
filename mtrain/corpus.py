@@ -137,6 +137,7 @@ class ParallelCorpus(object):
 
             # when normalized, Romanian segments further need to be cleaned from cedillas and diacritics
             # normalize_romanian() must be called before remove_ro_diacritics()
+            ###BH check dedication see Rico's text
             if lang == 'ro':
                 segment = cleaner.normalize_romanian(segment)
                 segment = cleaner.remove_ro_diacritics(segment)
@@ -145,7 +146,7 @@ class ParallelCorpus(object):
         if self._tokenize:
             segment = tokenizer.tokenize(segment, split=False)
 
-        # masing and xml_strategy only for moses if chosen
+        # masikng and xml_strategy only for moses if chosen
         if self._process_xml:
             segment, _ = self._xml_processor.preprocess_markup(segment)
         if self._mask:
