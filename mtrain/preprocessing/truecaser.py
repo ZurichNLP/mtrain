@@ -14,8 +14,16 @@ class Truecaser(object):
     '''
 
     def __init__(self, path_model):
+        '''
+        @param path_model path to truecasing model trained in `mtrain`
+        '''
+        arguments = [
+            '-model %s' % path_model,
+            '-b' #disable Perl buffering
+        ]
+
         self._processor = ExternalProcessor(
-            command=MOSES_TRUECASER + " --model %s" % path_model
+            command=" ".join([MOSES_TRUECASER] + arguments)
         )
 
     def close(self):
