@@ -109,6 +109,7 @@ def main():
         ###old line was: engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
         ###possibly resulting in 'xml_strategy=args.xml_input' passed to 'uppercase_first_letter=False' when creating instance of TranlationEngine
         engine = TranslationEngineMoses(args.basepath, args.src_lang, args.trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
+        print("\nInput in '%s' translated to '%s' using backend %s:" % (args.src_lang, args.trg_lang, args.backend))
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
             if source_segment != '':
@@ -127,15 +128,15 @@ def main():
     if args.backend == BACKEND_NEMATUS:
 
         # translation using nematus engine
-        ###BH todo implement nematus translation
         engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang)
+        print("\nInput in '%s' translated to '%s' using backend %s:" % (args.src_lang, args.trg_lang, args.backend))
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
             if source_segment != '':
                 translation = engine.translate(source_segment)
-                print(translation)
 
-                ###BH todo check if optional: preprocess, lowercase, detokenize
+                print(translation)
+                ###BH todo check if optional arguments from command line: preprocess, lowercase, detokenize
                 ###BH todo check if uppercase first letter of segment necessary
 
 if __name__ == '__main__':
