@@ -4,6 +4,7 @@ from mtrain.constants import *
 from mtrain.preprocessing.external import ExternalProcessor
 
 '''
+###BH check for completeness, esp. dedication
 Normalize punctuation using the default Moses normalizer script,
 applied for segments using backend nematus.
 '''

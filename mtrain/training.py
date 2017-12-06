@@ -10,21 +10,21 @@ import re
 import abc
 
 from abc import ABCMeta
-from mtrain.corpus import ParallelCorpus
-from mtrain.constants import *
-from mtrain.preprocessing.masking import Masker, write_masking_patterns
-from mtrain.preprocessing.xmlprocessor import XmlProcessor
-from mtrain.preprocessing.normalizer import Normalizer
-from mtrain.preprocessing.tokenizer import Tokenizer
-from mtrain.preprocessing.bpe import Encoder
-from mtrain.preprocessing import lowercaser, cleaner, reinsertion
-from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus ###BH @MM obsolete in training.py?
 from mtrain import assertions, commander
 from mtrain import evaluator
+from mtrain.constants import *
+from mtrain.corpus import ParallelCorpus
+from mtrain.preprocessing import lowercaser, cleaner, reinsertion
+from mtrain.preprocessing.normalizer import Normalizer
+from mtrain.preprocessing.tokenizer import Tokenizer
+from mtrain.preprocessing.masking import Masker, write_masking_patterns
+from mtrain.preprocessing.xmlprocessor import XmlProcessor
+from mtrain.preprocessing.bpe import Encoder
+from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus ###BH @MM obsolete in training.py?
 
 class TrainingBase(object):
     '''
-    Abstract class for either backend, moses or nematus
+    Abstract class for training a translation engine.
     '''
     __metaclass__ = ABCMeta
 

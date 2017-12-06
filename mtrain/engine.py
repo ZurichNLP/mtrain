@@ -23,6 +23,7 @@ class EngineBase(object):
         '''
         Translates a single input segment, @param segment.
         '''
+        pass
 
 class EngineMoses(EngineBase):
     '''
@@ -152,7 +153,7 @@ class EngineMoses(EngineBase):
 
 class EngineNematus(EngineBase):
     '''
-    Starts a translation engine process for nematus backend and keep it running.
+    Starts a translation engine process for nematus backend.
 
     ###BH todo add dedication all over the place
     '''
