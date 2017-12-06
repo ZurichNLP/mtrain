@@ -135,7 +135,7 @@ class ParallelCorpus(object):
         if self._normalize:
             segment = normalizer.normalize_punctuation(segment)
 
-            # if normalized (i.e. backend nematus), segments in Romanian need further normalization,
+            # when normalized, Romanian segments further need to be cleaned from cedillas and diacritics
             # normalize_romanian() must be called before remove_ro_diacritics()
             if lang == 'ro':
                 segment = cleaner.normalize_romanian(segment)
