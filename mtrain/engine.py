@@ -1,18 +1,32 @@
 #!/usr/bin/env python3
 
 import logging
-from collections import defaultdict
+import abc
 
+from abc import ABCMeta
+from collections import defaultdict
+from mtrain import commander
 from mtrain.constants import *
 from mtrain.preprocessing.external import ExternalProcessor
 
-'''
-Translates preprocessed segments.
-'''
-
-class Engine(object):
+class EngineBase(object):
     '''
-    Starts a translation engine process and keep it running.
+    Abstract class for translating preprocessed segments.
+    '''
+    __metaclass__ = ABCMeta
+
+    def __init__():
+        pass
+
+    @abc.abstractmethod
+    def translate_segment(self, segment):
+        '''
+        Translates a single input segment, @param segment.
+        '''
+
+class EngineMoses(EngineBase):
+    '''
+    Starts a translation engine process for moses backend and keep it running.
     '''
     def __init__(self, path_moses_ini, report_alignment=False, report_segmentation=False):
         '''
@@ -123,7 +137,7 @@ class Engine(object):
 
     def translate_segment(self, segment):
         '''
-        Translates a single input segment, @param segment.
+        In addition to abstract method @params:
         @return a TranslatedSegment object with a translation and,
         optionally, alignments and/or segmentation info
         '''
@@ -135,7 +149,57 @@ class Engine(object):
             alignment=alignment,
             segmentation=segmentation
         )
-        
+
+class EngineNematus(EngineBase):
+    '''
+    Starts a translation engine process for nematus backend and keep it running.
+
+    ###BH todo add dedication all over the place
+    '''
+    def __init__(self, path_nematus_model):
+        '''
+        @param path_nematus_model full path to model trained in `mtrain` using backend nematus
+        '''
+        self._model = path_nematus_model
+
+    def translate_segment(self, segment):
+        '''
+        In addition to abstract method @params:
+        @return a translated segment
+        '''
+        ###BH debugging: external processor does not work with python script
+
+        in_file = self._model + '.tmpin'
+        out_file = self._model + '.tmpout'
+
+        with open(in_file,'w') as f:
+            f.write(segment)
+        f.close()
+
+        ###BH todo add dedication
+        theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} '.format(
+            device='cuda1',
+            preallocate=0.3,
+            script=NEMATUS_TRANSLATE
+        )
+
+        ###BH todo add dedication
+        nematus_trans_options = '-m {model} -i {input} -o {output} -k 12 -n -p 1'.format(
+            model=self._model,
+            input=in_file,
+            output=out_file
+        )
+
+        commander.run(
+            '{nematus_command}'.format(
+                nematus_command=theano_trans_flags + nematus_trans_options
+            ),
+        )
+
+        with open(out_file,'r') as f:
+            return f.read()
+        ###BH todo rm in_file and out_file
+
 class TranslatedSegment(object):
     '''
     Models a single translated segment together with its word alignments and
