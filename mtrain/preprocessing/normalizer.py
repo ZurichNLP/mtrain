@@ -25,6 +25,7 @@ class Normalizer(object):
             '-q', #don't report version
         ]   # no aggressive mode '-a' for normalizer
 
+        ###BH add dedication to MOSES_NORMALIZER and preprocess.sh
         self._processor = ExternalProcessor(
             command=" ".join([MOSES_NORMALIZER] + arguments)
         )

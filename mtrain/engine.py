@@ -170,33 +170,31 @@ class EngineNematus(EngineBase):
         '''
         ###BH debugging: external processor does not work with python script
 
-        in_file = self._model + '.tmpin'
-        out_file = self._model + '.tmpout'
-
+        # use temporary files to process segments as exernal processor is not applicable
+        in_file = self._model + '.TMPIN'
+        out_file = self._model + '.TMPOUT'
         with open(in_file,'w') as f:
             f.write(segment)
         f.close()
 
-        ###BH todo add dedication
-        theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} '.format(
-            device='cuda1',
-            preallocate=0.3,
+        ###BH todo add dedication to translate.sh and NEMATUS_TRANSLATE
+        theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn{preallocate} python2 {script} '.format(
+            device='cuda0', ###BH test gpuN vs cudaN
+            preallocate=',gpuarray.preallocate=0.2', ###BH test for cudaN use ',gpuarray.preallocate=0.2'
             script=NEMATUS_TRANSLATE
         )
-
-        ###BH todo add dedication
         nematus_trans_options = '-m {model} -i {input} -o {output} -k 12 -n -p 1'.format(
             model=self._model,
             input=in_file,
             output=out_file
         )
-
         commander.run(
             '{nematus_command}'.format(
                 nematus_command=theano_trans_flags + nematus_trans_options
             ),
         )
 
+        # read processed segment from temporary file and return
         with open(out_file,'r') as f:
             return f.read()
         ###BH todo rm in_file and out_file

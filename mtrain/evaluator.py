@@ -116,8 +116,8 @@ class Evaluator(object):
         '''
         Translates sentences from an evaluation corpus.
 
-	###BH todo when TranlationEngineNematus necessary
-	###make @abs method and seperate this implementation from nematus backend
+        ###BH todo when TranlationEngineNematus necessary
+        ###make @abs method and seperate this implementation from nematus backend
         '''
         self._engine = TranslationEngineMoses(
             self._basepath,
@@ -320,4 +320,3 @@ class Evaluator(object):
         self._translate_eval_corpus_src()
         # possibly perform several rounds of evaluation
         self._eval_rounds()
-        

@@ -50,18 +50,6 @@ def get_argument_parser():
         default='moses'
     )
     parser.add_argument(
-        "--skip_preprocess",
-        help="do not preprocess segments at all before translation",
-        default=False,
-        action="store_true"
-    )
-    parser.add_argument(
-        "--skip_detokenize",
-        help="do not detokenize segments after translation",
-        default=False,
-        action="store_true"
-    )
-    parser.add_argument(
         "--logging",
         help="logging level in stderr",
         choices=LOGGING_LEVELS.keys(),
@@ -84,6 +72,18 @@ def get_argument_parser():
         help="lowercase translated segments",
         default=False,
         action='store_true'
+    )
+    moses_args.add_argument(
+        "--skip_preprocess",
+        help="do not preprocess segments at all before translation",
+        default=False,
+        action="store_true"
+    )
+    moses_args.add_argument(
+        "--skip_detokenize",
+        help="do not detokenize segments after translation",
+        default=False,
+        action="store_true"
     )
 
     # arguments specific for nematus backend ###BH todo revise

@@ -33,7 +33,8 @@ def normalize_romanian(segment):
     From script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py
     Author: Barry Haddow, Distributed under MIT license
     "Normalise Romanian s-comma and t-comma"
-    in @param segment for backend nematus
+    when processing @param segment for backend nematus
+    ###BH add dedication to preprocess.sh
     '''
     # See http://www.fileformat.info/info/unicode/char:
     # tested ok, e.g. 'Iniţiaţi' with cedilla replaced by 'Inițiați' with comma below
@@ -46,7 +47,8 @@ def remove_ro_diacritics(segment):
     From script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py
     Author: Barry Haddow, Distributed under MIT license
     "Remove Romanian diacritics. Assumes s-comma and t-comma are normalised"
-    in @param segment for backend nematus
+    when processing @param segment for backend nematus
+    ###BH add dedication to preprocess.sh
     '''
     # See http://www.fileformat.info/info/unicode/char:
     # tested ok, e.g. 'Adică' replaced by 'Adica'

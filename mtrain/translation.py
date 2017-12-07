@@ -7,13 +7,13 @@ from mtrain import inspector
 from mtrain.constants import *
 from mtrain.engine import EngineBase, EngineMoses, EngineNematus
 from mtrain.preprocessing import lowercaser, cleaner
-from mtrain.preprocessing.truecaser import Truecaser
+from mtrain.preprocessing.truecaser import Truecaser, Detruecaser
 from mtrain.preprocessing.recaser import Recaser
 from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.masking import Masker
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
-from mtrain.preprocessing.bpe import TranslationEncoder
+from mtrain.preprocessing.bpe import TranslationEncoder, TranslationDecoder
 from mtrain.preprocessing.external import ExternalProcessor
 
 class TranslationEngineBase(object):
@@ -280,32 +280,19 @@ class TranslationEngineNematus(TranslationEngineBase):
         self._load_truecaser()
         self._load_encoder() ###BH debugging: even if external prozessor not working, keep this so it does not have to be loaded for every segment!
         self._load_engine()
-
-    def _load_engine(self):
-        '''
-        Start a Nematus process and keep it running.
-        '''
-        path_nematus_model = os.sep.join([
-            self._basepath,
-            PATH_COMPONENT['engine'],
-            'tm',
-            'model',
-            'model.npz'
-        ])
-
-        self._engine = EngineNematus(
-            path_nematus_model
-        )
+        self._load_decoder()
+        self._load_detruecaser()
+        self._load_detokenizer()
 
     def _load_normalizer(self):
         '''
-        Create normalizer: additional preprocessing step for backend nematus
+        Create normalizer: Additional preprocessing step for backend nematus.
         '''
         self._normalizer = Normalizer(self._src_lang)
 
     def _load_tokenizer(self):
         '''
-        Create tokenizers: So far neither masking_strategy nor xml_strategy for backend nematus.
+        Create tokenizer: So far neither masking_strategy nor xml_strategy for backend nematus.
         '''
         self._tokenizer = Tokenizer(self._src_lang)
 
@@ -322,65 +309,90 @@ class TranslationEngineNematus(TranslationEngineBase):
         model = bpe_model_path + '/' + self._src_lang + '-' + self._trg_lang + '.bpe'
         self._encoder = TranslationEncoder(model)
 
+    def _load_engine(self):
+        '''
+        Start a process as Nematus translation engine.
+        '''
+        path_nematus_model = os.sep.join([
+            self._basepath,
+            PATH_COMPONENT['engine'],
+            'tm',
+            'model',
+            'model.npz'
+        ])
+
+        self._engine = EngineNematus(
+            path_nematus_model
+        )
+
+    def _load_decoder(self):
+        '''
+        Create byte-pair decoder.
+        '''
+        self._decoder = TranslationDecoder()
+
+    def _load_detruecaser(self):
+        '''
+        Create detruecaser.
+        '''
+        self._detruecaser = Detruecaser()
+
+    def _load_detokenizer(self):
+        '''
+        Create detokenizer.
+        '''
+        self._detokenizer = Detokenizer(self._trg_lang, uppercase_first_letter=False)
+
     def _preprocess_segment(self, segment):
         '''
         No addition to abstract method @params.
         '''
-        # normalize segment
+        # normalize input segment
         segment = self._normalizer.normalize_punctuation(segment)
-
+        ########################################################################
+        ###BH encoding seems to fail when cedillas and diacritics removed ?
+        ###   problem could be that model was insufficiently trained, retest
         # when normalized, Romanian segments need further cleaning from cedillas and diacritics
         # normalize_romanian() must be called before remove_ro_diacritics()
-        ########################################################################
-        ###BH encoding seems to fail when cedillas and diacritics removed !!!
-        ###   problem could be that model was insufficiently trained, retest!!!
         if self._src_lang == 'ro':
             segment = cleaner.normalize_romanian(segment)
             segment = cleaner.remove_ro_diacritics(segment)
         ########################################################################
-
-        # tokenize segment
+        # tokenize normalized segment
         tokens = self._tokenizer.tokenize(segment)
-
-        # truecase segment
+        # truecase tokens (using truecasing model trained in `mtrain`)
         tokens = self._truecaser.truecase_tokens(tokens)
-
-        # join truecased tokens to segment for encoding
+        # join truecased tokens to a segment
         segment = " ".join(tokens)
-
-        # encode segment
+        # encode truecased segment (applying byte-pair processing model trained in `mtrain`)
         segment = self._encoder.encode(segment)
-
+        # return encoded segment
         return segment
 
     def _postprocess_segment(self, segment):
         '''
         Postprocesses a single @param segment.
         '''
-
-        ###BH todo finish, use TRG lang
-
-        # decode segment
-        segment = self._decoder.decode_segment(segment)
-        # detruecase segment
-        #segment = self._detruecaser.detruecase_segment(segment)
-        # detokenize segment
-        #segment = self._detokenizer.detokenize_segment(segment)
-
+        # decode translated segment
+        segment = self._decoder.decode(segment)
+        # detruecase decoded segment
+        segment = self._detruecaser.detruecase(segment)
+        # split detruecased segment into tokens
+        tokens = segment.split(" ")
+        # detokenize detruecased tokens
+        segment = self._detokenizer.detokenize(tokens)
+        # return detokenized segment
         return segment
 
     def translate(self, segment):
         '''
         No addition to abstract method @params.
         '''
-
-        ###BH todo finish
-
-        # preprocess segment
+        # preprocess input segment
         segment = self._preprocess_segment(segment)
-        # translate segment
+        # translate preprocessed segment
         segment = self._engine.translate_segment(segment)
-        # postprocess segment
-        #segment = self._postprocess_segment(segment)
-        # return segment to `mtrans`
+        # postprocess translated segment
+        segment = self._postprocess_segment(segment)
+        # return final segment to `mtrans`
         return segment

@@ -40,6 +40,7 @@ class Encoder(object):
         Script reference https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py:
             Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
             Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+        ###BH add dedication to preprocess.sh
         '''
         commander.run(
             'cat {corpus}.{src} {corpus}.{trg} | {script} --s {bpe_ops} > {bpe_model}/{src}-{trg}.bpe'.format(
@@ -61,6 +62,7 @@ class Encoder(object):
         Script reference https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py:
             Rico Sennrich, Barry Haddow and Alexandra Birch (2015). Neural Machine Translation of Rare Words with Subword Units.
             Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+        ###BH add dedication to preprocess.sh
         '''
         def command(current_corpus, current_lang):
             return '{script} -c {bpe_model}/{src}-{trg}.bpe < {corpus}.{lang} > {corpus}.bpe.{lang}'.format(
@@ -86,6 +88,7 @@ class Encoder(object):
         are automatically stored at the location of the input files, which is the basepath's subfolder 'corpus'.
 
         Scipt reference https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py
+        ###BH add dedication to preprocess.sh
         '''
         commander.run(
             '{script} {corpus}.bpe.{src} {corpus}.bpe.{trg}'.format(
@@ -100,15 +103,14 @@ class Encoder(object):
 class TranslationEncoder(object):
     '''
     Creates a byte-pair encoder which encodes normalized, tokenized and truecased segments
-    in order to prepare them for translation in backend nematus.
+    in order to enable translation in backend nematus.
     '''
-
-    ###BH debugging: external processor does not work with python script
     def __init__(self, bpe_model):
         '''
         @param bpe_model full path to byte-pair processing model trained in `mtrain`
         '''
 
+        ###BH debugging: external processor does not work with python script
         # arguments = [
         #     '-c %s' % model
         # ]
@@ -122,21 +124,22 @@ class TranslationEncoder(object):
     def close(self):
         del self._processor
 
-    ###BH debugging: external processor does not work with python script
     def encode(self, segment):
         '''
-        Encodes a single @param segment.
+        Encodes a single @param segment by applying the byte-pair
+        processing model trained in `mtrain`.
         '''
         ###BH debugging: external processor does not work with python script
         #return self._processor.process(segment)
 
-        in_file = self._model + '.tmpin'
-        out_file = self._model + '.tmpout'
-
+        # use temporary files to process segments as exernal processor is not applicable
+        in_file = self._model + '.TMPIN'
+        out_file = self._model + '.TMPOUT'
         with open(in_file,'w') as f:
             f.write(segment)
         f.close()
 
+        ###BH add dedication to preprocess.sh and SUBWORD_NMT_APPLY
         commander.run(
             '{script} -c {model} < {input} > {output}'.format(
                 script=SUBWORD_NMT_APPLY,
@@ -146,6 +149,7 @@ class TranslationEncoder(object):
             )
         )
 
+        # read processed segment from temporary file and return
         with open(out_file,'r') as f:
             return f.read()
         ###BH todo rm in_file and out_file
@@ -153,4 +157,22 @@ class TranslationEncoder(object):
 class TranslationDecoder(object):
     '''
     Creates a byte-pair decoder which decodes a translated segment in backend nematus.
+
+    No need for byte-pair processing model as only the remaining byte-pair markers are
+    removed that could not be translated from source to target language. These unknown byte-pairs
+    in the input to be translated are due to absence in the training corpus and thus, in the
+    byte-pair model.
     '''
+
+    def decode(self, segment):
+        '''
+        Decodes a single @param segment.
+        '''
+
+        ###BH add dedication for replacement pattern and sed if used!
+        # from script: sed 's/\@\@ //g'
+        # import subprocess and format segment into commant# decoded_segment = subprocess.call(["sed -i -e 's/\@\@ //g' SEGMENT"], shell=True)
+
+        ###BH add dedication to postprocess-test.sh
+        decoded_segment = segment.replace("@@ ","")
+        return decoded_segment
