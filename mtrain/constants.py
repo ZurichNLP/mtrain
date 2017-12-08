@@ -32,9 +32,9 @@ MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
 MOSES_MERT = MOSES_HOME + os.sep + 'scripts/training/mert-moses.pl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTableMin'
-MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl' ###BH new, ref?
-MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl' ###BH new, ref?
-MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl' ###BH new, ref?
+MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl' ###BH new, reference?
+MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl' ###BH new, reference?
+MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl' ###BH new, reference?
 # Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
 KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary' ###BH @MM: maybe a / too much, results in '//bin..' ?
@@ -44,12 +44,12 @@ ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
 # Path to multeval script
 MULTEVAL = MULTEVAL_HOME + os.sep + 'multeval.sh'
 # Paths to Subword NMT files/scripts
-SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py' ###BH new, ref?
-SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py' ###BH new, ref?
+SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py' ###BH new, reference?
+SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py' ###BH new, reference?
 # Paths to Nematus files/scripts
-NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py' ###BH new, ref?
-NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py' ###BH new, ref?
-NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py' ###BH new, ref?
+NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py' ###BH new, reference?
+NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py' ###BH new, reference?
+NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py' ###BH new, reference?
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.
