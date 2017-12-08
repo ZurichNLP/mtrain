@@ -19,8 +19,8 @@ LOGGING_LEVELS = {
 
 def get_argument_parser():
     parser = argparse.ArgumentParser()
-    parser.description = ("Trains either a Moses-based statistical machine translation system " +
-        "or a Nematus-based neural network translation system.")
+    parser.description = ("Trains either a Moses-based Statistical Machine Translation system " +
+        "or a Nematus-based Neural Network translation system.")
 
     # positional arguments for either backend
     parser.add_argument(
@@ -36,19 +36,19 @@ def get_argument_parser():
             "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
             "`",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' #overrides ugly double-listing of available choices in --help
+        metavar='src_lang' # overrides ugly double-listing of available choices in '--help'
     )
     parser.add_argument(
         "trg_lang",
         type=str,
         help="target language code: same valid choices as in src_lang",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' #overrides ugly double-listing of available choices in --help
+        metavar='trg_lang' # overrides ugly double-listing of available choices in '--help'
     )
 
     # optional arguments for either backend
     parser.add_argument(
-        "--backend", # "-b" removed, conflicting with --bpe_ops
+        "--backend", # '-b' removed as it would conflict with '--bpe_ops'
         type=str,
         help="decide which backend is to be used as training engine." +
             " Valid choices are: " +
@@ -107,27 +107,14 @@ def get_argument_parser():
             "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
     )
     parser.add_argument(
-        "--eval_lowercase",
-        help="lowercase reference and translation before evaluation. Otherwise," +
-            "evaluation uses the engine's casing strategy.",
-        default=False,
-        action='store_true'
-    )
-    parser.add_argument(
-        "--extended_eval",
-        action="store_true",
-        help="perform multiple evaluations that vary the appearance of the test files: " +
-            "lowercased or not, detokenized or not, with markup or without.",
-        default=False
-    )
-    parser.add_argument(
         "--logging",
         help="logging level in STDERR, default=`INFO`",
         choices=LOGGING_LEVELS.keys(),
         default="INFO"
     )
 
-    # arguments specific for moses backend ###BH todo revise e.g. move --eval_lowercase, --extended_eval here if only for moses
+    # arguments specific for moses backend
+    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
     moses_args = parser.add_argument_group("Moses arguments")
 
     moses_args.add_argument(
@@ -162,14 +149,29 @@ def get_argument_parser():
         "--temp_dir",
         help="directory for temporary files created during trainig, default=`/tmp`",
         default="/tmp"
-    )
+    ) # '--temp_dir' not implemented in backend nematus as it uses '--output_dir' by default for temp files and doing fine
     moses_args.add_argument(
         "--keep_uncompressed_models",
         help="do not delete uncompressed models created during training",
         action='store_true'
     )
+    moses_args.add_argument(
+        "--eval_lowercase",
+        help="lowercase reference and translation before evaluation. Otherwise," +
+            "evaluation uses the engine's casing strategy.",
+        default=False,
+        action='store_true'
+    ) # todo: '--eval_lowercase' not yet active in moses backend as 'lowercase_eval=False' when calling evaluation
+    moses_args.add_argument(
+        "--extended_eval",
+        action="store_true",
+        help="perform multiple evaluations that vary the appearance of the test files: " +
+            "lowercased or not, detokenized or not, with markup or without.",
+        default=False
+    )
 
     # arguments specific for nematus backend
+    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
     nematus_args = parser.add_argument_group("Nematus arguments")
 
     nematus_args.add_argument(
@@ -177,8 +179,7 @@ def get_argument_parser():
         type=int,
         help="decide how many byte-pair operations are to be performed when learning the " +
         "byte-pair encoding model with nematus backend, default=`89500` operations"
-        # set default when calling bpe_encoding() below, but NOT here as it would trigger warning for backend moses
-        ###BH current testing default 1000, reset to default 89500
+        # set default when calling 'bpe_encoding()' below, but NOT here as it would trigger warning for backend moses
     )
     nematus_args.add_argument(
         "--preprocessing_only",
@@ -245,18 +246,24 @@ def check_environment_moses():
     '''
     Abort if environment variables specific for moses backend are not set.
 
-    Note: MULTEVAL_HOME ist specific for evaluation and thus, checked if
-    evaluation chosen
+    Note: 'MULTEVAL_HOME' ist specific for evaluation and thus,
+    checked only if evaluation chosen.
     '''
     checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
+    if args.eval:
+        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
 
 ###BH todo test and check if complete
 def check_environment_nematus():
     '''
     Abort if environment variables specific for nematus backend are not set.
+
+    Note: 'SUBWORD_NMT_HOME' ist specific for preprocessing and thus,
+    checked only when preprocessing chosen.
     '''
-    checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
     checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
+    if args.training_only != True:
+        checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
 
 ###BH todo test and check if complete
 def check_arguments_moses(args):
@@ -265,7 +272,7 @@ def check_arguments_moses(args):
     be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
     program terminated.
 
-    @param args all arguments passed from get_argument_parser()
+    @param args all arguments passed from 'get_argument_parser()'
     '''
     # generic masking and XML masking currently not possible at the same time for backend moses
     if args.masking and args.xml_input == XML_MASK:
@@ -295,7 +302,7 @@ def check_arguments_nematus(args):
     be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
     program terminated.
 
-    @param args all arguments passed from get_argument_parser()
+    @param args all arguments passed from 'get_argument_parser()'
     '''
     # currently neither generic masking nor XML masking for backend nematus
     if args.masking or args.xml_input:
@@ -313,7 +320,7 @@ def check_arguments_nematus(args):
         sys.exit()
 
     # ensure tuning corpus is being provided in preprocessing for later training,
-    # either --tune INT or --tune STR (if preprocessed) is fine
+    # either '--tune INT' or '--tune STR' (if preprocessed) is fine
     if args.training_only != True and args.tune == None:
         logging.critical("Invalid command line options. For '--backend %s', " +
             "you need to choose '--tune' in preprocessing as subsequent " +
@@ -321,7 +328,7 @@ def check_arguments_nematus(args):
             "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
         sys.exit()
 
-    # currently no casing other than truecasing for backend nematus, warn and continue using 'TRUECASING'
+    # currently no casing other than 'truecasing' for backend nematus, warn and continue using 'TRUECASING'
     if args.caser != TRUECASING:
         logging.warning("Invalid command line options. For '--backend %s', " +
             "only '%s' is applicable as casing strategy and will therefore be used. " +
@@ -379,7 +386,7 @@ def main():
             pass # string is fine; means path to external evalution corpus was provided
 
     # initialize logging
-    # check existence of args.output_dir before creating logfile
+    # check existence of '--output_dir' before creating logfile
     assertions.dir_exists(
         args.output_dir,
         raise_exception="%s does not exist" % args.output_dir
@@ -459,8 +466,6 @@ def main():
 
         # initiate evaluation
         if args.eval:
-            # abort if MULTEVAL_HOME environment variable is not set
-            checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
             training.evaluate(
                 num_threads=args.threads,
                 lowercase_eval=False,
@@ -471,7 +476,10 @@ def main():
 
     # distinguish chosen backend
     if args.backend == BACKEND_NEMATUS:
-
+        '''
+        ###BH todo add reference for general approach when training nematus model:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        '''
         # abort if environment variables for nematus backend are not set
         check_environment_nematus()
 
@@ -498,12 +506,12 @@ def main():
                 max_tokens=args.max_tokens,
                 preprocess_external=args.preprocess_external_tune
             )
-            # continue preprocessing: apply casing strategy
+            # continue preprocessing: apply truecasing
             training.train_truecaser()
             training.truecase()
             # continue preprocessing: byte-pair encoding for backend nematus
             # set default for '--bpe_ops' here
-            training.bpe_encoding(bpe_operations=1000 if args.bpe_ops == None else args.bpe_ops)
+            training.bpe_encoding(bpe_operations=89500 if args.bpe_ops == None else args.bpe_ops)
         else:
             # chosen not to preprocess data
             logging.warning("No preprocessing: Only training chosen to be executed")

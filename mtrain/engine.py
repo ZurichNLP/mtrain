@@ -155,7 +155,10 @@ class EngineNematus(EngineBase):
     '''
     Starts a translation engine process for nematus backend.
 
-    ###BH todo add dedication all over the place
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt translate.sh, including:
+            nematus translate.py
     '''
     def __init__(self, path_nematus_model):
         '''
@@ -167,6 +170,11 @@ class EngineNematus(EngineBase):
         '''
         In addition to abstract method @params:
         @return a translated segment
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt translate.sh, including:
+                nematus translate.py
         '''
         ###BH debugging: external processor does not work with python script
 
@@ -177,7 +185,6 @@ class EngineNematus(EngineBase):
             f.write(segment)
         f.close()
 
-        ###BH todo add dedication to translate.sh and NEMATUS_TRANSLATE
         theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn{preallocate} python2 {script} '.format(
             device='cuda0', ###BH test gpuN vs cudaN
             preallocate=',gpuarray.preallocate=0.2', ###BH test for cudaN use ',gpuarray.preallocate=0.2'

@@ -945,6 +945,26 @@ class TrainingNematus(TrainingBase):
     '''
     Models the training process of a Nematus engine, including all files
     that are required and generated.
+
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt preprocess.sh, including:
+            moses normalize-punctuation.perl
+            wmt normalise-romanian.py
+            wmt remove-diacritics.py
+            moses tokenizer.perl
+            moses train-truecaser.perl
+            moses truecase.perl
+            subword_nmt learn_bpe.py
+            subword_nmt apply_bpe.py
+            nematus build_dictionary.py
+        wmt train.sh, including:
+            wmt config.py for parameter examples AND nematus nmt.py, including:
+                wmt validate.sh, including:
+                    nematus translate.py
+                    moses multi-bleu.perl
+                    wmt postprocess-dev.sh, including:
+                        detruecase.perl
     '''
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
         '''
@@ -958,14 +978,14 @@ class TrainingNematus(TrainingBase):
 
     def _load_normalizer(self):
         '''
-        Create normalizer: additional preprocessing step for backend nematus
+        Create normalizer: Additional preprocessing step for backend nematus.
         '''
         self._normalizer_source = Normalizer(self._src_lang)
         self._normalizer_target = Normalizer(self._trg_lang)
 
     def _load_tokenizer(self):
         '''
-        Create tokenizers: So far neither masking_strategy nor xml_strategy for backend nematus.
+        Create tokenizers: So far neither 'masking_strategy' nor 'xml_strategy' for backend nematus.
         '''
         self._tokenizer_source = Tokenizer(self._src_lang)
         self._tokenizer_target = Tokenizer(self._trg_lang)
@@ -973,6 +993,8 @@ class TrainingNematus(TrainingBase):
     def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external):
         '''
         No addition to abstract method @params.
+
+        ###BH todo: unclear if reference necessary as scripts and technique already in moses backend
         '''
         super(TrainingNematus, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
 
@@ -1007,9 +1029,15 @@ class TrainingNematus(TrainingBase):
         @param bpe_operations "Create this many new symbols (each representing a character n-gram)"
                     Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
                     Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
-        '''
 
-        # get input for learning: paths of truecased training and truecased tuning corpora. no language ending
+        ###BH todo check reference above AND add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh, including:
+                subword_nmt learn_bpe.py
+                subword_nmt apply_bpe.py
+                nematus build_dictionary.py
+        '''
+        # get input: paths of truecased training and truecased tuning corpora. no language ending
         corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED
         corpus_tune_tc=self._get_path('corpus') + os.sep + BASENAME_TUNING_CORPUS + '.' + SUFFIX_TRUECASED
 
@@ -1024,7 +1052,7 @@ class TrainingNematus(TrainingBase):
         # learn bpe model using truecased training corpus
         self._encoder.learn_bpe_model()
 
-        # apply bpe model on truecased training corpus (and if present, truecased evaluation corpus)
+        # apply bpe model on truecased training and truecased tuning corpora
         self._encoder.apply_bpe_model()
 
         # build bpe dictionary (JSON files) for truecased training corpus
@@ -1034,6 +1062,8 @@ class TrainingNematus(TrainingBase):
         accurate=False):
         '''
         No addition to abstract method @params.
+
+        ###BH todo: unclear if reference necessary as scripts and technique already in moses backend
         '''
         original_segment = segment
 
@@ -1059,6 +1089,15 @@ class TrainingNematus(TrainingBase):
     def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
         '''
         No addition to abstract method @params.
+
+        ###BH todo add reference to:
+            wmt preprocess.sh, including:
+                moses normalize-punctuation.perl
+                wmt normalise-romanian.py
+                wmt remove-diacritics.py
+                moses tokenizer.perl
+
+            unclear if reference to tokenizer.perl needed as already used in moses backend
         '''
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
@@ -1157,6 +1196,15 @@ class TrainingNematus(TrainingBase):
         min_tokens, max_tokens, preprocess_external):
         '''
         No addition to abstract method @params.
+
+        ###BH todo add reference to:
+            wmt preprocess.sh, including:
+                moses normalize-punctuation.perl
+                wmt normalise-romanian.py
+                wmt remove-diacritics.py
+                moses tokenizer.perl
+
+            unclear if reference to tokenizer.perl needed as already used in moses backend
         '''
         # preprocess external corpora:
         # User choice 'preprocess_external' influences whether or not external tuning corpus
@@ -1208,8 +1256,17 @@ class TrainingNematus(TrainingBase):
         @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
         @param external_validation_script path to own external validation script if provided
-        '''
 
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt train.sh, including:
+                wmt config.py for parameter examples AND nematus nmt.py, including:
+                    wmt validate.sh, including:
+                        nematus translate.py
+                        moses multi-bleu.perl
+                        wmt postprocess-dev.sh, including:
+                            detruecase.perl
+        '''
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
         if not assertions.dir_exists(base_dir_tm):
@@ -1239,10 +1296,12 @@ class TrainingNematus(TrainingBase):
         @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
 
-        ###BH todo
-        add dedication !!!
+        ###BH todo add reference to:
+            wmt validate.sh, including:
+                nematus translate.py
+                moses multi-bleu.perl
+                wmt postprocess-dev.sh
         '''
-
         # check if mtrain-managed external validation
         if self._mtrain_managed_val:
             # mtrain-managed:
@@ -1305,10 +1364,10 @@ fi"""
         Setting up postprocessing script that is called by external validation script during training of nematus engine.
         This does not execute postprocessing, but enabling postprocessing during training's validation steps to work properly.
 
-        ###BH todo
-        add dedication !!!
+        ###BH todo add reference to:
+            wmt postprocess-dev.sh, including:
+                detruecase.perl
         '''
-
         # check if mtrain-managed postprocessing
         if self._mtrain_managed_val:
             # mtrain-managed:
@@ -1344,10 +1403,10 @@ $moses_detruecaser"""
         @param device_train defines the processor (cpu, gpuN or cudaN) for training
         @param preallocate_train defines the percentage of memory to be preallocated for training
 
-        ###BH todo
-        add dedication !!!
+        ###BH todo add reference to:
+            wmt train.sh, including:
+                wmt config.py for parameter examples AND nematus nmt.py
         '''
-
         # distinguish mtrain-managed from user-defined external validation
         if self._mtrain_managed_val:
             script_path_full=self._path_ext_val + os.sep + 'validate.sh'
@@ -1386,7 +1445,7 @@ $moses_detruecaser"""
         nematus_train_options_a = '--max_epochs {max_epochs} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
             max_epochs=100, # default 5000
             dispFreq=100, # default 1000
-            validFreq=100, # default 10000 ###BH only works with -e INT or external validation set !!! make user choose accordingly
+            validFreq=100, # default 10000
             saveFreq=30000,   # default 30000
             sampleFreq=10000 # default 10000
         )
@@ -1407,8 +1466,8 @@ $moses_detruecaser"""
             dim_word=500, # default 500
             dim=1024, # default 1024
             # for n_words and n_words_src cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh:
-            # "Network vocabulary should be slightly larger [than BPE operations] (to include characters),
-            # or smaller if the operations are learned on the joint vocabulary".
+            #   "Network vocabulary should be slightly larger [than BPE operations] (to include characters),
+            #   or smaller if the operations are learned on the joint vocabulary".
             n_words=90000, # default 90000
             n_words_src=90000, # default 90000
             decay_c=0., # default 0.

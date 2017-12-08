@@ -5,9 +5,7 @@ from mtrain import commander
 from mtrain.preprocessing.external import ExternalProcessor
 
 '''
-###BH check for completeness, esp. dedication
 Provides further processing and postprocessing steps in order to use neural network training and translation in backend nematus.
-Processing steps are implemented according to guidance in https://github.com/rsennrich/wmt16-scripts/tree/master/sample.
 '''
 class Encoder(object):
     '''
@@ -15,6 +13,13 @@ class Encoder(object):
 
     The encoding is limited to input that is already processed using 'truecased' casing strategy.
     Furthermore, neither generic masking nor XML masking are applicable.
+
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt preprocess.sh, including:
+            subword_nmt learn_bpe.py
+            subword_nmt apply_bpe.py
+            nematus build_dictionary.py
     '''
     def __init__(self, corpus_train_tc, corpus_tune_tc, bpe_model_path, bpe_operations, src_lang, trg_lang):
         '''
@@ -40,7 +45,10 @@ class Encoder(object):
         Script reference https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py:
             Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
             Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
-        ###BH add dedication to preprocess.sh
+
+        ###BH todo check reference above AND add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh
         '''
         commander.run(
             'cat {corpus}.{src} {corpus}.{trg} | {script} --s {bpe_ops} > {bpe_model}/{src}-{trg}.bpe'.format(
@@ -62,7 +70,10 @@ class Encoder(object):
         Script reference https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py:
             Rico Sennrich, Barry Haddow and Alexandra Birch (2015). Neural Machine Translation of Rare Words with Subword Units.
             Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
-        ###BH add dedication to preprocess.sh
+
+        ###BH todo check reference above AND add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh
         '''
         def command(current_corpus, current_lang):
             return '{script} -c {bpe_model}/{src}-{trg}.bpe < {corpus}.{lang} > {corpus}.bpe.{lang}'.format(
@@ -88,7 +99,10 @@ class Encoder(object):
         are automatically stored at the location of the input files, which is the basepath's subfolder 'corpus'.
 
         Scipt reference https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py
-        ###BH add dedication to preprocess.sh
+
+        ###BH todo check reference above AND add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh
         '''
         commander.run(
             '{script} {corpus}.bpe.{src} {corpus}.bpe.{trg}'.format(
@@ -104,22 +118,33 @@ class TranslationEncoder(object):
     '''
     Creates a byte-pair encoder which encodes normalized, tokenized and truecased segments
     in order to enable translation in backend nematus.
+
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt preprocess.sh, including:
+            subword_nmt apply_bpe.py
     '''
     def __init__(self, bpe_model):
         '''
         @param bpe_model full path to byte-pair processing model trained in `mtrain`
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh, including:
+                subword_nmt apply_bpe.py
+        MOVE REF TO encode() if ExtProz not working.
         '''
-
-        ###BH debugging: external processor does not work with python script
-        # arguments = [
-        #     '-c %s' % model
-        # ]
-
-        # self._processor = ExternalProcessor(
-        #     command=" ".join([SUBWORD_NMT_APPLY] + arguments)
-        # )
-
+        #BH debugging
         self._model = bpe_model
+
+        #BH debugging: external processor does not work with python script
+        arguments = [
+            '-c %s' % self._model
+        ]
+
+        self._processor = ExternalProcessor(
+            command=" ".join([SUBWORD_NMT_APPLY] + arguments)
+        )
 
     def close(self):
         del self._processor
@@ -130,29 +155,29 @@ class TranslationEncoder(object):
         processing model trained in `mtrain`.
         '''
         ###BH debugging: external processor does not work with python script
-        #return self._processor.process(segment)
+        return self._processor.process(segment)
 
-        # use temporary files to process segments as exernal processor is not applicable
-        in_file = self._model + '.TMPIN'
-        out_file = self._model + '.TMPOUT'
-        with open(in_file,'w') as f:
-            f.write(segment)
-        f.close()
+        # # use temporary files to process segments as exernal processor is not applicable
+        # in_file = self._model + '.TMPIN'
+        # out_file = self._model + '.TMPOUT'
+        # with open(in_file,'w') as f:
+        #     f.write(segment)
+        # f.close()
 
-        ###BH add dedication to preprocess.sh and SUBWORD_NMT_APPLY
-        commander.run(
-            '{script} -c {model} < {input} > {output}'.format(
-                script=SUBWORD_NMT_APPLY,
-                model=self._model,
-                input=in_file,
-                output=out_file
-            )
-        )
+        # ###BH move reference from init if reactivated
+        # commander.run(
+        #     '{script} -c {model} < {input} > {output}'.format(
+        #         script=SUBWORD_NMT_APPLY,
+        #         model=self._model,
+        #         input=in_file,
+        #         output=out_file
+        #     )
+        # )
 
-        # read processed segment from temporary file and return
-        with open(out_file,'r') as f:
-            return f.read()
-        ###BH todo rm in_file and out_file
+        # # read processed segment from temporary file and return
+        # with open(out_file,'r') as f:
+        #     return f.read()
+        # ###BH todo rm in_file and out_file
 
 class TranslationDecoder(object):
     '''
@@ -162,17 +187,19 @@ class TranslationDecoder(object):
     removed that could not be translated from source to target language. These unknown byte-pairs
     in the input to be translated are due to absence in the training corpus and thus, in the
     byte-pair model.
+
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt postprocess-test.sh
     '''
 
     def decode(self, segment):
         '''
         Decodes a single @param segment.
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt postprocess-test.sh
         '''
-
-        ###BH add dedication for replacement pattern and sed if used!
-        # from script: sed 's/\@\@ //g'
-        # import subprocess and format segment into commant# decoded_segment = subprocess.call(["sed -i -e 's/\@\@ //g' SEGMENT"], shell=True)
-
-        ###BH add dedication to postprocess-test.sh
         decoded_segment = segment.replace("@@ ","")
         return decoded_segment

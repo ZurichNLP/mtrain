@@ -266,7 +266,20 @@ class TranslationEngineNematus(TranslationEngineBase):
     '''
     Nematus translation engine trained using `mtrain`
 
-    ###BH todo add dedication all over the place
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt preprocess.sh, including:
+            moses normalize-punctuation.perl
+            wmt normalise-romanian.py
+            wmt remove-diacritics.py
+            moses tokenizer.perl
+            moses truecase.perl
+            subword_nmt apply_bpe.py
+        wmt translate.sh, including:
+            nematus translate.py
+        wmt postprocess-test.sh, including:
+            moses detruecase.perl
+            moses detokenizer.perl
     '''
     def __init__(self, basepath, src_lang, trg_lang):
         '''
@@ -300,6 +313,11 @@ class TranslationEngineNematus(TranslationEngineBase):
     def _load_encoder(self):
         '''
         Create byte-pair encoder: Uses the bpe model learnt in `mtrain`
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh, including:
+                subword_nmt apply_bpe.py
         '''
         bpe_model_path = os.sep.join([
             self._basepath,
@@ -312,6 +330,11 @@ class TranslationEngineNematus(TranslationEngineBase):
     def _load_engine(self):
         '''
         Start a process as Nematus translation engine.
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt translate.sh, including:
+                nematus translate.py
         '''
         path_nematus_model = os.sep.join([
             self._basepath,
@@ -346,6 +369,16 @@ class TranslationEngineNematus(TranslationEngineBase):
     def _preprocess_segment(self, segment):
         '''
         No addition to abstract method @params.
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh, including:
+                moses normalize-punctuation.perl
+                wmt normalise-romanian.py
+                wmt remove-diacritics.py
+                moses tokenizer.perl
+                moses truecase.perl
+                subword_nmt apply_bpe.py
         '''
         # normalize input segment
         segment = self._normalizer.normalize_punctuation(segment)
@@ -372,6 +405,12 @@ class TranslationEngineNematus(TranslationEngineBase):
     def _postprocess_segment(self, segment):
         '''
         Postprocesses a single @param segment.
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt postprocess-test.sh, including:
+                moses detruecase.perl
+                moses detokenizer.perl
         '''
         # decode translated segment
         segment = self._decoder.decode(segment)
@@ -387,6 +426,21 @@ class TranslationEngineNematus(TranslationEngineBase):
     def translate(self, segment):
         '''
         No addition to abstract method @params.
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh, including:
+                moses normalize-punctuation.perl
+                wmt normalise-romanian.py
+                wmt remove-diacritics.py
+                moses tokenizer.perl
+                moses truecase.perl
+                subword_nmt apply_bpe.py
+            wmt translate.sh, including:
+                nematus translate.py
+            wmt postprocess-test.sh, including:
+                moses detruecase.perl
+                moses detokenizer.perl
         '''
         # preprocess input segment
         segment = self._preprocess_segment(segment)

@@ -11,7 +11,7 @@ import itertools
 from mtrain.constants import *
 from mtrain import assertions
 from mtrain import commander
-from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus
+from mtrain.translation import TranslationEngineBase, TranslationEngineMoses # todo import and implement TranslationEngineNematus when necessary
 from mtrain.preprocessing import cleaner
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.reinsertion import tokenize_keep_markup
@@ -116,8 +116,8 @@ class Evaluator(object):
         '''
         Translates sentences from an evaluation corpus.
 
-        ###BH todo when TranlationEngineNematus necessary
-        ###make @abs method and seperate this implementation from nematus backend
+        # todo import and implement TranslationEngineNematus when necessary,
+        #   make @abc.abstractmethod and separate this implementation from nematus backend
         '''
         self._engine = TranslationEngineMoses(
             self._basepath,

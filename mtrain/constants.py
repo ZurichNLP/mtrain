@@ -15,10 +15,10 @@ MOSES_BIN = MOSES_HOME + os.sep + 'bin'
 FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
 MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
 # Paths to 3rd party packages for nematus backend implementation
-###BH add full dedication to https://github.com/rsennrich/subword-nmt
-SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else '' # Subword NMT base directory ###BH new
-###BH add full dedication to https://github.com/EdinburghNLP/nematus
-NEMATUS_HOME = os.environ.get('NEMATUS_HOME') if os.environ.get('NEMATUS_HOME') else '' # Nematus base directory ###BH new
+###BH add reference to https://github.com/rsennrich/subword-nmt
+SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else '' # Subword NMT base directory
+###BH add reference to https://github.com/EdinburghNLP/nematus
+NEMATUS_HOME = os.environ.get('NEMATUS_HOME') if os.environ.get('NEMATUS_HOME') else '' # Nematus base directory
 
 # Paths to Moses files/scripts
 MOSES = MOSES_HOME + os.sep + 'bin/moses'
@@ -32,9 +32,9 @@ MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
 MOSES_MERT = MOSES_HOME + os.sep + 'scripts/training/mert-moses.pl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTableMin'
-MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl' ###BH new
-MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl' ###BH new
-MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl' ###BH new
+MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl' ###BH new, ref?
+MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl' ###BH new, ref?
+MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl' ###BH new, ref?
 # Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
 KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary' ###BH @MM: maybe a / too much, results in '//bin..' ?
@@ -44,12 +44,12 @@ ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
 # Path to multeval script
 MULTEVAL = MULTEVAL_HOME + os.sep + 'multeval.sh'
 # Paths to Subword NMT files/scripts
-SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py' ###BH new
-SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py' ###BH new
+SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py' ###BH new, ref?
+SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py' ###BH new, ref?
 # Paths to Nematus files/scripts
-NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py' ###BH new
-NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py' ###BH new
-NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py' ###BH new
+NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py' ###BH new, ref?
+NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py' ###BH new, ref?
+NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py' ###BH new, ref?
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.
@@ -80,7 +80,7 @@ PATH_COMPONENT = {
     "evaluation": "evaluation",
     "logs": "logs"
 }
-# new subfolder bpe model
+# Subfolder for bpe model when preprocessing nematus
 BPE = 'bpe'
 
 # Default file names and affixes
@@ -233,7 +233,7 @@ LOGGING_LEVELS = {
     "CRITICAL": logging.CRITICAL,
 }
 
-# Backend choices ###BH new
+# Backend choices
 BACKEND_MOSES = 'moses'
 BACKEND_NEMATUS = 'nematus'
 # Valid backend choices

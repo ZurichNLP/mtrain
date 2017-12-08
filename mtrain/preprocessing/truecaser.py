@@ -45,17 +45,25 @@ class Detruecaser(object):
     '''
     Creates a detruecaser which detruecases sentences on-the-fly, i.e., allowing
     interaction with a Moses truecaser process kept in memory.
-    '''
 
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt postprocess-test.sh, including:
+            detruecase.perl
+    '''
     def __init__(self):
         '''
         Detruecaser only needs script, no model
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt postprocess-test.sh, including:
+                detruecase.perl
         '''
         arguments = [
             '-b' #disable Perl buffering
         ]
 
-        ###BH add dedication to MOSES_DETRUECASER and postprocess-test.sh
         self._processor = ExternalProcessor(
             command=" ".join([MOSES_DETRUECASER] + arguments)
         )

@@ -4,7 +4,6 @@ from mtrain.constants import *
 from mtrain.preprocessing.external import ExternalProcessor
 
 '''
-###BH check for completeness, esp. dedication
 Normalize punctuation using the default Moses normalizer script,
 applied for segments using backend nematus.
 '''
@@ -13,11 +12,21 @@ class Normalizer(object):
     '''
     Creates a normalizer for processing segment per segment, allowing
     interaction with a normalizer process kept in memory.
+
+    ###BH todo add reference to:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        wmt preprocess.sh, including:
+            moses normalize-punctuation.perl
     '''
 
     def __init__(self, lang_code):
         '''
         @param lang_code language identifier
+
+        ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+            wmt preprocess.sh, including:
+                moses normalize-punctuation.perl
         '''
         arguments = [
             '-l %s' % lang_code,
@@ -25,7 +34,6 @@ class Normalizer(object):
             '-q', #don't report version
         ]   # no aggressive mode '-a' for normalizer
 
-        ###BH add dedication to MOSES_NORMALIZER and preprocess.sh
         self._processor = ExternalProcessor(
             command=" ".join([MOSES_NORMALIZER] + arguments)
         )

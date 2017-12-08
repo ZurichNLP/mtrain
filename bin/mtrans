@@ -29,19 +29,19 @@ def get_argument_parser():
             "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
             "`",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' #overrides ugly double-listing of available choices in --help
+        metavar='src_lang' # overrides ugly double-listing of available choices in '--help'
     )
     parser.add_argument(
         "trg_lang",
         type=str,
         help="target language code: same valid choices as in src_lang",
         choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' #overrides ugly double-listing of available choices in --help
+        metavar='trg_lang' # overrides ugly double-listing of available choices in '--help'
     )
 
     # optional arguments for either backend
     parser.add_argument(
-        "--backend", # "-b" removed, conflicting with --bpe_ops
+        "--backend", # '-b' removed as it would conflict with '--bpe_ops'
         type=str,
         help="indicate which backend was used as training engine in `mtrain`." +
             " Valid choices are: " +
@@ -57,6 +57,7 @@ def get_argument_parser():
     )
 
     # arguments specific for moses backend ###BH todo revise
+    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
     moses_args = parser.add_argument_group("Moses arguments")
 
     moses_args.add_argument(
@@ -87,7 +88,10 @@ def get_argument_parser():
     )
 
     # arguments specific for nematus backend ###BH todo revise
+    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
     nematus_args = parser.add_argument_group("Nematus arguments")
+
+    ###BH todo add option to save translation to file (in addition to terminal output)
 
     return parser
 
@@ -126,7 +130,10 @@ def main():
 
     # distinguish chosen backend
     if args.backend == BACKEND_NEMATUS:
-
+        '''
+        ###BH todo add reference for general approach when translating with nematus model:
+        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        '''
         # translation using nematus engine
         engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang)
         print("\nInput in '%s' translated to '%s' using backend %s:" % (args.src_lang, args.trg_lang, args.backend))
@@ -136,14 +143,14 @@ def main():
                 translation = engine.translate(source_segment)
 
                 print(translation)
-                ###BH todo check if optional arguments from command line: preprocess, lowercase, detokenize
-                ###BH todo check if uppercase first letter of segment necessary
+                ###BH todo check if optional, but maybe not: preprocess, lowercase, detokenize
+                ###BH todo check if uppercase first letter of segment necessary, should be osolete as detruecase is already applied
 
 if __name__ == '__main__':
     # abort if Python version is not supported
     checker.check_python_version()
     # abort if environment variables necessary for either backend are not set
-    ###BH # (check env variables specific for a backend in respective method)
+    # (check env variables specific for a backend in respective method)
     checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
     # run main routine
     main()
