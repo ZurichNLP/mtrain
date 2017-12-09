@@ -1278,7 +1278,7 @@ class TrainingNematus(TrainingBase):
         # define validation / postprocessing strategy and path for scripts
         if isinstance(external_validation_script, str):
             self._mtrain_managed_val=False
-            self._path_ext_val=external_validation_script
+            self._path_ext_val=external_validation_script # user must provide path plus script name
         else:
             self._mtrain_managed_val=True
             self._path_ext_val=self._base_dir_model
@@ -1443,16 +1443,16 @@ $moses_detruecaser"""
         # nematus options in training (split in sections for better overview)
         # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         nematus_train_options_a = '--max_epochs {max_epochs} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
-            max_epochs=100, # default 5000
+            max_epochs=5000, # default 5000
             dispFreq=100, # default 1000
-            validFreq=100, # default 10000
+            validFreq=10000, # default 10000
             saveFreq=30000,   # default 30000
             sampleFreq=10000 # default 10000
         )
-        nematus_train_options_b = '--batch_size {batch_size} --valid_batch_size {valid_batch_size} --use_dropout {use_dropout} --dropout_embedding {dropout_embedding} ' \
+        nematus_train_options_b = '--batch_size {batch_size} --valid_batch_size {valid_batch_size} {use_dropout} --dropout_embedding {dropout_embedding} ' \
             '--dropout_hidden {dropout_hidden} --dropout_source {dropout_source} --dropout_target {dropout_target} {overwrite} '.format(
             batch_size=80, # default 80
-            valid_batch_size=40, # default 80
+            valid_batch_size=80, # default 80
             use_dropout='', # default=False (leave empty '')
             dropout_embedding=0.2, # default 0.2
             dropout_hidden=0.2, # default 0.2
@@ -1470,22 +1470,33 @@ $moses_detruecaser"""
             #   or smaller if the operations are learned on the joint vocabulary".
             n_words=90000, # default 90000
             n_words_src=90000, # default 90000
-            decay_c=0., # default 0.
-            clip_c=1., # default 1.
+            decay_c='0.', # default '0.'
+            clip_c='1.', # default '1.'
             lrate=0.0001, # default 0.0001
             optimizer='adadelta', # default 'adadelta'
             maxlen=50 # default 50
         )
         # external validation script
         # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
-        external_validation = '--external_validation_script={script}'.format(
+        external_validation = '--external_validation_script={script} '.format(
             script=script_path_full
         )
+
+        # todo: solve issue https://gitlab.cl.uzh.ch/mt/mtrain/issues/40 and replace this workaround:
+        # append debug log explicitly to training.log in basepath of mtrain, includes output of external validation script.
+        # expect training output to be logged to training.log AGAIN due to the issue (happens when training finishes or terminates due to error)
+        logfile = self._basepath + '/training.log'
+        log_to_file = '>> {log} 2>&1'.format(
+            log=logfile
+        )
+
+        # inform user to observe logfile, as debug log is never printed to terminal during training due to length
+        logging.info("Initiating training, observe progress in logfile: %s", logfile)
 
         # train nematus engine
         commander.run(
             '{nematus_command}'.format(
-                nematus_command=theano_train_flags + nematus_train_files + nematus_train_options_a + nematus_train_options_b + nematus_train_options_c + external_validation
+                nematus_command=theano_train_flags + nematus_train_files + nematus_train_options_a + nematus_train_options_b + nematus_train_options_c + external_validation + log_to_file
             ),
             "Training Nematus engine: device %s" % device_train
         )
