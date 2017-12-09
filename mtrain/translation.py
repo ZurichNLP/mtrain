@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
 import abc
+import fileinput
+import logging
+import sys
+import os
 
 from abc import ABCMeta
 from mtrain import inspector
@@ -112,8 +116,8 @@ class TranslationEngineMoses(TranslationEngineBase):
     def _load_engine(self, report_alignment=False, report_segmentation=False):
         '''
         Start a Moses process and keep it running.
-        @param word_alignment whether Moses should report word alignments
-        @param phrase_segmentation whether Moses should report how the translation is
+        @param report_alignment whether Moses should report word alignments
+        @param report_segmentation whether Moses should report how the translation is
             made up of phrases
         '''
         path_moses_ini = os.sep.join([
@@ -236,7 +240,6 @@ class TranslationEngineMoses(TranslationEngineBase):
     def translate(self, segment, preprocess=True, lowercase=False, detokenize=True):
         '''
         In addition to abstract method @params:
-
         @param preprocess whether to apply preprocessing steps to segment
         @param lowercase whether to lowercase (True) or restore the original
             casing (False) of the output segment.
@@ -281,9 +284,11 @@ class TranslationEngineNematus(TranslationEngineBase):
             moses detruecase.perl
             moses detokenizer.perl
     '''
-    def __init__(self, basepath, src_lang, trg_lang):
+    def __init__(self, basepath, src_lang, trg_lang, adjust_dictionary=False):
         '''
-        No addition to Metaclass @params.
+        In addition to Metaclass @params:
+        @param adjust_dictionary whether or not dictionary paths in model config
+            shall be adjusted.
         '''
         super(TranslationEngineNematus, self).__init__(basepath, src_lang, trg_lang)
 
@@ -296,6 +301,42 @@ class TranslationEngineNematus(TranslationEngineBase):
         self._load_decoder()
         self._load_detruecaser()
         self._load_detokenizer()
+
+        if adjust_dictionary:
+            self._adjust_dictionary()
+
+    def _adjust_dictionary(self):
+        '''
+        Ensure dictionary paths in model config (model.npz.json in model basepath) match the .json files
+        in the basepath's corpus folder. Necessary when models were trained in a path different than
+        the current basepath. If paths are not matching, nematus returns an empty string for any translation
+        without error message OR may use the wrong .json files for translation.
+        '''
+        # get path and file name of model config
+        model_config = self._path_nematus_model + '.json'
+        # get identifiers for finding entries of source and target dictionary
+        old_src_json = ".".join([self._src_lang, 'json'])
+        old_trg_json = ".".join([self._trg_lang, 'json'])
+        # get correct entry in config file for source and target dictionary
+        corpus_path = os.sep.join([
+            self._basepath,
+            PATH_COMPONENT['corpus']
+        ])
+        new_src_json = '    "' + corpus_path + '/' + ".".join([BASENAME_TRAINING_CORPUS, SUFFIX_TRUECASED, BPE, self._src_lang, 'json",\n'])
+        new_trg_json = '    "' + corpus_path + '/' + ".".join([BASENAME_TRAINING_CORPUS, SUFFIX_TRUECASED, BPE, self._trg_lang, 'json"\n'])
+        # replace lines with source and target dictionary with correct entries
+        with open(model_config) as f:
+            old_config = f.readlines()
+        f.close()
+        with open(model_config, 'w') as f:
+            for line in old_config:
+                if old_src_json in line:
+                    f.write(new_src_json)
+                elif old_trg_json in line:
+                    f.write(new_trg_json)
+                else:
+                    f.write(line)
+        f.close()
 
     def _load_normalizer(self):
         '''
@@ -329,14 +370,14 @@ class TranslationEngineNematus(TranslationEngineBase):
 
     def _load_engine(self):
         '''
-        Start a process as Nematus translation engine.
+        Start a process for Nematus translation engine.
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt translate.sh, including:
                 nematus translate.py
         '''
-        path_nematus_model = os.sep.join([
+        self._path_nematus_model = os.sep.join([
             self._basepath,
             PATH_COMPONENT['engine'],
             'tm',
@@ -345,7 +386,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         ])
 
         self._engine = EngineNematus(
-            path_nematus_model
+            self._path_nematus_model
         )
 
     def _load_decoder(self):
@@ -425,7 +466,9 @@ class TranslationEngineNematus(TranslationEngineBase):
 
     def translate(self, segment, device_trans=None, preallocate_trans=None):
         '''
-        No addition to abstract method @params.
+        In addition to abstract method @params:
+        @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
+        @param preallocate_trans defines the percentage of memory to be preallocated for translation
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md

@@ -106,6 +106,15 @@ def get_argument_parser():
             "The system will automatically use more memory if available and safe."
         ###BH todo # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
+    nematus_args.add_argument(
+        "--adjust_dictionary",
+        help="Ensure dictionary paths in model config (model.npz.json in model basepath) match the .json files " +
+            "in the basepath's corpus folder. Necessary when models were trained in a path different than " +
+            "the current basepath. If paths are not matching, nematus returns an empty string for any translation " +
+            "without error message OR may use the wrong .json files for translation.",
+        default=False,
+        action="store_true"
+    )
 
     ###BH todo add option to save translation to file (in addition to terminal output)
 
@@ -151,7 +160,7 @@ def main():
         wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
         '''
         # translation using nematus engine
-        engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang)
+        engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang, args.adjust_dictionary)
         print("\nInput in '%s' translated to '%s' using backend %s:" % (args.src_lang, args.trg_lang, args.backend))
         for line in sys.stdin: # read stdin
             source_segment = line.strip()

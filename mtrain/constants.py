@@ -80,7 +80,7 @@ PATH_COMPONENT = {
     "evaluation": "evaluation",
     "logs": "logs"
 }
-# Subfolder for bpe model when preprocessing nematus
+# Subfolder for bpe model and file suffix when byte-pair encoded in nematus ###BH new, reference?
 BPE = 'bpe'
 
 # Default file names and affixes

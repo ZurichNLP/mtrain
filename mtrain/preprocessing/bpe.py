@@ -138,13 +138,13 @@ class TranslationEncoder(object):
         self._model = bpe_model
 
         #BH debugging: external processor does not work with python script
-        arguments = [
-            '-c %s' % self._model
-        ]
+        # arguments = [
+        #     '-c %s' % self._model
+        # ]
 
-        self._processor = ExternalProcessor(
-            command=" ".join([SUBWORD_NMT_APPLY] + arguments)
-        )
+        # self._processor = ExternalProcessor(
+        #     command=" ".join([SUBWORD_NMT_APPLY] + arguments)
+        # )
 
     def close(self):
         del self._processor
@@ -155,29 +155,30 @@ class TranslationEncoder(object):
         processing model trained in `mtrain`.
         '''
         ###BH debugging: external processor does not work with python script
-        return self._processor.process(segment)
+        # encoded_segment = self._processor.process(segment)
+        # return encoded_segment
 
-        # # use temporary files to process segments as exernal processor is not applicable
-        # in_file = self._model + '.TMPIN'
-        # out_file = self._model + '.TMPOUT'
-        # with open(in_file,'w') as f:
-        #     f.write(segment)
-        # f.close()
+        # use temporary files to process segments as exernal processor is not applicable
+        in_file = self._model + '.TMPIN'
+        out_file = self._model + '.TMPOUT'
+        with open(in_file,'w') as f:
+            f.write(segment)
+        f.close()
 
-        # ###BH move reference from init if reactivated
-        # commander.run(
-        #     '{script} -c {model} < {input} > {output}'.format(
-        #         script=SUBWORD_NMT_APPLY,
-        #         model=self._model,
-        #         input=in_file,
-        #         output=out_file
-        #     )
-        # )
+        ###BH move reference from init if reactivated
+        commander.run(
+            '{script} -c {model} < {input} > {output}'.format(
+                script=SUBWORD_NMT_APPLY,
+                model=self._model,
+                input=in_file,
+                output=out_file
+            )
+        )
 
-        # # read processed segment from temporary file and return
-        # with open(out_file,'r') as f:
-        #     return f.read()
-        # ###BH todo rm in_file and out_file
+        # read processed segment from temporary file and return
+        with open(out_file,'r') as f:
+            return f.read()
+        ###BH todo rm in_file and out_file
 
 class TranslationDecoder(object):
     '''
