@@ -198,14 +198,14 @@ def get_argument_parser():
     nematus_args.add_argument(
         "--device_train",
         type=str,
-        help="choose a free gpu for nematus training, consult your server responsible " +
+        help="choose a free processing unit for nematus training, consult your server responsible " +
             "to learn about appropriate settings"
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
     )
     nematus_args.add_argument(
         "--preallocate_train",
         type=str,
-        help="preallocate gpu memory for nematus training if applicable on your server. " +
+        help="preallocate processing unit memory for nematus training if applicable on your server. " +
             "Do not preallocate more than `0.8` = 80 percent of memory. " +
             "The system will automatically use more memory if available and safe."
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
@@ -213,7 +213,7 @@ def get_argument_parser():
     nematus_args.add_argument(
         "--device_validate",
         type=str,
-        help="choose a free gpu for nematus validation, consult your server responsible " +
+        help="choose a free processing unit for nematus validation, consult your server responsible " +
             "to learn about appropriate settings. " + 
             "Omit if '--external_validation_script' is provided."
         # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
@@ -221,7 +221,7 @@ def get_argument_parser():
     nematus_args.add_argument(
         "--preallocate_validate",
         type=str,
-        help="preallocate gpu memory for nematus validation if applicable on your server. " +
+        help="preallocate processing unit memory for nematus validation if applicable on your server. " +
             "Do not preallocate more than `0.3` = 30 percent of memory. " +
             "The system will automatically use more memory if available and safe. " +
             "Omit if '--external_validation_script' is provided."
@@ -331,7 +331,7 @@ def check_arguments_nematus(args):
     # currently no casing other than 'truecasing' for backend nematus, warn and continue using 'TRUECASING'
     if args.caser != TRUECASING:
         logging.warning("Invalid command line options. For '--backend %s', " +
-            "only '%s' is applicable as casing strategy and will therefore be used. " +
+            "only `%s` is applicable as casing strategy and will therefore be used. " +
             "See '-h'/'--help' for more information.", BACKEND_NEMATUS, TRUECASING)
         args.caser = TRUECASING
 
