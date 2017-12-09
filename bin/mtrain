@@ -242,7 +242,7 @@ def get_argument_parser():
     return parser
 
 ###BH todo test and check if complete
-def check_environment_moses():
+def check_environment_moses(args):
     '''
     Abort if environment variables specific for moses backend are not set.
 
@@ -254,7 +254,7 @@ def check_environment_moses():
         checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
 
 ###BH todo test and check if complete
-def check_environment_nematus():
+def check_environment_nematus(args):
     '''
     Abort if environment variables specific for nematus backend are not set.
 
@@ -408,7 +408,7 @@ def main():
     if args.backend == BACKEND_MOSES:
 
         # abort if environment variables for moses backend are not set
-        check_environment_moses()
+        check_environment_moses(args)
 
         # check if arguments suiting moses
         check_arguments_moses(args)
@@ -481,7 +481,7 @@ def main():
         wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
         '''
         # abort if environment variables for nematus backend are not set
-        check_environment_nematus()
+        check_environment_nematus(args)
 
         # check if arguments suiting nematus
         check_arguments_nematus(args)
