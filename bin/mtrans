@@ -91,6 +91,22 @@ def get_argument_parser():
     # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
     nematus_args = parser.add_argument_group("Nematus arguments")
 
+    nematus_args.add_argument(
+        "--device_trans",
+        type=str,
+        help="choose a free processing unit for nematus translation, consult your server responsible " +
+            "to learn about appropriate settings"
+        ###BH todo # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
+    )
+    nematus_args.add_argument(
+        "--preallocate_trans",
+        type=str,
+        help="preallocate processing unit memory for nematus translation if applicable on your server. " +
+            "Do not preallocate more than `0.2` = 20 percent of memory. " +
+            "The system will automatically use more memory if available and safe."
+        ###BH todo # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
+    )
+
     ###BH todo add option to save translation to file (in addition to terminal output)
 
     return parser
@@ -140,7 +156,7 @@ def main():
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
             if source_segment != '':
-                translation = engine.translate(source_segment)
+                translation = engine.translate(source_segment, args.device_trans, args.preallocate_trans)
 
                 print(translation)
                 ###BH todo check if optional, but maybe not: preprocess, lowercase, detokenize

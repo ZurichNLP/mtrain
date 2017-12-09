@@ -423,7 +423,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         # return detokenized segment
         return segment
 
-    def translate(self, segment):
+    def translate(self, segment, device_trans=None, preallocate_trans=None):
         '''
         No addition to abstract method @params.
 
@@ -445,7 +445,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         # preprocess input segment
         segment = self._preprocess_segment(segment)
         # translate preprocessed segment
-        segment = self._engine.translate_segment(segment)
+        segment = self._engine.translate_segment(segment, device_trans, preallocate_trans)
         # postprocess translated segment
         segment = self._postprocess_segment(segment)
         # return final segment to `mtrans`

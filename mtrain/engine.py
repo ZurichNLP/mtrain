@@ -166,9 +166,11 @@ class EngineNematus(EngineBase):
         '''
         self._model = path_nematus_model
 
-    def translate_segment(self, segment):
+    def translate_segment(self, segment, device_trans, preallocate_trans):
         '''
         In addition to abstract method @params:
+        @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
+        @param preallocate_trans defines the percentage of memory to be preallocated for translation
         @return a translated segment
 
         ###BH todo add reference to:
@@ -185,9 +187,9 @@ class EngineNematus(EngineBase):
             f.write(segment)
         f.close()
 
-        theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn{preallocate} python2 {script} '.format(
-            device='cuda0', ###BH test gpuN vs cudaN
-            preallocate=',gpuarray.preallocate=0.2', ###BH test for cudaN use ',gpuarray.preallocate=0.2'
+        theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} '.format(
+            device=device_trans,
+            preallocate=preallocate_trans,
             script=NEMATUS_TRANSLATE
         )
         nematus_trans_options = '-m {model} -i {input} -o {output} -k 12 -n -p 1'.format(
