@@ -307,7 +307,7 @@ class TranslationEngineNematus(TranslationEngineBase):
 
     def _adjust_dictionary(self):
         '''
-        Ensure dictionary paths in model config (model.npz.json in model basepath) match the .json files
+        Ensure dictionary paths in model config (model.npz.json located in model basepath) match the .json files
         in the basepath's corpus folder. Necessary when models were trained in a path different than
         the current basepath. If paths are not matching, nematus returns an empty string for any translation
         without error message OR may use the wrong .json files for translation.
