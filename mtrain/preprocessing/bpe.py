@@ -132,19 +132,16 @@ class TranslationEncoder(object):
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt preprocess.sh, including:
                 subword_nmt apply_bpe.py
-        MOVE REF TO encode() if ExtProz not working.
         '''
-        #BH debugging
-        self._model = bpe_model
-
-        #BH debugging: external processor does not work with python script
-        # arguments = [
-        #     '-c %s' % self._model
-        # ]
-
-        # self._processor = ExternalProcessor(
-        #     command=" ".join([SUBWORD_NMT_APPLY] + arguments)
-        # )
+        arguments = [
+            '-c %s' % bpe_model
+        ]
+        # the subword script apply_bpe.py needs to be run in python 3 environment and thus,
+        # respective constant used to make this explicit (workaround for environments that do not
+        # clearly specify paths to python versions)
+        self._processor = ExternalProcessor(
+            command=" ".join([PYTHON3] + [SUBWORD_NMT_APPLY] + arguments)
+        )
 
     def close(self):
         del self._processor
@@ -154,31 +151,8 @@ class TranslationEncoder(object):
         Encodes a single @param segment by applying the byte-pair
         processing model trained in `mtrain`.
         '''
-        ###BH debugging: external processor does not work with python script
-        # encoded_segment = self._processor.process(segment)
-        # return encoded_segment
-
-        # use temporary files to process segments as exernal processor is not applicable
-        in_file = self._model + '.TMPIN'
-        out_file = self._model + '.TMPOUT'
-        with open(in_file,'w') as f:
-            f.write(segment)
-        f.close()
-
-        ###BH move reference from init if reactivated
-        commander.run(
-            '{script} -c {model} < {input} > {output}'.format(
-                script=SUBWORD_NMT_APPLY,
-                model=self._model,
-                input=in_file,
-                output=out_file
-            )
-        )
-
-        # read processed segment from temporary file and return
-        with open(out_file,'r') as f:
-            return f.read()
-        ###BH todo rm in_file and out_file
+        encoded_segment = self._processor.process(segment)
+        return encoded_segment
 
 class TranslationDecoder(object):
     '''

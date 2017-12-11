@@ -296,7 +296,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         self._load_normalizer()
         self._load_tokenizer()
         self._load_truecaser()
-        self._load_encoder() ###BH debugging: even if external prozessor not working, keep this so it does not have to be loaded for every segment!
+        self._load_encoder()
         self._load_engine()
         self._load_decoder()
         self._load_detruecaser()
@@ -350,7 +350,6 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         self._tokenizer = Tokenizer(self._src_lang)
 
-    ###BH debugging: even if external prozessor not working, keep this so it does not have to be loaded for every segment!
     def _load_encoder(self):
         '''
         Create byte-pair encoder: Uses the bpe model learnt in `mtrain`
@@ -423,15 +422,11 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         # normalize input segment
         segment = self._normalizer.normalize_punctuation(segment)
-        ########################################################################
-        ###BH encoding seems to fail when cedillas and diacritics removed ?
-        ###   problem could be that model was insufficiently trained, retest
         # when normalized, Romanian segments need further cleaning from cedillas and diacritics
         # normalize_romanian() must be called before remove_ro_diacritics()
         if self._src_lang == 'ro':
             segment = cleaner.normalize_romanian(segment)
             segment = cleaner.remove_ro_diacritics(segment)
-        ########################################################################
         # tokenize normalized segment
         tokens = self._tokenizer.tokenize(segment)
         # truecase tokens (using truecasing model trained in `mtrain`)

@@ -241,3 +241,7 @@ BACKEND_CHOICES = {
     BACKEND_MOSES: "Trains a Statistical Machine Translation system based on Moses (default)",
     BACKEND_NEMATUS: "Trains a Neural Network system based on Nematus"
 }
+
+# Distinction of python versions in backend nematus, useful when mixed environment with python 2 and 3 causes trouble
+PYTHON2 = os.environ.get('PYTHON2') if os.environ.get('PYTHON2') else 'python2' # Python 2 base directory
+PYTHON3 = os.environ.get('PYTHON3') if os.environ.get('PYTHON3') else 'python3' # Python 3 base directory
