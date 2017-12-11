@@ -1482,9 +1482,9 @@ $moses_detruecaser"""
             script=script_path_full
         )
 
-        # todo: solve issue https://gitlab.cl.uzh.ch/mt/mtrain/issues/40 and replace this workaround:
+        # todo, solve issue https://gitlab.cl.uzh.ch/mt/mtrain/issues/40 and replace this workaround:
         # append debug log explicitly to training.log in basepath of mtrain, includes output of external validation script.
-        # expect training output to be logged to training.log AGAIN due to the issue (happens when training finishes or terminates due to error)
+        # expect training output to be logged to training.log AGAIN if training terminates due to an error.
         logfile = self._basepath + '/training.log'
         log_to_file = '>> {log} 2>&1'.format(
             log=logfile
