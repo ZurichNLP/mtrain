@@ -139,7 +139,7 @@ def main():
     # distinguish chosen backend
     if args.backend == BACKEND_MOSES:
 
-        # translation using moses engine
+        # instantiating moses translation engine
         ###BH @MM: positional args 'uppercase_first_letter' and 'quiet' were missing
         ###old line was: engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
         ###possibly resulting in 'xml_strategy=args.xml_input' passed to 'uppercase_first_letter=False' when creating instance of TranlationEngine
@@ -172,7 +172,8 @@ def main():
         # setting up translation file path for storing output if chosen
         translation_file = args.basepath + '/translation.txt'
 
-        # cleanup: remove temp files from previous translation attempts if program terminated
+        # cleanup: remove temp files from previous translation attempts e.g. when program terminated
+        ###BH check reference # cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
         try:
             os.remove(temp_pre)
         except FileNotFoundError:
@@ -182,7 +183,7 @@ def main():
         except FileNotFoundError:
             pass
 
-        # translation using nematus engine
+        # instantiating nematus translation engine
         engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang, args.adjust_dictionary)
         print("\nINFO: Translating '%s' input to '%s' using backend %s:\n" % (args.src_lang, args.trg_lang, args.backend))
 
@@ -191,7 +192,7 @@ def main():
             for line in sys.stdin: # read stdin
                 source_segment = line.strip()
                 if source_segment != '':
-                    preprocessed_segment = engine._preprocess_segment(source_segment)
+                    preprocessed_segment = engine.preprocess(source_segment)
                     preprocessed_segment = preprocessed_segment.rstrip()
                     f_pre.write(preprocessed_segment + '\n')
         f_pre.close()
@@ -204,7 +205,7 @@ def main():
         if args.keep_translation:
             with open(translation_file, 'a') as f_out:
                 # write info and timestamp to translation file if chosen
-                # cf. https://www.saltycrane.com/blog/2008/06/how-to-get-current-date-and-time-in/
+                ###BH check reference # cf. https://www.saltycrane.com/blog/2008/06/how-to-get-current-date-and-time-in/
                 now = datetime.datetime.now()
                 f_out.write("\nINFO: Your '%s' input translated to '%s' using backend %s, %s:\n\n" % (args.src_lang, args.trg_lang, args.backend, now.strftime("%Y-%m-%d %H:%M:%S")))
             f_out.close()
@@ -214,7 +215,7 @@ def main():
             for line in f_trans:
                 trans_segment = line.strip()
                 if trans_segment != '':
-                    postprocessed_segment = engine._postprocess_segment(trans_segment)
+                    postprocessed_segment = engine.postprocess(trans_segment)
                     postprocessed_segment = postprocessed_segment.rstrip()
                     print(postprocessed_segment)
 

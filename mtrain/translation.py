@@ -9,7 +9,7 @@ import os
 from abc import ABCMeta
 from mtrain import inspector
 from mtrain.constants import *
-from mtrain.engine import EngineBase, EngineMoses, EngineNematus
+from mtrain.engine import EngineMoses, EngineNematus
 from mtrain.preprocessing import lowercaser, cleaner
 from mtrain.preprocessing.truecaser import Truecaser, Detruecaser
 from mtrain.preprocessing.recaser import Recaser
@@ -290,7 +290,6 @@ class TranslationEngineNematus(TranslationEngineBase):
         In addition to Metaclass @params:
         @param adjust_dictionary whether or not dictionary paths in model config
             shall be adjusted.
-        @param ###BH todo revise
         '''
         super(TranslationEngineNematus, self).__init__(basepath, src_lang, trg_lang)
 
@@ -463,32 +462,31 @@ class TranslationEngineNematus(TranslationEngineBase):
         # return detokenized segment
         return segment
 
+    def preprocess(self, segment):
+        '''
+        Method to make preprocessing of a single @param segment accessible from `mtrans`.
+        '''
+        return self._preprocess_segment(segment)
+
     def translate(self, device_trans=None, preallocate_trans=None, temp_pre=None, temp_trans=None):
         '''
         In addition to abstract method @params:
         @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
         @param preallocate_trans defines the percentage of memory to be preallocated for translation
+        @param temp_pre path to temporary file holding preprocessed segments as one text
+        @param temp_trans path to temporary file for translated text
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                moses normalize-punctuation.perl
-                wmt normalise-romanian.py
-                wmt remove-diacritics.py
-                moses tokenizer.perl
-                moses truecase.perl
-                subword_nmt apply_bpe.py
             wmt translate.sh, including:
                 nematus translate.py
-            wmt postprocess-test.sh, including:
-                moses detruecase.perl
-                moses detokenizer.perl
         '''
-        # preprocess input segment
-        ###segment = self._preprocess_segment(segment)
-        # translate preprocessed segment
-        self._engine.translate_segment(device_trans, preallocate_trans, temp_pre, temp_trans)
-        # postprocess translated segment
-        ###segment = self._postprocess_segment(segment)
-        # return final segment to `mtrans`
-        #return segment
+        # translate preprocessed text provided by @param temp_pre,
+        # translated text will be available from @param temp_trans, thus no @return
+        self._engine.translate_text(device_trans, preallocate_trans, temp_pre, temp_trans)
+
+    def postprocess(self, segment):
+        '''
+        Method to make postprocessing of a single @param segment accessible from `mtrans`.
+        '''
+        return self._postprocess_segment(segment)

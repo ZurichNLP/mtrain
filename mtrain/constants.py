@@ -245,5 +245,6 @@ BACKEND_CHOICES = {
 # Distinction of python versions in backend nematus, useful when mixed environment with python 2 and 3 causes trouble:
 # E.g. bpe.py's TranslationEncoder needs to call the script explicitly as Python 3. If 'python' does not point to Python 3
 # in your environment as it should, use 'export PYTHON3=/path/to/python3'
+###BH add reference to env vars?
 PYTHON2 = os.environ.get('PYTHON2') if os.environ.get('PYTHON2') else 'python2' # Python 2 base directory
 PYTHON3 = os.environ.get('PYTHON3') if os.environ.get('PYTHON3') else 'python' # Python 3 base directory

@@ -187,8 +187,6 @@ class TrainingBase(object):
         @param max_tokens maximal number of tokens in a segment
         @param tokenizer the right tokenizer depending on the language
         @param accurate whether the counting should be naive (faster) or accurate (slower)
-        @return the input segment. None means that the segment should be
-            discarded.
         '''
         pass
 
@@ -578,7 +576,9 @@ class TrainingMoses(TrainingBase):
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
         accurate=False):
         '''
-        No addition to abstract method @params.
+        In addition to abstract method @params:
+        @return the input segment. None means that the segment should be
+            discarded.
         '''
         original_segment = segment
 
@@ -1061,7 +1061,9 @@ class TrainingNematus(TrainingBase):
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
         accurate=False):
         '''
-        No addition to abstract method @params.
+        In addition to abstract method @params:
+        @return the input segment. None means that the segment should be
+            discarded.
 
         ###BH todo: unclear if reference necessary as scripts and technique already in moses backend
         '''
@@ -1091,6 +1093,7 @@ class TrainingNematus(TrainingBase):
         No addition to abstract method @params.
 
         ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt preprocess.sh, including:
                 moses normalize-punctuation.perl
                 wmt normalise-romanian.py
@@ -1198,6 +1201,7 @@ class TrainingNematus(TrainingBase):
         No addition to abstract method @params.
 
         ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt preprocess.sh, including:
                 moses normalize-punctuation.perl
                 wmt normalise-romanian.py
@@ -1297,6 +1301,7 @@ class TrainingNematus(TrainingBase):
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
 
         ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt validate.sh, including:
                 nematus translate.py
                 moses multi-bleu.perl
@@ -1365,6 +1370,7 @@ fi"""
         This does not execute postprocessing, but enabling postprocessing during training's validation steps to work properly.
 
         ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt postprocess-dev.sh, including:
                 detruecase.perl
         '''
@@ -1404,6 +1410,7 @@ $moses_detruecaser"""
         @param preallocate_train defines the percentage of memory to be preallocated for training
 
         ###BH todo add reference to:
+            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt train.sh, including:
                 wmt config.py for parameter examples AND nematus nmt.py
         '''

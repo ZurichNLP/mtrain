@@ -1,31 +1,21 @@
 #!/usr/bin/env python3
 
 import logging
-import abc
 
-from abc import ABCMeta
 from collections import defaultdict
 from mtrain import commander
 from mtrain.constants import *
 from mtrain.preprocessing.external import ExternalProcessor
 
-class EngineBase(object):
-    '''
-    Abstract class for translating preprocessed segments.
-    '''
-    __metaclass__ = ABCMeta
+'''
+Specific engines and methods for either backend.
 
-    def __init__():
-        pass
+Abstract class only useful when e.g. Nematus processed segments instead
+of whole text. As for now, the backends' translation strategy have too little
+in common to create abstract class.
+'''
 
-    @abc.abstractmethod
-    def translate_segment(self, segment):
-        '''
-        Translates a single input segment, @param segment.
-        '''
-        pass
-
-class EngineMoses(EngineBase):
+class EngineMoses(object):
     '''
     Starts a translation engine process for moses backend and keep it running.
     '''
@@ -138,7 +128,8 @@ class EngineMoses(EngineBase):
 
     def translate_segment(self, segment):
         '''
-        In addition to abstract method @params:
+        Translates a single input segment, @param segment.
+
         @return a TranslatedSegment object with a translation and,
         optionally, alignments and/or segmentation info
         '''
@@ -151,7 +142,7 @@ class EngineMoses(EngineBase):
             segmentation=segmentation
         )
 
-class EngineNematus(EngineBase):
+class EngineNematus(object):
     '''
     Starts a translation engine process for nematus backend.
 
@@ -162,19 +153,16 @@ class EngineNematus(EngineBase):
     '''
     def __init__(self, path_nematus_model):
         '''
-        @param path_nematus_model full path to model trained in `mtrain` using backend nematus$
-        @param ###BH todo revise
+        @param path_nematus_model full path to model trained in `mtrain` using backend nematus
         '''
         self._model = path_nematus_model
 
-    def translate_segment(self, device_trans, preallocate_trans, temp_pre, temp_trans):
+    def translate_text(self, device_trans, preallocate_trans, temp_pre, temp_trans):
         '''
-        In addition to abstract method @params:
         @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
         @param preallocate_trans defines the percentage of memory to be preallocated for translation
-
-        ###BH @return a translated segment
-        ###BH todo revise params
+        @param temp_pre path to temporary file holding preprocessed segments as one text
+        @param temp_trans path to temporary file for translated text
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md

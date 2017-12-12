@@ -26,6 +26,7 @@ class ExternalProcessor(object):
             blocking way
         @param trailing_output whether the external process outputs trailing
             lines after the actual, single, output line
+        @param shell whether or not the command shall be executed as shell script process
         '''
         # calling extenal processor with underlying shell script process
         self.command = command
@@ -46,7 +47,7 @@ class ExternalProcessor(object):
         '''
         # calling extenal processor as python process
         # e.g. for bpe encoder. python subprocess needs command as list of elements
-        # cf. https://docs.python.org/3.6/library/subprocess.html
+        ###BH check reference # cf. https://docs.python.org/3.6/library/subprocess.html
         elif shell == False:
             self.command = command.split()
             self._stream_stderr = stream_stderr

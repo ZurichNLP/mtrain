@@ -26,7 +26,7 @@ class Encoder(object):
         @params corpus_train_tc location of truecased training corpus (no language ending)
         @params corpus_tune_tc location of truecased tuning corpus (no language ending)
         @params bpe_model_path path of byte-pair encoding model to be stored (no filename)
-        @params bpe_operations number of n-grams to be created ###BH ref?
+        @params bpe_operations number of n-grams to be created ###BH add ref?
         @params src_lang language identifier of source language
         @params trg_lang language identifier of target language
         '''
