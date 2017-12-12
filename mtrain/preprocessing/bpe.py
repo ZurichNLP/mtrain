@@ -140,7 +140,10 @@ class TranslationEncoder(object):
         # respective constant used to make this explicit (workaround for environments that do not
         # clearly specify paths to python versions)
         self._processor = ExternalProcessor(
-            command=" ".join([PYTHON3] + [SUBWORD_NMT_APPLY] + arguments)
+            command=" ".join([PYTHON3] + [SUBWORD_NMT_APPLY] + arguments),
+            stream_stderr=False, # just used as positional argument
+            trailing_output=False, # just used as positional argument
+            shell=False # call as python process (instead of shell subprocess)
         )
 
     def close(self):

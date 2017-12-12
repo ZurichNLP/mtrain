@@ -19,7 +19,7 @@ class ExternalProcessor(object):
     Thread-safe wrapper for interaction with an external I/O shell script
     '''
 
-    def __init__(self, command, stream_stderr=False, trailing_output=False):
+    def __init__(self, command, stream_stderr=False, trailing_output=False, shell=True):
         '''
         @param command the command that should be executed on the shell
         @param stream_stderr whether STDERR should be streamread in a non-
@@ -27,7 +27,7 @@ class ExternalProcessor(object):
         @param trailing_output whether the external process outputs trailing
             lines after the actual, single, output line
         '''
-        
+        # calling extenal processor with underlying shell script process
         self.command = command
         self._stream_stderr = stream_stderr
         self._trailing_output = trailing_output
@@ -43,9 +43,30 @@ class ExternalProcessor(object):
         if self._stream_stderr:
             self._nbsr = _NonBlockingStreamReader(self._process.stderr)
 
+        '''
+        # calling extenal processor as python process
+        # e.g. for bpe encoder. python subprocess needs command as list of elements
+        # cf. https://docs.python.org/3.6/library/subprocess.html
+        elif shell == False:
+            self.command = command.split()
+            self._stream_stderr = stream_stderr
+            self._trailing_output = trailing_output
+            logging.debug("Executing %s", self.command)
+            self._process = Popen(
+                self.command,
+                shell=False,
+                stdin=PIPE,
+                stdout=PIPE,
+                stderr=PIPE if self._stream_stderr else None
+            )
+            self._lock = threading.Lock()
+            if self._stream_stderr:
+                self._nbsr = _NonBlockingStreamReader(self._process.stderr)
+        '''
+
     def close(self):
         '''
-        Closes the underlying shell script (process).
+        Closes the underlying process.
         '''
         self._process.terminate()
 
