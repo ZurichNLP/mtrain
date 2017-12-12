@@ -162,31 +162,25 @@ class EngineNematus(EngineBase):
     '''
     def __init__(self, path_nematus_model):
         '''
-        @param path_nematus_model full path to model trained in `mtrain` using backend nematus
+        @param path_nematus_model full path to model trained in `mtrain` using backend nematus$
+        @param ###BH todo revise
         '''
         self._model = path_nematus_model
 
-    def translate_segment(self, segment, device_trans, preallocate_trans):
+    def translate_segment(self, device_trans, preallocate_trans, temp_pre, temp_trans):
         '''
         In addition to abstract method @params:
         @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
         @param preallocate_trans defines the percentage of memory to be preallocated for translation
-        @return a translated segment
+
+        ###BH @return a translated segment
+        ###BH todo revise params
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
             wmt translate.sh, including:
                 nematus translate.py
         '''
-        ###BH debugging: external processor does not work with python script
-
-        # use temporary files to process segments as exernal processor is not applicable
-        in_file = self._model + '.TMPIN'
-        out_file = self._model + '.TMPOUT'
-        with open(in_file,'w') as f:
-            f.write(segment)
-        f.close()
-
         theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} '.format(
             device=device_trans,
             preallocate=preallocate_trans,
@@ -194,19 +188,14 @@ class EngineNematus(EngineBase):
         )
         nematus_trans_options = '-m {model} -i {input} -o {output} -k 12 -n -p 1'.format(
             model=self._model,
-            input=in_file,
-            output=out_file
+            input=temp_pre,
+            output=temp_trans
         )
         commander.run(
             '{nematus_command}'.format(
                 nematus_command=theano_trans_flags + nematus_trans_options
             ),
         )
-
-        # read processed segment from temporary file and return
-        with open(out_file,'r') as f:
-            return f.read()
-        ###BH todo rm in_file and out_file
 
 class TranslatedSegment(object):
     '''

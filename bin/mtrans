@@ -5,6 +5,7 @@ import logging
 import argparse
 import sys
 import os
+import datetime
 
 from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus
 from mtrain.constants import *
@@ -115,8 +116,13 @@ def get_argument_parser():
         default=False,
         action="store_true"
     )
-
-    ###BH todo add option to save translation to file (in addition to terminal output)
+    nematus_args.add_argument(
+        "--keep_translation",
+        help="In addition to being printed to the terminal, keep a copy of the translated text " +
+        "which is appended to the translation file stored in your base directory.",
+        default=False,
+        action="store_true"
+    )
 
     return parser
 
@@ -138,7 +144,7 @@ def main():
         ###old line was: engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
         ###possibly resulting in 'xml_strategy=args.xml_input' passed to 'uppercase_first_letter=False' when creating instance of TranlationEngine
         engine = TranslationEngineMoses(args.basepath, args.src_lang, args.trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
-        print("\nInput in '%s' translated to '%s' using backend %s:" % (args.src_lang, args.trg_lang, args.backend))
+        print("\nINFO: Translating '%s' input to '%s' using backend %s:" % (args.src_lang, args.trg_lang, args.backend))
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
             if source_segment != '':
@@ -159,17 +165,73 @@ def main():
         ###BH todo add reference for general approach when translating with nematus model:
         wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
         '''
+        # setting up temporary files for translation
+        path_temp_files = '/tmp'
+        temp_pre = path_temp_files + '/mtrans.tmp.pre'
+        temp_trans = path_temp_files + '/mtrans.tmp.trans'
+        # setting up translation file path for storing output if chosen
+        translation_file = args.basepath + '/translation.txt'
+
+        # cleanup: remove temp files from previous translation attempts if program terminated
+        try:
+            os.remove(temp_pre)
+        except FileNotFoundError:
+            pass
+        try:
+            os.remove(temp_trans)
+        except FileNotFoundError:
+            pass
+
         # translation using nematus engine
         engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang, args.adjust_dictionary)
-        print("\nInput in '%s' translated to '%s' using backend %s:" % (args.src_lang, args.trg_lang, args.backend))
-        for line in sys.stdin: # read stdin
-            source_segment = line.strip()
-            if source_segment != '':
-                translation = engine.translate(source_segment, args.device_trans, args.preallocate_trans)
+        print("\nINFO: Translating '%s' input to '%s' using backend %s:\n" % (args.src_lang, args.trg_lang, args.backend))
 
-                print(translation)
-                ###BH todo check if optional, but maybe not: preprocess, lowercase, detokenize
-                ###BH todo check if uppercase first letter of segment necessary, should be osolete as detruecase is already applied
+        # preprocess segments and store in temp file
+        with open(temp_pre, 'a') as f_pre: ###
+            for line in sys.stdin: # read stdin
+                source_segment = line.strip()
+                if source_segment != '':
+                    preprocessed_segment = engine._preprocess_segment(source_segment)
+                    preprocessed_segment = preprocessed_segment.rstrip()
+                    f_pre.write(preprocessed_segment + '\n')
+        f_pre.close()
+
+        # translate preprocessed segments as whole text using temp files:
+        # as each call of nematus' translate.py takes time to initialize cpu/gpu/cuda,
+        # segment by segment translation would result in significant loss of time
+        engine.translate(args.device_trans, args.preallocate_trans, temp_pre, temp_trans)
+
+        if args.keep_translation:
+            with open(translation_file, 'a') as f_out:
+                # write info and timestamp to translation file if chosen
+                # cf. https://www.saltycrane.com/blog/2008/06/how-to-get-current-date-and-time-in/
+                now = datetime.datetime.now()
+                f_out.write("\nINFO: Your '%s' input translated to '%s' using backend %s, %s:\n\n" % (args.src_lang, args.trg_lang, args.backend, now.strftime("%Y-%m-%d %H:%M:%S")))
+            f_out.close()
+
+        # postprocess segments by reading from translated temp file
+        with open(temp_trans, 'r') as f_trans:
+            for line in f_trans:
+                trans_segment = line.strip()
+                if trans_segment != '':
+                    postprocessed_segment = engine._postprocess_segment(trans_segment)
+                    postprocessed_segment = postprocessed_segment.rstrip()
+                    print(postprocessed_segment)
+
+                    # storing output if chosen
+                    if args.keep_translation:
+                        with open(translation_file, 'a') as f_out:
+                            f_out.write(postprocessed_segment + '\n')
+                        f_out.close()
+        f_trans.close()
+
+        # inform user where to find translation file
+        if args.keep_translation:
+            print("\nINFO: '%s' translation stored in file %s\n" % (args.trg_lang, translation_file))
+
+        # cleanup: remove temp files
+        os.remove(temp_pre)
+        os.remove(temp_trans)
 
 if __name__ == '__main__':
     # abort if Python version is not supported

@@ -33,8 +33,6 @@ class TranslationEngineBase(object):
         @param src_lang the source language
         @param trg_lang the target language
         '''
-        assert(inspector.is_mtrain_engine(basepath)) ###BH check if applicable for nematus
-        self._basepath = basepath.rstrip(os.sep)
         self._src_lang = src_lang
         self._trg_lang = trg_lang
 
@@ -86,6 +84,9 @@ class TranslationEngineMoses(TranslationEngineBase):
         @param quiet if quiet, do not INFO log events
         '''
         super(TranslationEngineMoses, self).__init__(basepath, src_lang, trg_lang)
+
+        assert(inspector.is_mtrain_engine(basepath))
+        self._basepath = basepath.rstrip(os.sep)
 
         self._quiet = quiet
         # set strategies
@@ -289,8 +290,11 @@ class TranslationEngineNematus(TranslationEngineBase):
         In addition to Metaclass @params:
         @param adjust_dictionary whether or not dictionary paths in model config
             shall be adjusted.
+        @param ###BH todo revise
         '''
         super(TranslationEngineNematus, self).__init__(basepath, src_lang, trg_lang)
+
+        self._basepath = basepath.rstrip(os.sep)
 
         # load components
         self._load_normalizer()
@@ -459,7 +463,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         # return detokenized segment
         return segment
 
-    def translate(self, segment, device_trans=None, preallocate_trans=None):
+    def translate(self, device_trans=None, preallocate_trans=None, temp_pre=None, temp_trans=None):
         '''
         In addition to abstract method @params:
         @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
@@ -481,10 +485,10 @@ class TranslationEngineNematus(TranslationEngineBase):
                 moses detokenizer.perl
         '''
         # preprocess input segment
-        segment = self._preprocess_segment(segment)
+        ###segment = self._preprocess_segment(segment)
         # translate preprocessed segment
-        segment = self._engine.translate_segment(segment, device_trans, preallocate_trans)
+        self._engine.translate_segment(device_trans, preallocate_trans, temp_pre, temp_trans)
         # postprocess translated segment
-        segment = self._postprocess_segment(segment)
+        ###segment = self._postprocess_segment(segment)
         # return final segment to `mtrans`
-        return segment
+        #return segment
