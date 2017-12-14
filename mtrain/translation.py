@@ -65,10 +65,7 @@ class TranslationEngineBase(object):
         pass
 
     @abc.abstractmethod
-    def translate(self, segment):
-        '''
-        Translates a single @param segment.
-        '''
+    def translate(self):
         pass
 
 class TranslationEngineMoses(TranslationEngineBase):
@@ -240,7 +237,8 @@ class TranslationEngineMoses(TranslationEngineBase):
 
     def translate(self, segment, preprocess=True, lowercase=False, detokenize=True):
         '''
-        In addition to abstract method @params:
+        Translates a single @param segment.
+
         @param preprocess whether to apply preprocessing steps to segment
         @param lowercase whether to lowercase (True) or restore the original
             casing (False) of the output segment.
@@ -470,7 +468,8 @@ class TranslationEngineNematus(TranslationEngineBase):
 
     def translate(self, device_trans=None, preallocate_trans=None, temp_pre=None, temp_trans=None):
         '''
-        In addition to abstract method @params:
+        Translates an entire text of preprocessed segments.
+
         @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
         @param preallocate_trans defines the percentage of memory to be preallocated for translation
         @param temp_pre path to temporary file holding preprocessed segments as one text
