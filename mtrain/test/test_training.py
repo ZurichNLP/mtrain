@@ -8,11 +8,11 @@ import os
 
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
-from mtrain.training import Training
+from mtrain.training import TrainingMoses, TrainingNematus
 from mtrain.constants import *
 from mtrain import assertions
 
-class TestTraining(TestCaseWithCleanup):
+class TestTrainingMoses(TestCaseWithCleanup):
     @staticmethod
     def count_lines(filename):
         with open(filename) as f:
@@ -43,13 +43,15 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_file_creation_train_only(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
+        ###BH changed order of args
+        t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
+        ###BH changed order of args not necessary here
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, False, False)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
@@ -64,14 +66,16 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_file_creation_train_tune_eval(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, 50, 20)
+        ###BH changed order of args
+        t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, 50, 20, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
+        ###BH changed order of args
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
             BASENAME_TRAINING_CORPUS + ".en" in files_created,
@@ -101,13 +105,15 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_correct_number_of_lines_train_only(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
+        ###BH changed order of args
+        t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
+        ###BH changed order of args not necessary here
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, False, False)
         self.assertTrue(
             200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
@@ -121,14 +127,16 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_base_corpus_correct_number_of_lines_train_tune_eval(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, 50, 20)
+        ###BH changed order of args
+        t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, 50, 20, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
             filename_source="sample-corpus.en",
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
+        ###BH changed order of args
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         self.assertTrue(
             130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
             "Number of segments in source side of training corpus must be correct"
@@ -157,10 +165,12 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_external_tuning_corpus(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(
-            random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH,
+        ###BH changed order of args, made mask&xml explicit to fix keyword/positional args order
+        t = TrainingMoses(
+            random_basedir_name, "en", "fr", SELFCASING,
             tuning=self._basedir_test_cases + os.sep + "external-sample-corpus",
-            evaluation=None
+            evaluation=None,
+            masking_strategy=None, xml_strategy=XML_PASS_THROUGH
         )
         # create sample base corpus
         self._create_random_parallel_corpus_files(
@@ -176,7 +186,8 @@ class TestTraining(TestCaseWithCleanup):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
+        ###BH changed order of args
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_TUNING_CORPUS + ".en"),
             "Source side of external tuning corpus must be created"
@@ -197,10 +208,12 @@ class TestTraining(TestCaseWithCleanup):
     def test_preprocess_external_eval_corpus(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        t = Training(
-            random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH,
+        ###BH changed order of args, made mask&xml explicit to fix keyword/positional args order
+        t = TrainingMoses(
+            random_basedir_name, "en", "fr", SELFCASING,
             tuning=None,
-            evaluation=self._basedir_test_cases + os.sep + "external-sample-corpus"
+            evaluation=self._basedir_test_cases + os.sep + "external-sample-corpus",
+            masking_strategy=None, xml_strategy=XML_PASS_THROUGH
         )
         # create sample base corpus
         self._create_random_parallel_corpus_files(
@@ -216,7 +229,8 @@ class TestTraining(TestCaseWithCleanup):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, True, False)
+        ###BH changed order of args
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + ".en"),
             "Source side of external evaluation corpus must be created"
@@ -245,9 +259,11 @@ class TestTraining(TestCaseWithCleanup):
             f.write('one two three' + '\n')
             f.write('one two' + '\n')
             f.write('one' + '\n')
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
+        ###BH changed order of args
+        t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
+        ###BH changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
-            min_tokens=2, max_tokens=80, mask=False, preprocess_external=False, process_xml=False)
+            min_tokens=2, max_tokens=80, preprocess_external=False, mask=False, process_xml=False)
         self.assertIs(
             self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
             1, # only one line satisfies min_tokens for both en and fr
@@ -270,9 +286,11 @@ class TestTraining(TestCaseWithCleanup):
             f.write('one two three' + '\n')
             f.write('one two' + '\n')
             f.write('one' + '\n')
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
+        ###BH changed order of args
+        t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
+        ###BH changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
-            min_tokens=1, max_tokens=2, mask=False, preprocess_external=False, process_xml=False)
+            min_tokens=1, max_tokens=2, preprocess_external=False, mask=False, process_xml=False)
         self.assertIs(
             self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
             1, # only one line satisfies max_tokens for both en and fr
@@ -301,9 +319,11 @@ class TestTraining(TestCaseWithCleanup):
             f.write('one two' + '\n')
             f.write('\n') # must be removed
             f.write('one two' + '\n')
-        t = Training(random_basedir_name, "en", "fr", SELFCASING, None, XML_PASS_THROUGH, None, None)
+        ###BH changed order of args
+        t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
+        ###BH changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
-            min_tokens=1, max_tokens=80, mask=False, preprocess_external=False, process_xml=False)
+            min_tokens=1, max_tokens=80, preprocess_external=False, mask=False, process_xml=False)
         self.assertIs(
             self.count_lines(os.sep.join([random_basedir_name, 'corpus', 'train.en'])),
             4, # only one line satisfies max_tokens for both en and fr

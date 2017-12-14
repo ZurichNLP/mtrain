@@ -373,7 +373,7 @@ class TrainingMoses(TrainingBase):
         if self._masking_strategy:
             tokenizer_protects = True
             protected_patterns_path = self._get_path_masking_patterns(
-                overall_strategy=MASK,
+                overall_strategy=MASK, ###BH @MM todo: MASK is not defined
                 detailed_strategy=self._masking_strategy
             )
         elif self._xml_strategy == XML_MASK:

@@ -3,7 +3,7 @@
 import logging
 from mtrain.evaluator import Evaluator
 from mtrain.constants import *
-from mtrain.training import Training
+from mtrain.training import TrainingMoses
 
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
