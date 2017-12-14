@@ -12,6 +12,14 @@ from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, Tr
 from mtrain.constants import *
 from mtrain import checker
 
+LOGGING_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
+
 def get_argument_parser():
     parser = argparse.ArgumentParser()
     parser.description = ("Translates text using a Moses-based or Nematus-based machine " +
@@ -224,12 +232,18 @@ def cleanup_tempfiles_nematus(tempdir, temp_pre, temp_trans):
 def main():
     parser = get_argument_parser()
     args = parser.parse_args()
+    # log all events to file
+    logging.basicConfig(
+        #filename=args.output_dir + os.sep + 'translation.log',
+        level=args.logging,
+        format='%(asctime)s - mtrans - %(levelname)s - %(message)s'
+    )
     # initialize logging (stderr)
-    console = logging.StreamHandler()
-    console.setLevel(LOGGING_LEVELS[args.logging])
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger("").addHandler(console)
+    # console = logging.StreamHandler()
+    # console.setLevel(LOGGING_LEVELS[args.logging])
+    # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    # console.setFormatter(formatter)
+    # logging.getLogger("").addHandler(console)
 
     # distinguish chosen backend
     if args.backend == BACKEND_MOSES:
@@ -271,7 +285,7 @@ def main():
 
         # instantiating nematus translation engine
         engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang, args.adjust_dictionary)
-        print("\nINFO: Translating `%s` input to `%s` using backend %s:\n" % (args.src_lang, args.trg_lang, args.backend))
+        logging.info("\nINFO: Translating `%s` input to `%s` using backend %s:\n" % (args.src_lang, args.trg_lang, args.backend))
 
         # preprocess segments and store in temp file
         preprocess_input_nematus(temp_pre, engine)
