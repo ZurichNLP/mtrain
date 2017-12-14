@@ -169,7 +169,7 @@ class ParallelCorpus(object):
         if self._mask:
             segment, _ = self._masker.mask_segment(segment)
 
-        return segment
+        return segment # so far cleaner.clean() switched off as it does nothing
 
     def _preprocess_bisegment(self, bisegment):
         '''
