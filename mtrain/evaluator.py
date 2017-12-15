@@ -11,7 +11,7 @@ import itertools
 from mtrain.constants import *
 from mtrain import assertions
 from mtrain import commander
-from mtrain.translation import TranslationEngineBase, TranslationEngineMoses # todo import and implement TranslationEngineNematus when necessary
+from mtrain.translation import TranslationEngineMoses
 from mtrain.preprocessing import cleaner
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.reinsertion import tokenize_keep_markup

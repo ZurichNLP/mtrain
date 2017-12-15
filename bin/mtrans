@@ -8,7 +8,7 @@ import fileinput
 import tempfile
 import datetime
 
-from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus
+from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus
 from mtrain.constants import *
 from mtrain import checker, assertions
 

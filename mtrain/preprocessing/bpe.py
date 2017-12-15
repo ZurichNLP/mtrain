@@ -149,7 +149,7 @@ class BytePairEncoderSegment(object):
     def close(self):
         del self._processor
 
-    def encode(self, segment):
+    def bpencode_segment(self, segment):
         '''
         Encodes a single @param segment by applying the byte-pair
         processing model trained in `mtrain`.
@@ -171,7 +171,7 @@ class BytePairDecoderSegment(object):
         wmt postprocess-test.sh
     '''
 
-    def decode(self, segment):
+    def bpdecode_segment(self, segment):
         '''
         Decodes a single @param segment.
 

@@ -5,7 +5,7 @@ import argparse
 import sys
 import os
 
-from mtrain.training import TrainingBase, TrainingMoses, TrainingNematus
+from mtrain.training import TrainingMoses, TrainingNematus
 from mtrain.constants import *
 from mtrain import checker, assertions
 
@@ -239,6 +239,13 @@ def get_argument_parser():
             "Do not use if you want mtrain to manage external validation.",
         default=None
     )
+    nematus_args.add_argument(
+        "--validation_freq",
+        type=int,
+        help="", ###BH todo help
+        default=10000
+    )
+
     return parser
 
 ###BH todo test and check if complete
@@ -524,7 +531,9 @@ def main():
                 preallocate_train=args.preallocate_train,
                 device_validate=args.device_validate,
                 preallocate_validate=args.preallocate_validate,
-                external_validation_script=args.external_validation_script)
+                external_validation_script=args.external_validation_script,
+                validation_frequency=args.validation_freq
+            )
         else:
             # chosen not to train engine
             logging.warning("No training: Only preprocessing chosen to be executed")

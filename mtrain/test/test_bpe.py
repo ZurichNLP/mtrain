@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
 
 import os
-import random
 
-from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
+from unittest import TestCase
+from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup, TestCaseHelper
 
-from mtrain.preprocessing.bpe import BytePairDecoderSegment
+from mtrain.preprocessing.bpe import BytePairEncoderFile, BytePairEncoderSegment, BytePairDecoderSegment
 from mtrain.training import TrainingNematus
 from mtrain.constants import *
 
+class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
 
-class TestBytePairEncoderFile(TestCaseWithCleanup):
-    '''
-    '''
-    def get_random_basename(self):
-        return str(self._basedir_test_cases + os.sep + str(random.randint(0, 9999999)))
+    def test_learn_bpe_model(cls):
 
-    def test_learn_bpe_model(self):
-        random_basedir_name = self.get_random_basename()
+        random_basedir_name = cls.get_random_basename()
         os.mkdir(random_basedir_name)
+
+        t = TrainingNematus(random_basedir_name, "ro", "en", TRUECASING, 50, None)
+        cls._create_random_parallel_corpus_files(
+            path=random_basedir_name,
+            filename_source="sample-corpus.en",
+            filename_target="sample-corpus.fr",
+            num_bisegments=200
+        )
+
 
         '''
         t = TrainingNematus(random_basedir_name, "en", "fr", TRUECASING, 50, None)
@@ -45,7 +50,7 @@ class TestBytePairEncoderSegment(?):
         pass
 '''
 
-class TestBytePairDecoderSegment(TestCaseWithCleanup):
+class TestBytePairDecoderSegment(TestCase):
     '''
     Examples correspond to normalized, tokenized, truecased, encoded and translated segments.
     Decoding must replace strings "@@ " with empty string "".
@@ -61,4 +66,4 @@ class TestBytePairDecoderSegment(TestCaseWithCleanup):
     def test_decode(self):
         decoder = BytePairDecoderSegment()
         for example_segment, decoded_segment in self.test_cases.items():
-            self.assertEqual(decoder.decode(example_segment), decoded_segment)
+            self.assertEqual(decoder.bpdecode_segment(example_segment), decoded_segment)

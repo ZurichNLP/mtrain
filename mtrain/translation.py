@@ -435,7 +435,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         # join truecased tokens to a segment
         segment = " ".join(tokens)
         # encode truecased segment (applying byte-pair processing model trained in `mtrain`)
-        segment = self._encoder.encode(segment)
+        segment = self._encoder.bpencode_segment(segment)
         # return encoded segment
         return segment
 
@@ -450,7 +450,7 @@ class TranslationEngineNematus(TranslationEngineBase):
                 moses detokenizer.perl
         '''
         # decode translated segment
-        segment = self._decoder.decode(segment)
+        segment = self._decoder.bpdecode_segment(segment)
         # detruecase decoded segment
         segment = self._detruecaser.detruecase(segment)
         # split detruecased segment into tokens

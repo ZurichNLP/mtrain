@@ -20,7 +20,7 @@ from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing.masking import Masker, write_masking_patterns
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
 from mtrain.preprocessing.bpe import BytePairEncoderFile
-from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus ###BH @MM obsolete in training.py?
+from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus ###BH @MM obsolete in training.py?
 
 class TrainingBase(object):
     '''
@@ -1251,7 +1251,7 @@ class TrainingNematus(TrainingBase):
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
     def train_engine(self, device_train=None, preallocate_train=None,
-        device_validate=None, preallocate_validate=None, external_validation_script=None):
+        device_validate=None, preallocate_validate=None, external_validation_script=None, validation_frequency=10000):
         '''
         Prepares and executes the training of the nematus engine.
 
@@ -1260,6 +1260,7 @@ class TrainingNematus(TrainingBase):
         @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
         @param external_validation_script path to own external validation script if provided
+        @param validation_frequency number of updates after which external validation is initiated
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
@@ -1290,7 +1291,7 @@ class TrainingNematus(TrainingBase):
         # prepare and execute nematus training
         self._prepare_validation(device_validate, preallocate_validate)
         self._prepare_valid_postprocessing()
-        self._train_nematus_engine(device_train, preallocate_train)
+        self._train_nematus_engine(device_train, preallocate_train, validation_frequency)
 
     def _prepare_validation(self, device_validate, preallocate_validate):
         '''
@@ -1402,12 +1403,13 @@ $moses_detruecaser"""
             # chmod script to make executable
             os.chmod(file_location, 0o755)
 
-    def _train_nematus_engine(self, device_train, preallocate_train):
+    def _train_nematus_engine(self, device_train, preallocate_train, validation_frequency):
         '''
         Trains the nematus engine.
 
         @param device_train defines the processor (cpu, gpuN or cudaN) for training
         @param preallocate_train defines the percentage of memory to be preallocated for training
+        @param validation_frequency number of updates after which external validation is initiated
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
@@ -1452,7 +1454,7 @@ $moses_detruecaser"""
         nematus_train_options_a = '--max_epochs {max_epochs} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
             max_epochs=5000, # default 5000
             dispFreq=100, # default 1000
-            validFreq=10000, # default 10000
+            validFreq=validation_frequency, # default 10000
             saveFreq=30000,   # default 30000
             sampleFreq=10000 # default 10000
         )
