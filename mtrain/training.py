@@ -19,7 +19,7 @@ from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing.masking import Masker, write_masking_patterns
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
-from mtrain.preprocessing.bpe import Encoder
+from mtrain.preprocessing.bpe import BytePairEncoderFile
 from mtrain.translation import TranslationEngineBase, TranslationEngineMoses, TranslationEngineNematus ###BH @MM obsolete in training.py?
 
 class TrainingBase(object):
@@ -1047,7 +1047,7 @@ class TrainingNematus(TrainingBase):
             os.mkdir(bpe_model_path)
 
         # create encoder instance
-        self._encoder = Encoder(corpus_train_tc, corpus_tune_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang)
+        self._encoder = BytePairEncoderFile(corpus_train_tc, corpus_tune_tc, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang)
 
         # learn bpe model using truecased training corpus
         self._encoder.learn_bpe_model()

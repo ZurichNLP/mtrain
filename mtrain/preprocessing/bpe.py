@@ -7,7 +7,7 @@ from mtrain.preprocessing.external import ExternalProcessor
 '''
 Provides further processing and postprocessing steps in order to use neural network training and translation in backend nematus.
 '''
-class Encoder(object):
+class BytePairEncoderFile(object):
     '''
     Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
 
@@ -114,7 +114,7 @@ class Encoder(object):
             "Building network dictionary from BPE model"
         )
 
-class TranslationEncoder(object):
+class BytePairEncoderSegment(object):
     '''
     Creates a byte-pair encoder which encodes normalized, tokenized and truecased segments
     in order to enable translation in backend nematus.
@@ -157,7 +157,7 @@ class TranslationEncoder(object):
         encoded_segment = self._processor.process(segment)
         return encoded_segment
 
-class TranslationDecoder(object):
+class BytePairDecoderSegment(object):
     '''
     Creates a byte-pair decoder which decodes a translated segment in backend nematus.
 

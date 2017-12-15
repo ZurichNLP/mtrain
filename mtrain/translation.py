@@ -17,7 +17,7 @@ from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.masking import Masker
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
-from mtrain.preprocessing.bpe import TranslationEncoder, TranslationDecoder
+from mtrain.preprocessing.bpe import BytePairEncoderSegment, BytePairDecoderSegment
 from mtrain.preprocessing.external import ExternalProcessor
 
 class TranslationEngineBase(object):
@@ -366,7 +366,7 @@ class TranslationEngineNematus(TranslationEngineBase):
             BPE
         ])
         model = bpe_model_path + '/' + self._src_lang + '-' + self._trg_lang + '.bpe'
-        self._encoder = TranslationEncoder(model)
+        self._encoder = BytePairEncoderSegment(model)
 
     def _load_engine(self):
         '''
@@ -393,7 +393,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         Create byte-pair decoder.
         '''
-        self._decoder = TranslationDecoder()
+        self._decoder = BytePairDecoderSegment()
 
     def _load_detruecaser(self):
         '''

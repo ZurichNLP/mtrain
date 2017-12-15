@@ -77,9 +77,9 @@ PATH_COMPONENT = {
     # Maps components to their base directory name
     "corpus": "corpus",
     "engine": "engine",
-    "evaluation": "evaluation",
-    "logs": "logs"
-}
+    "evaluation": "evaluation"
+} #"logs": "logs" ### so far logs directory not used, removed
+
 # Subfolder for bpe model and file suffix when byte-pair encoded in nematus ###BH new, reference?
 BPE = 'bpe'
 
@@ -243,7 +243,7 @@ BACKEND_CHOICES = {
 }
 
 # Distinction of python versions in backend nematus, useful when mixed environment with python 2 and 3 causes trouble:
-# E.g. bpe.py's TranslationEncoder needs to call the script explicitly as Python 3. If 'python' does not point to Python 3
+# E.g. bpe.py's BytePairEncoderSegment needs to call the script explicitly as Python 3. If 'python' does not point to Python 3
 # in your environment as it should, use 'export PYTHON3=/path/to/python3'
 ###BH add reference to env vars?
 PYTHON2 = os.environ.get('PYTHON2') if os.environ.get('PYTHON2') else 'python2' # Python 2 base directory

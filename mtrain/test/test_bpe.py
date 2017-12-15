@@ -5,12 +5,12 @@ import random
 
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
-from mtrain.preprocessing.bpe import TranslationDecoder
+from mtrain.preprocessing.bpe import BytePairDecoderSegment
 from mtrain.training import TrainingNematus
 from mtrain.constants import *
 
 
-class TestEncoder(TestCaseWithCleanup):
+class TestBytePairEncoderFile(TestCaseWithCleanup):
     '''
     '''
     def get_random_basename(self):
@@ -29,7 +29,7 @@ class TestEncoder(TestCaseWithCleanup):
 
 
         #t.truecase()
-        #e = TranslationDecoder(1000)
+        #e = asdf(1000)
         # e.learn_bpe_model()
         '''
 
@@ -40,12 +40,12 @@ class TestEncoder(TestCaseWithCleanup):
     def test_build_bpe_dictionary(?):
         pass
 
-class TestTranslationEncoder(?):
+class TestBytePairEncoderSegment(?):
     def test_encode(?):
         pass
 '''
 
-class TestTranslationDecoder(TestCaseWithCleanup):
+class TestBytePairDecoderSegment(TestCaseWithCleanup):
     '''
     Examples correspond to normalized, tokenized, truecased, encoded and translated segments.
     Decoding must replace strings "@@ " with empty string "".
@@ -59,6 +59,6 @@ class TestTranslationDecoder(TestCaseWithCleanup):
     }
 
     def test_decode(self):
-        decoder = TranslationDecoder()
+        decoder = BytePairDecoderSegment()
         for example_segment, decoded_segment in self.test_cases.items():
             self.assertEqual(decoder.decode(example_segment), decoded_segment)

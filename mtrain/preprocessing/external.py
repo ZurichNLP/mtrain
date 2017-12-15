@@ -46,7 +46,7 @@ class ExternalProcessor(object):
 
         '''
         # calling extenal processor as python process
-        # e.g. for bpe encoder. python subprocess needs command as list of elements
+        # e.g. for byte-pair encoder. python subprocess needs command as list of elements
         ###BH check reference # cf. https://docs.python.org/3.6/library/subprocess.html
         elif shell == False:
             self.command = command.split()
