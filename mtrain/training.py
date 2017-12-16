@@ -1251,7 +1251,7 @@ class TrainingNematus(TrainingBase):
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
     def train_engine(self, device_train=None, preallocate_train=None,
-        device_validate=None, preallocate_validate=None, external_validation_script=None, validation_frequency=10000):
+        device_validate=None, preallocate_validate=None, validation_frequency=10000, external_validation_script=None):
         '''
         Prepares and executes the training of the nematus engine.
 
@@ -1259,8 +1259,8 @@ class TrainingNematus(TrainingBase):
         @param preallocate_train defines the percentage of memory to be preallocated for training
         @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
-        @param external_validation_script path to own external validation script if provided
         @param validation_frequency number of updates after which external validation is initiated
+        @param external_validation_script path to own external validation script if provided
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md

@@ -137,7 +137,7 @@ def get_argument_parser():
 
     return parser
 
-###BH todo test and check if complete
+###BH todo test
 def check_environment_nematus():
     '''
     Abort if environment variables specific for nematus backend are not set.
