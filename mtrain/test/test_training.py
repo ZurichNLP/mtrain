@@ -13,6 +13,7 @@ from mtrain.constants import *
 from mtrain import assertions
 
 class TestTrainingMoses(TestCaseWithCleanup):
+
     @staticmethod
     def count_lines(filename):
         with open(filename) as f:

@@ -143,7 +143,7 @@ class BytePairEncoderSegment(object):
             command=" ".join([PYTHON3] + [SUBWORD_NMT_APPLY] + arguments),
             stream_stderr=False, # just used as positional argument
             trailing_output=False, # just used as positional argument
-            shell=False # call as python process (instead of shell subprocess)
+            shell=False # todo: call as python process (instead of shell subprocess), not enabled in external.py yet
         )
 
     def close(self):
