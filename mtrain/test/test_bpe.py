@@ -5,10 +5,9 @@ import random
 import shutil
 import sys
 import os
-import time
+import time ###BH just testing
 
 from unittest import TestCase
-#from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup , TestCaseHelper
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
 from mtrain.preprocessing.bpe import BytePairEncoderFile, BytePairEncoderSegment, BytePairDecoderSegment
@@ -17,7 +16,6 @@ from mtrain.translation import TranslationEngineNematus # test
 from mtrain.constants import *
 from mtrain import assertions
 
-#class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
 class TestBytePairEncoderFile(TestCaseWithCleanup):
 
     @staticmethod
@@ -39,7 +37,7 @@ class TestBytePairEncoderFile(TestCaseWithCleanup):
 
     def _prepare_bpencoder_file(self):
         '''
-        Learn bpe model and return model path for reuse in tests.
+        Learn bpe model, method for reuse in tests.
         '''
         self._random_basedir_name = self._get_random_basename()
         os.mkdir(self._random_basedir_name)
