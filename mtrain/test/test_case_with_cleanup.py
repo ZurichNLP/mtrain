@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import random
 
 from unittest import TestCase
 
@@ -16,18 +17,19 @@ class TestCaseWithCleanup(TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls._basedir_test_cases)
 
-'''
-###BH: This did work in general, but hinders test_bpe.py to use "from mtrain import assertions" as self, resulting
-####    in e.g. self.assertTrue() being not applicable
-
 class TestCaseHelper(TestCase):
-    Helper class to provide class and static methods for various testcases. Created from examples in test_training.py.
-    @classmethod
-    def _get_random_basename(cls):
-        return str(cls._basedir_test_cases + os.sep + str(random.randint(0, 9999999)))
+    '''
+    Helper class to avoid code repetition. Methods moved from test_training.py here.
 
-    @classmethod
-    def _get_random_sentence(cls):
+    todo: maybe remove methods from test_evaluator.py where most of these methods are the same but not used
+    '''
+    @staticmethod
+    def count_lines(filename):
+        with open(filename) as f:
+            return sum(1 for line in f)
+
+    @staticmethod
+    def get_random_sentence():
         words = ["103", "físh", "HUM", "84#ça", "banana", "Oscar", "—"]
         return " ".join([random.choice(words) for _ in range(0, random.randrange(1,len(words)))])
 
@@ -38,5 +40,11 @@ class TestCaseHelper(TestCase):
                 filename = os.sep.join([path, filename])
             with open(filename, 'w') as f:
                 for i in range(0, num_bisegments):
-                    f.write("line %s: %s\n" % (i, cls._get_random_sentence()))
-'''
+                    f.write("line %s: %s\n" % (i, cls.get_random_sentence()))
+
+    @classmethod
+    def _count_lines(cls, filepath):
+        return sum(1 for line in open(filepath))
+
+    def get_random_basename(self):
+        return str(self._basedir_test_cases + os.sep + str(random.randint(0, 9999999)))
