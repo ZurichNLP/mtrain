@@ -21,7 +21,7 @@ class TestCaseHelper(TestCase):
     '''
     Helper class to avoid code repetition. Methods moved from test_training.py here.
 
-    todo: maybe remove methods from test_evaluator.py where most of these methods are the same but not used
+    todo: maybe remove methods from test_evaluator.py where most of these methods are the same
     '''
     @staticmethod
     def count_lines(filename):
