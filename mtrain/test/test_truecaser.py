@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 
-import logging
-import random
-import shutil
-import sys
 import os
-import time ###BH just testing
 
 from unittest import TestCase
-from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
-
+from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup, TestCaseHelper
 from mtrain.preprocessing.truecaser import Truecaser, Detruecaser
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
+from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.constants import *
 from mtrain import commander
 
-class TestTruecaser(TestCaseWithCleanup):
-    # english test cases, must be normalized and tokenized for training the truecaser
+class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
+    # english test cases for training the truecaser
+    # cases derived from script truecase.perl ###BH todo add reference
     test_cases = {
         'This is a sample sentence that was said by Obama, allegedly.': 'this is a sample sentence that was said by Obama, allegedly.',
         'As this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.': 'as this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.',
@@ -24,67 +20,87 @@ class TestTruecaser(TestCaseWithCleanup):
         'In conclusion, the trucaser must lowercase sentence initial word unless it is a name, concept or the like.': 'in conclusion, the trucaser must lowercase sentence initial word unless it is a name, concept or the like.'
     }
 
-    #def _get_random_basename(self):
-    #    return str(self._basedir_test_cases + os.sep + str(random.randint(0, 9999999)))
-
     def _prepare_truecaser(self):
         '''
-        Train truecaser model according to example in training.py.
+        Train truecaser model according to https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh ###BH todo add reference
         '''
-        # setup paths and filenames for corpus and tc model
-        self._random_basedir_name = 'test_cases/test_tc' ###BH test self._get_random_basename()
-        os.mkdir(self._random_basedir_name)
-        corpus_path = os.sep.join([self._random_basedir_name, 'corpus'])
+        # setup paths and filenames for sample corpus, corpus and tc model
+        random_basedir_name = self.get_random_basename()
+        os.mkdir(random_basedir_name)
+
+        sample_corpus = os.sep.join([random_basedir_name + 'sample_corpus.en'])
+
+        corpus_path = os.sep.join([random_basedir_name, 'corpus'])
         os.mkdir(corpus_path)
-        corpus_file = corpus_path + os.sep + 'example.en'
-        engine_path = os.sep.join([self._random_basedir_name, 'engine'])
+        corpus = os.sep.join([corpus_path, 'train.en'])
+
+        engine_path = os.sep.join([random_basedir_name, 'engine'])
         os.mkdir(engine_path)
         model_path = os.sep.join([engine_path, TRUECASING])
         os.mkdir(model_path)
-        model_file = model_path + os.sep + 'model.en'
+        model = os.sep.join([model_path, 'model.en'])
 
-        # prepare input corpus from test cases
-        with open(corpus_file, 'a') as f:
+        # prepare sample corpus from test cases
+        with open(sample_corpus, 'a') as f:
             for example_segment, truecased_segment in self.test_cases.items():
                 f.write(example_segment + '\n')
+        f.close()
+
+        # preprocess sample corpus as in training
+        normalizer = Normalizer('en')
+        tokenizer = Tokenizer('en')
+
+        with open(sample_corpus, 'r') as f_sample:
+            with open(corpus, 'a') as f_corpus:
+                for segment in f_sample:
+                    preprocessed_tokens = (tokenizer.tokenize(normalizer.normalize_punctuation(segment.strip())))
+                    preprocessed_segment =" ".join(preprocessed_tokens)
+                    f_corpus.write(preprocessed_segment + '\n')
+            f_corpus.close()
+        f_sample.close()
+
+        normalizer.close()
+        tokenizer.close()
 
         # train truecaser
         def command():
             return '{script} --model {model} --corpus {corpus}'.format(
                 script=MOSES_TRAIN_TRUECASER,
-                model=model_file,
-                corpus=corpus_file
+                model=model,
+                corpus=corpus
             )
         commands = [command()]
         commander.run(commands)
 
-        # cleanup: save model full path for passing to test method; close file handle
-        self._model_file = model_file
-        f.close()
+        # save model full path for passing to test method
+        self._model = model
 
     def test_truecase_tokens(self):
         '''
-        Using tokenizer and detokenizer for better readability of test cases and increase code coverage of tokenizer.py.
+        Using normalizer, tokenizer and detokenizer for better readability of test cases and include more code coverage.
         '''
         self._prepare_truecaser()
-        # load English tokenizer (tokenized segments precondition for fully testing truecaser)
+        # load English normalizer
+        normalizer = Normalizer('en')
+        # load English tokenizer
         tokenizer = Tokenizer('en')
         # load truecaser using truecasing model
-        truecaser = Truecaser(self._model_file)
+        truecaser = Truecaser(self._model)
         # load English detokenizer 
         detokenizer = Detokenizer('en')
 
-        # using truecase_tokens() instead of truecase() to increase code coverage
+        # using truecase_tokens() instead of truecase() to increase code coverage of truecaser.py
         for example_segment, truecased_segment in self.test_cases.items():
-            self.assertEqual(detokenizer.detokenize(truecaser.truecase_tokens(tokenizer.tokenize(example_segment))), truecased_segment)
+            self.assertEqual(detokenizer.detokenize(truecaser.truecase_tokens(tokenizer.tokenize(normalizer.normalize_punctuation(example_segment)))), truecased_segment)
 
         # cleanup
+        normalizer.close()
         tokenizer.close()
         truecaser.close()
         detokenizer.close()
 
 class TestDetruecaser(TestCase):
-    # english test cases, reversed examples from TestTruecaser() class
+    # english test cases, reversed examples from TestTruecaser() class to match detruecase.perl ###BH todo add reference
     test_cases = {
         'this is a sample sentence that was said by Obama, allegedly.': 'This is a sample sentence that was said by Obama, allegedly.',
         'as this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.': 'As this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.',
