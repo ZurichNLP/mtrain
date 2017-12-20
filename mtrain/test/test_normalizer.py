@@ -12,12 +12,12 @@ class TestNormalizer(TestCase):
         'This  has  too  much  spaces!': 'This has too much spaces!', # remove extra spaces
         '„This has “weird“ signs in it…“': '"This has "weird" signs in it..."', # normalize unicode punctuation
         'This has a space at the wrong place : There it was.': 'This has a space at the wrong place: There it was.', # handle pseudo-spaces
-        '"Normalizer does not like commas after quotes", the script says.': '"Normalizer does not like commas after quotes," the script says.' # English "quotation," followed by comma, style
+        '"English normalizer does not like commas after quotes", the script says.': '"English normalizer does not like commas after quotes," the script says.' # English "quotation," followed by comma, style
     }
     # french test cases
     test_cases_fr = {
         '«Une citation française»': '"Une citation française"', # French quotes
-        '"Je ne comprend pas," il repond.': '"Je ne comprend pas", il repond.' # German/Spanish/French "quotation", followed by comma, style
+        '"Je ne comprend pas," il repond.': '"Je ne comprend pas", il repond.' # German/Spanish/French "quotation", followed by comma, style, opposite to english normalizer for some reason
     }
 
     def test_normalize_punctuation(self):

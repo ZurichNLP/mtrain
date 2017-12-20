@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 from unittest import TestCase
-
 from mtrain.preprocessing import cleaner
-from mtrain.constants import *
 
 class TestCleaner(TestCase):
     # dummy test case for not yet implemented clean() method
@@ -18,14 +16,16 @@ class TestCleaner(TestCase):
         'She said it was "awesome".': "She said it was &quot;awesome&quot;.",
         "[foo]":"&#91;foo&#93;"
     }
-    # test cases for normalizing Romanian
+    # test cases for normalizing Romanian in Nematus
+    # cases derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py ###BH todo add reference
     test_cases_romanian = {
         'Şantierul': 'Șantierul',
         'Totuşi': 'Totuși',
         'Ţivat': 'Țivat',
         'puţin': 'puțin'
     }
-    # test cases for removing diacritics from normalized Romanian
+    # test cases for removing diacritics from normalized Romanian in Nematus
+    # cases derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py###BH todo add reference
     test_cases_ro_diacritics = {
         'Șantierul': 'Santierul',
         'Țivat': 'Tivat',
@@ -40,7 +40,7 @@ class TestCleaner(TestCase):
     }
 
     def test_clean(self):
-        # not yet implemented method, skeleton for triggering test implementation if method used
+        # not yet implemented method, skeleton for test implementation if method used
         for example_segment, clean_segment in self.test_cases_clean.items():
             self.assertEqual(cleaner.clean(example_segment), clean_segment)
 
