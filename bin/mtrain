@@ -246,6 +246,20 @@ def get_argument_parser():
             "Do not use if you want mtrain to manage external validation.",
         default=None
     )
+    nematus_args.add_argument(
+        "--max_epochs",
+        type=int,
+        help="state how many epochs are to be performed in nematus training, " +
+            "default=`5000` updates"
+        # set default when calling 'train_engine()' below, but NOT here as it would trigger warning for backend moses
+    )
+    nematus_args.add_argument(
+        "--max_updates",
+        type=int,
+        help="state how many updates are to be performed in nematus training, " +
+            "default=`10000000` updates"
+        # set default when calling 'train_engine()' below, but NOT here as it would trigger warning for backend moses
+    )
 
     return parser
 
@@ -294,10 +308,11 @@ def check_arguments_moses(args):
         logging.warning("Invalid command line options. For backend %s, " +
             "neither '--preprocessing_only' nor '--training_only' are applicable and will be ignored. " +
             "See '-h'/'--help' for more information.", BACKEND_MOSES)
-    if args.bpe_ops or args.device_train or args.preallocate_train or args.device_validate or args.preallocate_validate or args.external_validation_script or args.validation_freq:
+    if args.bpe_ops or args.device_train or args.preallocate_train or args.device_validate or args.preallocate_validate or args.external_validation_script or args.validation_freq or args.max_epochs or args.max_updates:
         logging.warning("Invalid command line options. For backend %s, " +
             "'--bpe_ops', --device_train', '--preallocate_train', '--device_validate', '--preallocate_validate', " +
-            "'--external_validation_script' and '--validation_freq' are not applicable and will be ignored. " +
+            "'--external_validation_script', '--validation_freq', '--max_epochs' and '--max_updates' " +
+            "are not applicable and will be ignored. " +
             "See '-h'/'--help' for more information.", BACKEND_MOSES)
 
 ###BH todo test
@@ -362,10 +377,10 @@ def check_arguments_nematus(args):
     # check for training to be skipped
     if args.preprocessing_only:
         # for arguments with no effect in '--preprocessing_only', warn user but continue
-        if args.device_train or args.preallocate_train or args.device_validate or args.preallocate_validate or args.validation_freq or args.external_validation_script:
+        if args.device_train or args.preallocate_train or args.device_validate or args.preallocate_validate or args.validation_freq or args.external_validation_script or args.max_epochs or args.max_updates:
             logging.warning("Invalid command line options. For backend %s, " +
                 "'--device_train', '--preallocate_train', '--device_validate', '--preallocate_validate', " +
-                "'--validation_freq' and '--external_validation_script' " +
+                "'--validation_freq', '--external_validation_script', '--max_epochs' and '--max_updates'" +
                 "only affect preprocessing and will be ignored when '--training_only' applies. " +
                 "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
 
@@ -559,7 +574,9 @@ def main():
                 device_validate=args.device_validate,
                 preallocate_validate=args.preallocate_validate,
                 validation_frequency=10000 if args.validation_freq == None else args.validation_freq,
-                external_validation_script=args.external_validation_script
+                external_validation_script=args.external_validation_script,
+                max_epochs=5000 if args.max_epochs == None else args.max_epochs,
+                max_updates=10000000 if args.max_updates == None else args.max_updates
             )
         else:
             # chosen not to train engine

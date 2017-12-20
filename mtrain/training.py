@@ -1251,7 +1251,8 @@ class TrainingNematus(TrainingBase):
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
     def train_engine(self, device_train=None, preallocate_train=None,
-        device_validate=None, preallocate_validate=None, validation_frequency=10000, external_validation_script=None):
+        device_validate=None, preallocate_validate=None, validation_frequency=None, external_validation_script=None,
+        max_epochs=None, max_updates=None):
         '''
         Prepares and executes the training of the nematus engine.
 
@@ -1261,6 +1262,8 @@ class TrainingNematus(TrainingBase):
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
         @param validation_frequency number of updates after which external validation is initiated
         @param external_validation_script path to own external validation script if provided
+        @param max_epochs maximum number of epochs
+        @param max_updates maximum number of updates
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
@@ -1291,7 +1294,7 @@ class TrainingNematus(TrainingBase):
         # prepare and execute nematus training
         self._prepare_validation(device_validate, preallocate_validate)
         self._prepare_valid_postprocessing()
-        self._train_nematus_engine(device_train, preallocate_train, validation_frequency)
+        self._train_nematus_engine(device_train, preallocate_train, validation_frequency, max_epochs, max_updates)
 
     def _prepare_validation(self, device_validate, preallocate_validate):
         '''
@@ -1403,13 +1406,15 @@ $moses_detruecaser"""
             # chmod script to make executable
             os.chmod(file_location, 0o755)
 
-    def _train_nematus_engine(self, device_train, preallocate_train, validation_frequency):
+    def _train_nematus_engine(self, device_train, preallocate_train, validation_frequency, max_epochs, max_updates):
         '''
         Trains the nematus engine.
 
         @param device_train defines the processor (cpu, gpuN or cudaN) for training
         @param preallocate_train defines the percentage of memory to be preallocated for training
         @param validation_frequency number of updates after which external validation is initiated
+        @param max_epochs maximum number of epochs
+        @param max_updates maximum number of updates
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
@@ -1451,8 +1456,9 @@ $moses_detruecaser"""
         )
         # nematus options in training (split in sections for better overview)
         # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
-        nematus_train_options_a = '--max_epochs {max_epochs} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
-            max_epochs=5000, # default 5000
+        nematus_train_options_a = '--max_epochs {max_epo} --finish_after {max_upd} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
+            max_epo=max_epochs, # default 5000
+            max_upd=max_updates, # default 10000000, renamed for user as easier to understand
             dispFreq=100, # default 1000
             validFreq=validation_frequency, # default 10000
             saveFreq=30000,   # default 30000
