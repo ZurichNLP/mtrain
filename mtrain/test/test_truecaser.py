@@ -4,14 +4,15 @@ import os
 
 from unittest import TestCase
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup, TestCaseHelper
-from mtrain.preprocessing.truecaser import Truecaser, Detruecaser
-from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.normalizer import Normalizer
+from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
+from mtrain.preprocessing.truecaser import Truecaser, Detruecaser
+from mtrain.training import TrainingNematus
 from mtrain.constants import *
 from mtrain import commander
 
 class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
-    # english test cases for training the truecaser
+    # english test cases for training and testing the truecaser
     # cases derived from script truecase.perl ###BH todo add reference
     test_cases = {
         'This is a sample sentence that was said by Obama, allegedly.': 'this is a sample sentence that was said by Obama, allegedly.',
@@ -20,15 +21,16 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
         'In conclusion, the trucaser must lowercase sentence initial word unless it is a name, concept or the like.': 'in conclusion, the trucaser must lowercase sentence initial word unless it is a name, concept or the like.'
     }
 
-    def _prepare_truecaser(self):
+    def _prepare_truecase_tokens(self):
         '''
-        Train truecaser model according to https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh ###BH todo add reference
+        Train truecaser model according to https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh. ###BH todo add reference
+        Sample corpus and truecasing model training use the same test cases that are used to test the truecasing model (see test_truecase_tokens)).
         '''
         # setup paths and filenames for sample corpus, corpus and tc model
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
 
-        sample_corpus = os.sep.join([random_basedir_name + 'sample_corpus.en'])
+        sample_corpus = os.sep.join([random_basedir_name, 'sample_corpus.en'])
 
         corpus_path = os.sep.join([random_basedir_name, 'corpus'])
         os.mkdir(corpus_path)
@@ -72,14 +74,22 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
         commands = [command()]
         commander.run(commands)
 
+        # check creation of truecasing model
+        files_created = os.listdir(os.sep.join([random_basedir_name, "engine", TRUECASING]))
+        self.assertTrue(
+            'model.en' in files_created,
+            "Truecasing model for respective language must be created"
+        )
+
         # save model full path for passing to test method
         self._model = model
 
     def test_truecase_tokens(self):
         '''
-        Using normalizer, tokenizer and detokenizer for better readability of test cases and include more code coverage.
+        Check functionality of truecaser. Using normalizer, tokenizer and detokenizer for better readability of test cases and include more code coverage.
+        Sample corpus and truecasing model training (see _prepare_truecase_tokens()) use the same test cases that are used to test the truecasing model.
         '''
-        self._prepare_truecaser()
+        self._prepare_truecase_tokens()
         # load English normalizer
         normalizer = Normalizer('en')
         # load English tokenizer
@@ -99,6 +109,50 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
         truecaser.close()
         detokenizer.close()
 
+    def test_truecase_files_all_sets(self):
+        '''
+        Random samples for all sets for testing creation of truecasing files. Test derived from test_training.py.
+        '''
+        random_basedir_name = self.get_random_basename()
+        os.mkdir(random_basedir_name)
+
+        t = TrainingNematus(random_basedir_name, "en", "fr", TRUECASING, 50, 20)
+        self._create_random_parallel_corpus_files(
+            path=random_basedir_name,
+            filename_source="sample-corpus.en",
+            filename_target="sample-corpus.fr",
+            num_bisegments=200
+        )
+        t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
+        t.train_truecaser()
+        t.truecase()
+
+        files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
+        self.assertTrue(
+            BASENAME_TRAINING_CORPUS + "." + SUFFIX_TRUECASED + ".en" in files_created,
+            "Truecased training corpus for source language must be created"
+        )
+        self.assertTrue(
+            BASENAME_TRAINING_CORPUS + "." + SUFFIX_TRUECASED + ".fr" in files_created,
+            "Truecased training corpus for target language must be created"
+        )
+        self.assertTrue(
+            BASENAME_TUNING_CORPUS + "." + SUFFIX_TRUECASED + ".en" in files_created,
+            "Truecased tuning corpus for source language must be created"
+        )
+        self.assertTrue(
+            BASENAME_TUNING_CORPUS + "." + SUFFIX_TRUECASED + ".fr" in files_created,
+            "Truecased tuning corpus for target language must be created"
+        )
+        self.assertTrue(
+            BASENAME_EVALUATION_CORPUS + "." + SUFFIX_TRUECASED + ".en" in files_created,
+            "Truecased evaluation corpus for source language must be created"
+        )
+        self.assertTrue(
+            BASENAME_EVALUATION_CORPUS + "." + SUFFIX_TRUECASED + ".fr" in files_created,
+            "Truecased evaluation corpus for target language must be created"
+        )
+
 class TestDetruecaser(TestCase):
     # english test cases, reversed examples from TestTruecaser() class to match detruecase.perl ###BH todo add reference
     test_cases = {
@@ -109,7 +163,7 @@ class TestDetruecaser(TestCase):
     }
 
     def test_detruecase(self):
-        # detruecasing (uppercase first word of segment)
+        # detruecasing (uppercase first word of sentence)
         detruecaser = Detruecaser()
         for example_segment, detruecased_segment in self.test_cases.items():
             self.assertEqual(detruecaser.detruecase(example_segment), detruecased_segment)
