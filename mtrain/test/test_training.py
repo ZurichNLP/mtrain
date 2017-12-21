@@ -313,10 +313,12 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
 
 class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
     '''
-    Tests for Nematus mainly adopted from Moses tests and test_train_nematus_engine() added for Nematus specific training.
+    Tests for Nematus mainly adopted from Moses tests where similar.
+    test_train_nematus_engine() added for Nematus specific training.
     '''
 
-    # Test parallel corpus RO-EN ###BH check reference:
+    # test parallel corpus ro-en:
+    ###BH check reference:
     # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.ro
     # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.en
     test_parallel_corpus_ro_en = {
@@ -586,14 +588,14 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
         Testing nematus training from start to end.
 
         Checks are only included when not covered in respective processing step. Moreover, file contents are not
-        checked as this mainly depends on parameters and data. These are not set to produce a serviceable model
-        (which would take hours or even days to finish) but to perform all necessary steps as quickly as possible.
+        checked as this mainly depends on parameters and data. These are not set here to produce a serviceable model
+        (which would take hours or even days to finish) but to perform all necessary steps.
 
         File checks below are commented according to their importance and when they are possible, if termination
         of test process is initiated due to time consumption, skip respective file checks.
         '''
         '''
-        # setup paths and filenames for corpus
+        # setup path and filenames for corpus
         random_basedir_name = 'test_cases/nematus_training' ###BH self.get_random_basename()
         os.mkdir(random_basedir_name)
         corpus_file_ro = os.sep.join([random_basedir_name, 'sample-corpus.ro'])
@@ -614,9 +616,9 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
         # preprocess, truecase and byte-pair encode sample parallel corpus
         t = TrainingNematus(random_basedir_name, "ro", "en", TRUECASING, 100, None)
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
-        t.train_truecaser() # testing of truecasing model checked in test_truecaser.py
-        t.truecase() # testing of truecased corpora checked in test_truecaser.py
-        t.bpe_encoding(1000) # testing of byte-pair encoding model, encoded files and bpe dictionary checked in test_bpe.py
+        t.train_truecaser()############### testing of truecasing model checked in test_truecaser.py
+        t.truecase()############### testing of truecased corpora checked in test_truecaser.py
+        t.bpe_encoding(1000)############### testing of byte-pair encoding model, encoded files and bpe dictionary checked in test_bpe.py
 
         # start training
         t.train_engine(

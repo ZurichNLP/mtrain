@@ -17,7 +17,7 @@ class TestCleaner(TestCase):
         "[foo]":"&#91;foo&#93;"
     }
     # test cases for normalizing Romanian in Nematus
-    # cases derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py ###BH todo add reference
+    # cases/characters derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py, some words are made up ###BH todo add reference
     test_cases_romanian = {
         'Şantierul': 'Șantierul',
         'Totuşi': 'Totuși',
@@ -25,7 +25,7 @@ class TestCleaner(TestCase):
         'puţin': 'puțin'
     }
     # test cases for removing diacritics from normalized Romanian in Nematus
-    # cases derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py###BH todo add reference
+    # cases/characters derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py, some words are made up ###BH todo add reference
     test_cases_ro_diacritics = {
         'Șantierul': 'Santierul',
         'Țivat': 'Tivat',
@@ -40,7 +40,7 @@ class TestCleaner(TestCase):
     }
 
     def test_clean(self):
-        # not yet implemented method, skeleton for test implementation if method used
+        # not yet implemented method, just skeleton and dummy test for later implementation
         for example_segment, clean_segment in self.test_cases_clean.items():
             self.assertEqual(cleaner.clean(example_segment), clean_segment)
 
