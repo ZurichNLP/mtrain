@@ -12,7 +12,6 @@ class BytePairEncoderFile(object):
     Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
 
     The encoding is limited to input that is already processed using 'truecased' casing strategy.
-    Furthermore, neither generic masking nor XML masking are applicable.
 
     ###BH todo add reference to:
         wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
