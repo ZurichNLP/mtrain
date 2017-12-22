@@ -317,7 +317,7 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
     test_train_nematus_engine() added for Nematus specific training.
     '''
 
-    # test parallel corpus ro-en:
+    # test parallel corpus Romanian-English:
     ###BH check reference:
     # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.ro
     # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.en
@@ -581,7 +581,6 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
             4, # only one line satisfies max_tokens for both en and fr
             "Bi-segments where src and/or trg are empty lines must be removed"
         )
-
 
     def test_train_nematus_engine(self):
         '''

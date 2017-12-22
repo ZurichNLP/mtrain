@@ -12,8 +12,7 @@ from mtrain.constants import *
 from mtrain import commander
 
 class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
-    # english test cases for training and testing the truecaser
-    # cases derived from script truecase.perl ###BH todo add reference
+    # English test cases for training and testing the truecaser, derived from script truecase.perl ###BH todo add reference
     test_cases = {
         'This is a sample sentence that was said by Obama, allegedly.': 'this is a sample sentence that was said by Obama, allegedly.',
         'As this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.': 'as this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.',
@@ -23,8 +22,8 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
 
     def _prepare_truecase_tokens(self):
         '''
-        Train truecaser model according to https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh. ###BH todo add reference
-        Sample corpus and truecasing model training use the same test cases that are used to test the truecasing model (see test_truecase_tokens)).
+        Train truecaser model using implementation of script train-truecaser.perl. ###BH todo add reference
+        Sample corpus and training of truecasing model use the same test cases that are used to test the truecasing model (see test_truecase_tokens()).
         '''
         # setup paths and filenames for sample corpus, corpus and tc model
         random_basedir_name = self.get_random_basename()
@@ -86,8 +85,9 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
 
     def test_truecase_tokens(self):
         '''
-        Check functionality of truecaser. Using normalizer, tokenizer and detokenizer for better readability of test cases and include more code coverage.
-        Sample corpus and truecasing model training (see _prepare_truecase_tokens()) use the same test cases that are used to test the truecasing model.
+        Testing implementation of script truecase.perl. ###BH todo add reference
+        Using normalizer, tokenizer and detokenizer for better readability of test cases and include more code coverage.
+        Sample corpus and training of truecasing model (see _prepare_truecase_tokens()) use the same test cases that are used to test the truecasing model.
         '''
         self._prepare_truecase_tokens()
         # load English normalizer
@@ -111,7 +111,8 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
 
     def test_truecase_files_all_sets(self):
         '''
-        Random samples for all sets for testing creation of truecasing files. Test derived from test_training.py.
+        Random samples for all sets for testing creation of truecasing files with script truecase.perl. ###BH todo add reference
+        Tests mainly derived from test_training.py.
         '''
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
@@ -154,7 +155,7 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
         )
 
 class TestDetruecaser(TestCase):
-    # english test cases, reversed examples from TestTruecaser() class to match detruecase.perl ###BH todo add reference
+    # English test cases, reversed examples from TestTruecaser() class to match functionality of script detruecase.perl ###BH todo add reference
     test_cases = {
         'this is a sample sentence that was said by Obama, allegedly.': 'This is a sample sentence that was said by Obama, allegedly.',
         'as this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.': 'As this sentence uses lowercased words that appeared as uppercased before, Obama said these are actually lowercased.',
@@ -163,7 +164,9 @@ class TestDetruecaser(TestCase):
     }
 
     def test_detruecase(self):
-        # detruecasing (uppercase first word of sentence)
+        '''
+        Testing implementation of script detruecase.perl. ###BH todo add reference
+        '''
         detruecaser = Detruecaser()
         for example_segment, detruecased_segment in self.test_cases.items():
             self.assertEqual(detruecaser.detruecase(example_segment), detruecased_segment)
