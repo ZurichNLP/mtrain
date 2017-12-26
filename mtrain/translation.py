@@ -70,7 +70,7 @@ class TranslationEngineBase(object):
 
 class TranslationEngineMoses(TranslationEngineBase):
     '''
-    Moses translation engine trained using `mtrain`
+    Moses translation engine trained using `mtrain`.
     '''
     def __init__(self, basepath, src_lang, trg_lang, uppercase_first_letter=False, xml_strategy=None,
         quiet=False):
@@ -266,7 +266,7 @@ class TranslationEngineMoses(TranslationEngineBase):
 
 class TranslationEngineNematus(TranslationEngineBase):
     '''
-    Nematus translation engine trained using `mtrain`
+    Nematus translation engine trained using `mtrain`.
 
     ###BH todo add reference to:
         wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
@@ -353,7 +353,7 @@ class TranslationEngineNematus(TranslationEngineBase):
 
     def _load_encoder(self):
         '''
-        Create byte-pair encoder: Uses the bpe model learnt in `mtrain`
+        Create byte-pair encoder: Uses the bpe model learnt in `mtrain`.
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md

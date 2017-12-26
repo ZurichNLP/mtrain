@@ -76,7 +76,7 @@ class TrainingBase(object):
     def _get_path(self, component):
         '''
         Returns the absolute path to the base directory of the given
-            @param component.
+        @param component.
         '''
         assert component in PATH_COMPONENT, "Unknown component %s" % component
         return os.path.sep.join([self._basepath, PATH_COMPONENT[component]])
@@ -84,7 +84,7 @@ class TrainingBase(object):
     def _get_path_corpus(self, corpus, lang):
         '''
         Returns the absolute path to a corpus related to this training,
-            to @param corpus the file ending @param lang is appended.
+        to @param corpus the file ending @param lang is appended.
         '''
         if isinstance(corpus, list):
             corpus = '.'.join(corpus)
@@ -180,7 +180,7 @@ class TrainingBase(object):
         accurate=False):
         '''
         Checks the length of segments (in tokens). An accurate check strips,
-            tokenizes the segment and XML element tags count as single tokens.
+        tokenizes the segment and XML element tags count as single tokens.
 
         @param segment the segment the length of which should be determined
         @param min_tokens minimal number of tokens in a segment
@@ -194,7 +194,7 @@ class TrainingBase(object):
     def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens):
         '''
         Splits @param corpus_base_path into training, tuning, and evaluation
-            sections (as applicable). Outputs are stored in /corpus.
+        sections (as applicable). Outputs are stored in /corpus.
 
         @param min_tokens minimal number of tokens in a segment
         @param max_tokens maximal number of tokens in a segment
@@ -348,7 +348,7 @@ class TrainingMoses(TrainingBase):
     def _get_path_masking_patterns(self, overall_strategy, detailed_strategy):
         '''
         Make sure a masking directory and masking strategy subfolder exist,
-        @return the path to the masking patterns file.
+            @return the path to the masking patterns file.
         @param overall_strategy coarse-grained masking or XML strategy
         @param detailed_strategy fine-grained masking or XML strategy
         '''
@@ -360,7 +360,7 @@ class TrainingMoses(TrainingBase):
     def _get_path_corpus_final(self, corpus, lang):
         '''
         Returns the absolute path to a final @param corpus related to this training. In addition
-            to the suffix 'final' the language stortcut @param lang is added.
+        to the suffix 'final' the language stortcut @param lang is added.
         '''
         return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
 
@@ -537,7 +537,7 @@ class TrainingMoses(TrainingBase):
 
     def tune(self, num_threads=1):
         '''
-        Maximises the engine's performance on the tuning corpus
+        Maximises the engine's performance on the tuning corpus.
 
         @param num_threads the maximum number of threads to be used
         '''
@@ -698,8 +698,8 @@ class TrainingMoses(TrainingBase):
             applied to the segments in external corpora
         '''
         # preprocess external corpora:
-        # User choice 'preprocess_external' influences whether or not external tuning corpus
-        # shall be preprocessed (i.e. tokenized).
+        #   user choice 'preprocess_external' influences whether or not external tuning corpus
+        #   shall be preprocessed (i.e. tokenized).
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang),
@@ -1211,8 +1211,8 @@ class TrainingNematus(TrainingBase):
             unclear if reference to tokenizer.perl needed as already used in moses backend
         '''
         # preprocess external corpora:
-        # User choice 'preprocess_external' influences whether or not external tuning corpus
-        # shall be preprocessed (i.e. normalized and tokenized)
+        #   user choice 'preprocess_external' influences whether or not external tuning corpus
+        #   shall be preprocessed (i.e. normalized and tokenized)
         corpus = ParallelCorpus(
             self._get_path_corpus(basename, self._src_lang),
             self._get_path_corpus(basename, self._trg_lang),
@@ -1430,14 +1430,14 @@ $moses_detruecaser"""
 
         # setting up training and validation command for nematus engine (postprocessing is managed by external validation script)
 
-        # theano flags in training
-        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/train.sh
+        # theano flags in training:
+        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/train.sh
         theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 '.format(
             device=device_train,
             preallocate=preallocate_train
         )
-        # nematus files in training
-        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        # nematus files in training:
+        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         nematus_train_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries} '.format(
             script=NEMATUS_NMT,
             model_path=self._base_dir_model,
@@ -1454,8 +1454,8 @@ $moses_detruecaser"""
                          # path to dictionaries (json files)
                          # e.g. 'train.truecased.bpe.ro.json train.truecased.bpe.en.json' split by a space
         )
-        # nematus options in training (split in sections for better overview)
-        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        # nematus options in training (split in sections for better overview):
+        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         nematus_train_options_a = '--max_epochs {max_epo} --finish_after {max_upd} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
             max_epo=max_epochs, # default 5000
             max_upd=max_updates, # default 10000000, renamed for user as easier to understand
@@ -1491,15 +1491,15 @@ $moses_detruecaser"""
             optimizer='adadelta', # default 'adadelta'
             maxlen=50 # default 50
         )
-        # external validation script
-        # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        # external validation script:
+        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         external_validation = '--external_validation_script={script} '.format(
             script=script_path_full
         )
 
         # todo, solve issue https://gitlab.cl.uzh.ch/mt/mtrain/issues/40 and replace this workaround:
-        # append debug log explicitly to training.log in basepath of mtrain, includes output of external validation script.
-        # expect training output to be logged to training.log AGAIN if training terminates due to an error.
+        #   append debug log explicitly to training.log in basepath of mtrain, includes output of external validation script.
+        #   expect training output to be logged to training.log AGAIN if training terminates due to an error.
         logfile = self._basepath + '/training.log'
         log_to_file = '>> {log} 2>&1'.format(
             log=logfile
