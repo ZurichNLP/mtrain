@@ -593,7 +593,6 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
         File checks below are commented according to their importance and when they are possible, if termination
         of test process is initiated due to time consumption, skip respective file checks.
         '''
-        '''
         # setup path and filenames for corpus
         random_basedir_name = 'test_cases/nematus_training' ###BH self.get_random_basename()
         os.mkdir(random_basedir_name)
@@ -612,23 +611,23 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
         f_src.close()
         f_trg.close()
 
-        # preprocess, truecase and byte-pair encode sample parallel corpus
+        # preprocess, truecase and byte-pair encode sample parallel corpus (details tested in respective test suites)
         t = TrainingNematus(random_basedir_name, "ro", "en", TRUECASING, 100, None)
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
-        t.train_truecaser()############### testing of truecasing model checked in test_truecaser.py
-        t.truecase()############### testing of truecased corpora checked in test_truecaser.py
-        t.bpe_encoding(1000)############### testing of byte-pair encoding model, encoded files and bpe dictionary checked in test_bpe.py
+        t.train_truecaser()
+        t.truecase()
+        t.bpe_encoding(1000)
 
         # start training
         t.train_engine(
-            'cpu', # training device
+            'cuda0', # training device
             '0.01',  # training device preallocated memory, keep low for testing e.g. 0.01 = 1%, more is used if available
-            'cpu', # validation device
+            'cuda1', # validation device
             '0.01',  # validation device preallocated memory, keep low for testing e.g. 0.01 = 1%, more is used if available
-            10,     # validation frequency, keep low for testing even if unrealistic
+            10,      # validation frequency, keep low for testing even if unrealistic
             None,    # external validation script, cannot be tested as this must be provided by user if chosen
             5000,    # maximum number of epochs, default is fine for test
-            10      # maximum number of updates, same as validation frequency so test waits for validation to finish and then stops
+            10       # maximum number of updates, same as validation frequency so test waits for validation to finish and then stops
         )
 
         # created before actual training starts. check could be ommited as it is not specific to backend.
@@ -692,6 +691,3 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
             "model.npz.progress.json" in files_created,
             "'model.npz.progress.json' must be created"
         )
-
-        #time.sleep(120) ###BH just testing
-        '''

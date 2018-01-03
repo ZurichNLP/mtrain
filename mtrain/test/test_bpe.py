@@ -294,7 +294,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
         train_src = BASENAME_TRAINING_CORPUS + "." + SUFFIX_TRUECASED + ".bpe.ro.json"
         train_trg = BASENAME_TRAINING_CORPUS + "." + SUFFIX_TRUECASED + ".bpe.en.json"
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
-
         self.assertTrue(
             train_src in files_created,
             "Network dictionary for tc and encoded training corpus of source side must be created"
@@ -398,17 +397,6 @@ class TestBytePairEncoderSegment(TestCase):
         not be readable by apply_bpe.py. Subsequent encoding would cause the models to lock the
         path, causing tearDownClass() to fail several tests where tear down is applied.
         '''
-
-        ''' ###BH remove after testing
-        >>> from mtrain.preprocessing.bpe import BytePairEncoderSegment
-        >>> ro = BytePairEncoderSegment('~/mtrain/mtrain/test/data/ro-en.bpe')
-        >>> ro.bpencode_segment("")
-
-        >>> from mtrain.preprocessing.bpe import BytePairEncoderSegment
-        >>> en = BytePairEncoderSegment('~/mtrain/mtrain/test/data/en-ro.bpe')
-        >>> en.bpencode_segment("")
-        '''
-
         # get current working directory (e.g. ~/mtrain) and external bpe model therein
         cwd = os.getcwd()
         external_bpe_model_ro_en = os.sep.join([cwd, '/mtrain/test/data/ro-en.bpe'])

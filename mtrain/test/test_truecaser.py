@@ -47,7 +47,7 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
                 f.write(example_segment + '\n')
         f.close()
 
-        # preprocess sample corpus as in training
+        # preprocess sample corpus as in training (details tested in respective test suites)
         normalizer = Normalizer('en')
         tokenizer = Tokenizer('en')
 
@@ -86,7 +86,7 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
     def test_truecase_tokens(self):
         '''
         Testing implementation of script truecase.perl. ###BH todo add reference
-        Using normalizer, tokenizer and detokenizer for better readability of test cases and include more code coverage.
+        Using normalizer, tokenizer and detokenizer for better readability of test cases (details tested in respective test suites).
         Sample corpus and training of truecasing model (see _prepare_truecase_tokens()) use the same test cases that are used to test the truecasing model.
         '''
         self._prepare_truecase_tokens()
@@ -99,7 +99,7 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
         # load English detokenizer 
         detokenizer = Detokenizer('en')
 
-        # using truecase_tokens() instead of truecase() to increase code coverage of truecaser.py
+        # test truecasing: using truecase_tokens() instead of truecase() to increase code coverage of truecaser.py
         for example_segment, truecased_segment in self.test_cases.items():
             self.assertEqual(detokenizer.detokenize(truecaser.truecase_tokens(tokenizer.tokenize(normalizer.normalize_punctuation(example_segment)))), truecased_segment)
 
@@ -117,6 +117,7 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
 
+        # preprocessing (details tested in respective test suites)
         t = TrainingNematus(random_basedir_name, "en", "fr", TRUECASING, 50, 20)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
@@ -125,9 +126,11 @@ class TestTruecaser(TestCaseWithCleanup, TestCaseHelper):
             num_bisegments=200
         )
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True)
+        # truecasing files
         t.train_truecaser()
         t.truecase()
 
+        # check creation of truecased corpus files
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
             BASENAME_TRAINING_CORPUS + "." + SUFFIX_TRUECASED + ".en" in files_created,
