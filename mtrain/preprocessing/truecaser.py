@@ -53,7 +53,7 @@ class Detruecaser(object):
     '''
     def __init__(self):
         '''
-        Detruecaser only needs script, no model
+        Detruecaser only needs script, no model.
 
         ###BH todo add reference to:
             wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
