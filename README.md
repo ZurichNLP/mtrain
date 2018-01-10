@@ -1,12 +1,13 @@
 # mtrain
 
 This python3 package provides convenience wrappers to train (`mtrain`) and
-translate with (`mtrans`) Moses-based machine translation engines. Given a
+translate with (`mtrans`) Moses-based Statistical Machine Translation engines
+or Nematus-based Neural Network translation engines. Given a
 parallel corpus of any size, training and translation are as easy as
 
 ```sh
 mkdir ~/my_engine
-mtrain /path/to/my/parallel-corpus en fr --tune 1000 -o ~/my_engine
+mtrain /path/to/my/parallel-corpus en fr --tune 1000 -o ~/my_engine --backend {moses|nematus}
 echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr
 ```
 
@@ -15,11 +16,21 @@ improvements, please feel free to [open a ticket](https://gitlab.cl.uzh.ch/laeub
 
 ## Installation
 
-### Requirements
+### General Requirements
 * Python >= 3.5
 * [Moses](https://github.com/moses-smt/mosesdecoder) (tested with release 3.0). Make sure to compile with cmph (`./bjam --with-cmph=/path/to/cmph`)
+
+### Requirements for Moses backend (in addition to general requirements above)
 * [fast_align](https://github.com/clab/fast_align)
 * [MultEval](https://github.com/cidermole/multeval) (only for evaluation)
+
+### Requirements for Nematus backend (in addition to general requirements above)
+* [Nematus](https://github.com/EdinburghNLP/nematus) including its prerequisites:
+  * Python 2.7: For the resulting mixed environment with Python 2.7 (for Nematus) and 3.5 (for Moses), we recommend setting up a virtual environment using [Anaconda3](https://conda.io/docs/user-guide/tasks/manage-python.html)
+  * [numpy](https://www.scipy.org/install.html)
+  * [Theano](http://deeplearning.net/software/theano) >= 0.7 including dependencies
+  * Recommended packages to speed up training: [CUDA](https://developer.nvidia.com/cuda-toolkit-70) >= 7 and [cuDNN](https://developer.nvidia.com/rdp/cudnn-archive) >= 4
+* [Subword NMT](https://github.com/rsennrich/subword-nmt)
 
 ### Environment variables
 The environment variables `MOSES_HOME` and `FASTALIGN_HOME` are used to
