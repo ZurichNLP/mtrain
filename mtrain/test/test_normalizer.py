@@ -5,7 +5,9 @@ from mtrain.preprocessing.normalizer import Normalizer
 
 class TestNormalizer(TestCase):
     '''
-    Test cases and comments derived from script normalize-punctuation.perl. ###BH todo add reference
+    Test cases and comments derived from script normalize-punctuation.perl.
+
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     # English test cases
     test_cases_en = {
@@ -22,7 +24,7 @@ class TestNormalizer(TestCase):
 
     def test_normalize_punctuation(self):
         '''
-        Testing implementation of script normalize-punctuation.perl. ###BH todo add reference
+        Testing implementation of script normalize-punctuation.perl.
         '''
         # English normalizer
         normalizer_en = Normalizer("en")

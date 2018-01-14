@@ -13,20 +13,19 @@ class Normalizer(object):
     Creates a normalizer for processing segment per segment, allowing
     interaction with a normalizer process kept in memory.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt preprocess.sh, including:
-            moses normalize-punctuation.perl
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
 
     def __init__(self, lang_code):
         '''
         @param lang_code language identifier
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                moses normalize-punctuation.perl
+        Scipt reference https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/normalize-punctuation.perl:
+            Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen, Christine Moran,
+            Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit for Statistical Machine
+            Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007). Prague, Czech Republic.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         arguments = [
             '-l %s' % lang_code,
@@ -46,6 +45,6 @@ class Normalizer(object):
         Normalizes punctuation of a single @param segment.
         '''
 
-        # tested ok, e.g. '«' or '»' replaced by '&quot;'
+        # e.g. '«' or '»' replaced by '&quot;'
         normalized_segment = self._processor.process(segment)
         return normalized_segment

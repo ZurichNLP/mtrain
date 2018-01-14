@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import time ###BH just testing
 
 from unittest import TestCase
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup, TestCaseHelper
@@ -15,12 +14,14 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
     '''
     Tests mainly derived from test_training.py.
 
-    Input for parallel corpora in Romanian and English and examples for test cases: ###BH check reference
+    Input for parallel corpora in Romanian and English and examples for test cases:
         cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.ro
         cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.en
 
     CAUTION: When changing the test parallel corpora, also adapt bpe_ops and test cases as they explicitly match these test corpora.
              Also mind that sentence initial words might not be truecased as they occur rarely or not at all as lowercased words.
+
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     # test corpus Romanian-English training set
     test_parallel_corpus_train_ro_en = {
@@ -84,7 +85,7 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
     def _check_content(self, file, search_content):
         '''
         Helper method for checking file content:
-            cf. https://stackoverflow.com/questions/4940032/how-to-search-for-a-string-in-text-files ###BH check reference
+            cf. https://stackoverflow.com/questions/4940032/how-to-search-for-a-string-in-text-files
         '''
         found = False
         line_number = 0
@@ -99,7 +100,7 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
 
     def test_learn_bpe_model(self):
         '''
-        Learn BPE model according to script learn_bpe.py. ###BH check reference
+        Learn BPE model according to script learn_bpe.py.
         Check model file creation and its basic content.
         '''
         # create basename individually per test, simplifies monitoring tests and tear down
@@ -129,7 +130,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
             "BPE model must have expected file header"
         )
         # check selection of n-grams that must be covered in model
-        ###BH check bpe description
         found, line_number = self._check_content(bpe_model, "t h")
         self.assertTrue(
             found,
@@ -178,7 +178,7 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
 
     def test_apply_bpe_model(self):
         '''
-        Apply BPE model according to script apply_bpe.py. ###BH check reference
+        Apply BPE model according to script apply_bpe.py.
         Check creation of byte-pair encoded files and their content.
         '''
         # create basename individually per test, simplifies monitoring tests and tear down
@@ -215,7 +215,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
 
         # exploiting presence of sentence initial uppercased letters in truecased (tc) corpora:
         #   as uppercased letters are not included in n-grams of this particular bpe model they are encoded individually
-        ###BH check bpe description
         found, line_number = self._check_content(os.sep.join([random_basedir_name, "corpus", train_src]), "A@@ ")
         self.assertTrue(
             found,
@@ -239,7 +238,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
         # checking n-gram example of highest order in model 'universit':
         #   occurring in tc training corpus of both source (in 'universitatii') and target side (in 'university'),
         #   resulting in encoding 'universit@@ '
-        ###BH check bpe description
         found, line_number = self._check_content(os.sep.join([random_basedir_name, "corpus", train_src]), "universit@@ ")
         self.assertTrue(
             found,
@@ -252,7 +250,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
         )
         # due to encoding 'universit@@ ', 'universitatii' and 'university' must NOT be encoded as 'universi@@ ',
         # as this would be lower n-gram order than possible according to model
-        ###BH check bpe description
         found, line_number = self._check_content(os.sep.join([random_basedir_name, "corpus", train_src]), "universi@@ ")
         self.assertTrue(
             not found,
@@ -265,7 +262,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
         )
         # due to encoding 'universit@@ ', 'universitatii' and 'university' must NOT be encoded as 'universita@@ ' or 'university@@ ',
         # as this would be higher n-gram order than possible according to model
-        ###BH check bpe description
         found, line_number = self._check_content(os.sep.join([random_basedir_name, "corpus", train_src]), "universita@@ ")
         self.assertTrue(
             not found,
@@ -279,7 +275,7 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
 
     def test_build_bpe_dictionary(self):
         '''
-        Build BPE dictionary according to script build_dictionary.py. ###BH check reference
+        Build BPE dictionary according to script build_dictionary.py.
         Check creation of dictionary and its basic content.
         '''
         # create basename individually per test, simplifies monitoring tests and tear down
@@ -306,7 +302,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
         # check content of network dictionaries
 
         # check technical dictionary entries 
-        ###BH check bpe description
         found, line_number = self._check_content(os.sep.join([random_basedir_name, "corpus", train_src]), '"eos": 0')
         self.assertTrue(
             found,
@@ -331,7 +326,6 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
         # adapted tests from test_apply_bpe_model() and applied to dictionaries:
         #   '"universit@@"' must be covered in dictionaries while '"universi@@"', '"universita@@"'
         #   and '"university@@"' must NOT be covered
-        ###BH check bpe description
         found, line_number = self._check_content(os.sep.join([random_basedir_name, "corpus", train_src]), '"universit@@": ')
         self.assertTrue(
             found,
@@ -365,13 +359,15 @@ class TestBytePairEncoderFile(TestCaseWithCleanup, TestCaseHelper):
 
 class TestBytePairEncoderSegment(TestCase):
     '''
-    Romanian and English test cases, preferably as normalized, tokenized and truecased segments: ###BH check reference
+    Romanian and English test cases, preferably as normalized, tokenized and truecased segments:
         cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.ro
         cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.en
 
     CAUTION: These test cases explicitly match the provided byte-pair encoding models. Some test cases are edited
              in order to contain unknown n-grams (i.e. not learned in the bpe models) resulting in
              noticeable byte-pair encodings (marked by "@@ ").
+
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     test_cases_ro = {
         "Est onia": "Est onia", # in model
@@ -415,7 +411,10 @@ class TestBytePairEncoderSegment(TestCase):
         segment_encoder.close()
 
 class TestBytePairDecoderSegment(TestCase):
-    # test cases devised using https://translate.google.com/m/translate, ###BH check reference
+    '''
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
+    '''
+    # test cases devised using https://translate.google.com/m/translate,
     # correspond to normalized, tokenized, truecased and encoded segments
     test_cases = {
         "this is an ex@@ ample sent@@ ence .": "this is an example sentence .",
@@ -428,7 +427,7 @@ class TestBytePairDecoderSegment(TestCase):
     def test_bpdecode_segment(self):
         '''
         Byte-pair decoding must replace strings "@@ " with empty strings "":
-            cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-test.sh. ###BH check reference
+            cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-test.sh.
         '''
         segment_decoder = BytePairDecoderSegment()
         for example_segment, decoded_segment in self.test_cases.items():

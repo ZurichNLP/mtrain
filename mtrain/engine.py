@@ -146,10 +146,7 @@ class EngineNematus(object):
     '''
     Starts a translation engine process for nematus backend.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt translate.sh, including:
-            nematus translate.py
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     def __init__(self, path_nematus_model):
         '''
@@ -164,10 +161,7 @@ class EngineNematus(object):
         @param temp_pre path to temporary file holding preprocessed segments as one text
         @param temp_trans path to temporary file for translated text
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt translate.sh, including:
-                nematus translate.py
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} '.format(
             device=device_trans,

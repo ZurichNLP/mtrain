@@ -45,9 +45,9 @@ class ExternalProcessor(object):
             self._nbsr = _NonBlockingStreamReader(self._process.stderr)
 
         '''
-        # calling extenal processor as python process
+        # experiment on calling extenal processor as python process
         # e.g. for byte-pair encoder. python subprocess needs command as list of elements
-        ###BH check reference # cf. https://docs.python.org/3.6/library/subprocess.html
+        # cf. https://docs.python.org/3.6/library/subprocess.html
         elif shell == False:
             self.command = command.split()
             self._stream_stderr = stream_stderr

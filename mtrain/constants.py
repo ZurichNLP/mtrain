@@ -15,9 +15,9 @@ MOSES_BIN = MOSES_HOME + os.sep + 'bin'
 FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
 MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
 # Paths to 3rd party packages for nematus backend implementation
-###BH add reference to https://github.com/rsennrich/subword-nmt
+# Cf. https://github.com/rsennrich/subword-nmt
 SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else '' # Subword NMT base directory
-###BH add reference to https://github.com/EdinburghNLP/nematus
+# Cf. https://github.com/EdinburghNLP/nematus
 NEMATUS_HOME = os.environ.get('NEMATUS_HOME') if os.environ.get('NEMATUS_HOME') else '' # Nematus base directory
 
 # Paths to Moses files/scripts
@@ -32,24 +32,24 @@ MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
 MOSES_MERT = MOSES_HOME + os.sep + 'scripts/training/mert-moses.pl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTableMin'
-MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl' ###BH new, reference?
-MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl' ###BH new, reference?
-MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl' ###BH new, reference?
+MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl'
+MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl'
+MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl'
 # Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
-KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary' ###BH @MM: maybe a / too much, results in '//bin..' ?
+KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary' #@MM: maybe a / too much, results in '//bin..' ?
 # Paths to fast_align files/scripts
 FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'
 ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
 # Path to multeval script
 MULTEVAL = MULTEVAL_HOME + os.sep + 'multeval.sh'
 # Paths to Subword NMT files/scripts
-SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py' ###BH new, reference?
-SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py' ###BH new, reference?
+SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py'
+SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py'
 # Paths to Nematus files/scripts
-NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py' ###BH new, reference?
-NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py' ###BH new, reference?
-NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py' ###BH new, reference?
+NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py'
+NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py'
+NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py'
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.
@@ -80,13 +80,13 @@ PATH_COMPONENT = {
     "evaluation": "evaluation"
 } #"logs": "logs" ### so far logs directory not used, removed
 
-# Subfolder for bpe model and file suffix when byte-pair encoded in nematus ###BH new, reference?
+# Subfolder for bpe model and file suffix when byte-pair encoded in nematus
 BPE = 'bpe'
 
 # Default file names and affixes
 BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
-BASENAME_EVALUATION_CORPUS = 'eval' ###BH @MM: changed value from 'test'
+BASENAME_EVALUATION_CORPUS = 'eval' #@MM: changed value from 'test'
 SUFFIX_TOKENIZED = 'tokenized'
 SUFFIX_DETOKENIZED= 'detokenized'
 SUFFIX_MASKED = 'masked'
@@ -245,6 +245,5 @@ BACKEND_CHOICES = {
 # Distinction of python versions in backend nematus, useful when mixed environment with python 2 and 3 causes trouble:
 # E.g. bpe.py's BytePairEncoderSegment needs to call the script explicitly as Python 3. If 'python' does not point to Python 3
 # in your environment as it should, use 'export PYTHON3=/path/to/python3'
-###BH add reference to env vars?
 PYTHON2 = os.environ.get('PYTHON2') if os.environ.get('PYTHON2') else 'python2' # Python 2 base directory
 PYTHON3 = os.environ.get('PYTHON3') if os.environ.get('PYTHON3') else 'python' # Python 3 base directory

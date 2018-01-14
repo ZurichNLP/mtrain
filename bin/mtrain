@@ -263,7 +263,6 @@ def get_argument_parser():
 
     return parser
 
-###BH todo test
 def check_environment_moses(args):
     '''
     Abort if environment variables specific for moses backend are not set.
@@ -275,7 +274,6 @@ def check_environment_moses(args):
     if args.eval:
         checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
 
-###BH todo test
 def check_environment_nematus(args):
     '''
     Abort if environment variables specific for nematus backend are not set.
@@ -287,7 +285,6 @@ def check_environment_nematus(args):
     if args.training_only != True:
         checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
 
-###BH todo test
 def check_arguments_moses(args):
     '''
     Check for arguments if fit for moses, either combination or specific argument may
@@ -315,7 +312,6 @@ def check_arguments_moses(args):
             "are not applicable and will be ignored. " +
             "See '-h'/'--help' for more information.", BACKEND_MOSES)
 
-###BH todo test
 def check_arguments_nematus(args):
     '''
     Check for arguments if fit for nematus, either combination or specific argument may
@@ -477,7 +473,7 @@ def main():
         # initiate preprocessing
         logging.info("Initiating preprocessing for backend %s", args.backend)
         training.preprocess(
-            corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
+            corpus_base_path=args.basepath, #@MM: changed from 'base_corpus_path=args.basepath,'
             min_tokens=args.min_tokens,
             max_tokens=args.max_tokens,
             preprocess_external=args.preprocess_external_tune,
@@ -526,8 +522,7 @@ def main():
     # distinguish chosen backend
     if args.backend == BACKEND_NEMATUS:
         '''
-        ###BH todo add reference for general approach when training nematus model:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        Cf. wmt instructions in https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
         '''
         # abort if environment variables for nematus backend are not set
         check_environment_nematus(args)
@@ -550,7 +545,7 @@ def main():
             # initiate preprocessing
             logging.info("Initiating preprocessing for backend %s", args.backend)
             training.preprocess(
-                corpus_base_path=args.basepath, ###BH @MM: changed from 'base_corpus_path=args.basepath,'
+                corpus_base_path=args.basepath, #@MM: changed from 'base_corpus_path=args.basepath,'
                 min_tokens=args.min_tokens,
                 max_tokens=args.max_tokens,
                 preprocess_external=args.preprocess_external_tune

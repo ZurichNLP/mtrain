@@ -300,11 +300,13 @@ Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Feder
 
 Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units. In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
 
+* https://github.com/rsennrich/subword-nmt/blob/master/README.md
 * https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py
 * https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py
 
 Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli, Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation. In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational Linguistics (EACL 2017). Valencia, Spain, pp. 65-68.
 
+* https://github.com/EdinburghNLP/nematus/blob/master/README.md
 * https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py
 * https://github.com/EdinburghNLP/nematus/blob/master/nematus/nmt.py
 * https://github.com/EdinburghNLP/nematus/blob/master/nematus/translate.py

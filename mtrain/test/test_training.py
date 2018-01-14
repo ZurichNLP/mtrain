@@ -5,7 +5,6 @@ import random
 import shutil
 import sys
 import os
-import time ###BH just testing
 
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup, TestCaseHelper
 
@@ -19,7 +18,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
     def test_preprocess_base_corpus_file_creation_train_only(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        ###BH changed order of args
+        # changed order of args
         t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
@@ -27,7 +26,6 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        ###BH changed order of args not necessary here
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, False, False)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
@@ -42,7 +40,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
     def test_preprocess_base_corpus_file_creation_train_tune_eval(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        ###BH changed order of args
+        # changed order of args
         t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, 50, 20, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
@@ -50,7 +48,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        ###BH changed order of args
+        # changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         files_created = os.listdir(os.sep.join([random_basedir_name, "corpus"]))
         self.assertTrue(
@@ -81,7 +79,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
     def test_preprocess_base_corpus_correct_number_of_lines_train_only(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        ###BH changed order of args
+        # changed order of args
         t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
@@ -89,7 +87,6 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        ###BH changed order of args not necessary here
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, False, False, False)
         self.assertTrue(
             200 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
@@ -103,7 +100,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
     def test_preprocess_base_corpus_correct_number_of_lines_train_tune_eval(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        ###BH changed order of args
+        # changed order of args
         t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, 50, 20, None, XML_PASS_THROUGH)
         self._create_random_parallel_corpus_files(
             path=random_basedir_name,
@@ -111,7 +108,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             filename_target="sample-corpus.fr",
             num_bisegments=200
         )
-        ###BH changed order of args
+        # changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         self.assertTrue(
             130 == self.count_lines(os.sep.join([random_basedir_name, "corpus", BASENAME_TRAINING_CORPUS + ".en"])),
@@ -141,7 +138,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
     def test_preprocess_external_tuning_corpus(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        ###BH changed order of args, made mask&xml explicit to fix keyword/positional args order
+        # changed order of args, made mask&xml explicit to fix keyword/positional args order
         t = TrainingMoses(
             random_basedir_name, "en", "fr", SELFCASING,
             tuning=self._basedir_test_cases + os.sep + "external-sample-corpus",
@@ -162,7 +159,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        ###BH changed order of args
+        # changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_TUNING_CORPUS + ".en"),
@@ -184,7 +181,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
     def test_preprocess_external_eval_corpus(self):
         random_basedir_name = self.get_random_basename()
         os.mkdir(random_basedir_name)
-        ###BH changed order of args, made mask&xml explicit to fix keyword/positional args order
+        # changed order of args, made mask&xml explicit to fix keyword/positional args order
         t = TrainingMoses(
             random_basedir_name, "en", "fr", SELFCASING,
             tuning=None,
@@ -205,7 +202,7 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             filename_target="external-sample-corpus.fr",
             num_bisegments=50
         )
-        ###BH changed order of args
+        # changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]), 1, 80, True, False, False)
         self.assertTrue(
             assertions.file_exists(random_basedir_name + os.sep + "corpus" + os.sep + BASENAME_EVALUATION_CORPUS + ".en"),
@@ -235,9 +232,9 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             f.write('one two three' + '\n')
             f.write('one two' + '\n')
             f.write('one' + '\n')
-        ###BH changed order of args
+        # changed order of args
         t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
-        ###BH changed order of args
+        # changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
             min_tokens=2, max_tokens=80, preprocess_external=False, mask=False, process_xml=False)
         self.assertIs(
@@ -262,9 +259,9 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             f.write('one two three' + '\n')
             f.write('one two' + '\n')
             f.write('one' + '\n')
-        ###BH changed order of args
+        # changed order of args
         t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
-        ###BH changed order of args
+        # changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
             min_tokens=1, max_tokens=2, preprocess_external=False, mask=False, process_xml=False)
         self.assertIs(
@@ -295,9 +292,9 @@ class TestTrainingMoses(TestCaseWithCleanup, TestCaseHelper):
             f.write('one two' + '\n')
             f.write('\n') # must be removed
             f.write('one two' + '\n')
-        ###BH changed order of args
+        # changed order of args
         t = TrainingMoses(random_basedir_name, "en", "fr", SELFCASING, None, None, None, XML_PASS_THROUGH)
-        ###BH changed order of args
+        # changed order of args
         t.preprocess(os.sep.join([random_basedir_name, "sample-corpus"]),
             min_tokens=1, max_tokens=80, preprocess_external=False, mask=False, process_xml=False)
         self.assertIs(
@@ -315,12 +312,13 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
     '''
     Tests for Nematus mainly adopted from Moses tests where similar.
     test_train_nematus_engine() added for Nematus specific training.
+
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
 
     # test parallel corpus Romanian-English:
-    ###BH check reference:
-    # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.ro
-    # cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.en
+    #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.ro
+    #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/data/newsdev2016.en
     test_parallel_corpus_ro_en = {
         "Avem cel mai mare număr de candidați admiși din istoria universității, aproape 920 de studenți în anul I.":
         "We have the largest number of candidates ever admitted in the university's history, nearly 920 students in the first year.",
@@ -594,7 +592,7 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
         of test process is initiated due to time consumption, skip respective file checks.
         '''
         # setup path and filenames for corpus
-        random_basedir_name = 'test_cases/nematus_training' ###BH self.get_random_basename()
+        random_basedir_name = self.get_random_basename() ### use this in case random basename gets locked: random_basedir_name = 'test_cases/nematus_training'
         os.mkdir(random_basedir_name)
         corpus_file_ro = os.sep.join([random_basedir_name, 'sample-corpus.ro'])
         corpus_file_en = os.sep.join([random_basedir_name, 'sample-corpus.en'])

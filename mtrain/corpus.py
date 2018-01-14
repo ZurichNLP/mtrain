@@ -10,14 +10,7 @@ class ParallelCorpus(object):
     A parallel corpus storing either a limited or unlimited number of
     bi-segments.
 
-    ###BH todo add reference to:
-        wmt preprocess.sh, including:
-            moses normalize-punctuation.perl
-            wmt normalise-romanian.py
-            wmt remove-diacritics.py
-            moses tokenizer.perl
-
-        unclear if reference to tokenizer.perl needed as already used in moses backend
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
 
     def __init__(self, filepath_source, filepath_target, max_size=None, preprocess=False,
@@ -138,14 +131,7 @@ class ParallelCorpus(object):
         @param lang the language of the segment to be preprocessed, for language
             specific processing (e.g. in Romanian)
 
-        ###BH todo add reference to:
-            wmt preprocess.sh, including:
-                moses normalize-punctuation.perl
-                wmt normalise-romanian.py
-                wmt remove-diacritics.py
-                moses tokenizer.perl
-
-            unclear if reference to tokenizer.perl needed as already used in moses backend
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
 
         segment = segment.strip()
@@ -176,15 +162,7 @@ class ParallelCorpus(object):
         Preprocesses a @param bisegment using specific normalizer and tokenizer objects. Language of the
         individual segments is used for further language specific processing of a segment (e.g. Romanian).
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                moses normalize-punctuation.perl
-                wmt normalise-romanian.py
-                wmt remove-diacritics.py
-                moses tokenizer.perl
-
-            unclear if reference to tokenizer.perl needed as already used in moses backend
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         segment_source, segment_target = bisegment
 

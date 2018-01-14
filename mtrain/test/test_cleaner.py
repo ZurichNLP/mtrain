@@ -4,6 +4,9 @@ from unittest import TestCase
 from mtrain.preprocessing import cleaner
 
 class TestCleaner(TestCase):
+    '''
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
+    '''
     # dummy test case for not yet implemented clean() method
     test_cases_clean = {
         '': ''
@@ -17,7 +20,7 @@ class TestCleaner(TestCase):
         "[foo]":"&#91;foo&#93;"
     }
     # test cases for normalizing Romanian in nematus
-    # cases/characters derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py, some words are made up ###BH todo add reference
+    # cases/characters derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py, some words are made up
     test_cases_romanian = {
         'Şantierul': 'Șantierul',
         'Totuşi': 'Totuși',
@@ -25,7 +28,7 @@ class TestCleaner(TestCase):
         'puţin': 'puțin'
     }
     # test cases for removing diacritics from normalized Romanian in nematus
-    # cases/characters derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py, some words are made up ###BH todo add reference
+    # cases/characters derived from script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py, some words are made up
     test_cases_ro_diacritics = {
         'Șantierul': 'Santierul',
         'Țivat': 'Tivat',
@@ -62,14 +65,14 @@ class TestCleaner(TestCase):
 
     def test_normalize_romanian(self):
         '''
-        Testing implementation of script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py. ###BH todo add reference
+        Testing implementation of script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py.
         '''
         for example_segment, normalized_segment in self.test_cases_romanian.items():
             self.assertEqual(cleaner.normalize_romanian(example_segment), normalized_segment)
 
     def test_remove_ro_diacritics(self):
         '''
-        Testing implementation of script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py. ###BH todo add reference
+        Testing implementation of script https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py.
         '''        
         for example_segment, diac_free_segment in self.test_cases_ro_diacritics.items():
             self.assertEqual(cleaner.remove_ro_diacritics(example_segment), diac_free_segment)

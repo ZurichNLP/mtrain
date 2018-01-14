@@ -46,19 +46,18 @@ class Detruecaser(object):
     Creates a detruecaser which detruecases sentences on-the-fly, i.e., allowing
     interaction with a Moses truecaser process kept in memory.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt postprocess-test.sh, including:
-            detruecase.perl
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     def __init__(self):
         '''
         Detruecaser only needs script, no model.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt postprocess-test.sh, including:
-                detruecase.perl
+        Scipt reference https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/detruecase.perl:
+            Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen, Christine Moran,
+            Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit for Statistical Machine
+            Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007). Prague, Czech Republic.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         arguments = [
             '-b' #disable Perl buffering

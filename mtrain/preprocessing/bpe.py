@@ -13,19 +13,14 @@ class BytePairEncoderFile(object):
 
     The encoding is limited to input that is already processed using 'truecased' casing strategy.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt preprocess.sh, including:
-            subword_nmt learn_bpe.py
-            subword_nmt apply_bpe.py
-            nematus build_dictionary.py
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     def __init__(self, corpus_train_tc, corpus_tune_tc, bpe_model_path, bpe_operations, src_lang, trg_lang):
         '''
         @params corpus_train_tc location of truecased training corpus (no language ending)
         @params corpus_tune_tc location of truecased tuning corpus (no language ending)
         @params bpe_model_path path of byte-pair encoding model to be stored (no filename)
-        @params bpe_operations number of n-grams to be created ###BH add ref?
+        @params bpe_operations number of n-grams to be created
         @params src_lang language identifier of source language
         @params trg_lang language identifier of target language
         '''
@@ -42,12 +37,10 @@ class BytePairEncoderFile(object):
         Stores the bpe model in the basepath's subfolder 'engine/bpe/', model name SRC-TRG.bpe.
 
         Script reference https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py:
-            Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
-            Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units.
+            In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
 
-        ###BH todo check reference above AND add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         commander.run(
             'cat {corpus}.{src} {corpus}.{trg} | {script} --s {bpe_ops} > {bpe_model}/{src}-{trg}.bpe'.format(
@@ -67,12 +60,10 @@ class BytePairEncoderFile(object):
         basepath's subfolder 'corpus', file names train.truecased.bpe.SRC|TRG and tune.truecased.bpe.SRC|TRG.
 
         Script reference https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py:
-            Rico Sennrich, Barry Haddow and Alexandra Birch (2015). Neural Machine Translation of Rare Words with Subword Units.
-            Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units.
+            In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
 
-        ###BH todo check reference above AND add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         def command(current_corpus, current_lang):
             return '{script} -c {bpe_model}/{src}-{trg}.bpe < {corpus}.{lang} > {corpus}.bpe.{lang}'.format(
@@ -97,11 +88,13 @@ class BytePairEncoderFile(object):
         Note that the JSON files such as train.truecased.bpe.SRC.json and train.truecased.bpe.TRG.json
         are automatically stored at the location of the input files, which is the basepath's subfolder 'corpus'.
 
-        Scipt reference https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py
+        Scipt reference https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py:
+            Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli,
+            Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation.
+            In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational
+            Linguistics (EACL 2017). Valencia, Spain, pp. 65-68.
 
-        ###BH todo check reference above AND add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         commander.run(
             '{script} {corpus}.bpe.{src} {corpus}.bpe.{trg}'.format(
@@ -118,19 +111,17 @@ class BytePairEncoderSegment(object):
     Creates a byte-pair encoder which encodes normalized, tokenized and truecased segments
     in order to enable translation in backend nematus.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt preprocess.sh, including:
-            subword_nmt apply_bpe.py
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     def __init__(self, bpe_model):
         '''
         @param bpe_model full path to byte-pair processing model trained in `mtrain`
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                subword_nmt apply_bpe.py
+        Script reference https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py:
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units.
+            In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         arguments = [
             '-c %s' % bpe_model
@@ -165,18 +156,18 @@ class BytePairDecoderSegment(object):
     in the input to be translated are due to absence in the training corpus and thus, in the
     byte-pair model.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt postprocess-test.sh
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
 
     def bpdecode_segment(self, segment):
         '''
         Decodes a single @param segment.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt postprocess-test.sh
+        Code directly applied from example shellscript https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-test.sh:
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machine Translation Systems for WMT 16.
+            In Proceedings of the First Conference on Machine Translation (WMT16). Berlin, Germany.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         decoded_segment = segment.replace("@@ ","")
         return decoded_segment

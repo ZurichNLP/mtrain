@@ -137,7 +137,6 @@ def get_argument_parser():
 
     return parser
 
-###BH todo test
 def check_environment_nematus():
     '''
     Abort if environment variables specific for nematus backend are not set.
@@ -145,7 +144,6 @@ def check_environment_nematus():
     checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
     checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
 
-###BH todo test
 def check_arguments_moses(args):
     '''
     Check for arguments if fit for moses, either combination or specific argument may
@@ -161,7 +159,6 @@ def check_arguments_moses(args):
             "are not applicable and will be ignored. " +
             "See '-h'/'--help' for more information.", BACKEND_MOSES)
 
-###BH todo test
 def check_arguments_nematus(args):
     '''
     Check for arguments if fit for nematus, either combination or specific argument may
@@ -196,7 +193,7 @@ def check_arguments_nematus(args):
 def create_tempfiles_nematus():
     '''
     Create temporary directory and secure named temporary files.
-    ###BH check reference cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
+    Cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
     '''
     tempdir = tempfile.mkdtemp()
     mtrans_temp_pre = 'mtrans.tmp.pre'
@@ -234,7 +231,7 @@ def postprocess_translation_nematus(args, temp_trans, engine):
         translation_file = args.basepath + '/results.mtrans.txt'
         with open(translation_file, 'a') as f_out:
             # write identifying translation title and timestamp
-            ###BH check reference # cf. https://www.saltycrane.com/blog/2008/06/how-to-get-current-date-and-time-in/
+            # cf. https://www.saltycrane.com/blog/2008/06/how-to-get-current-date-and-time-in/
             now = datetime.datetime.now()
             f_out.write("\n%s - mtrans - INFO - Your `%s` input translated to `%s` using backend %s:\n\n" % (now.strftime("%Y-%m-%d %H:%M:%S"), args.src_lang, args.trg_lang, args.backend))
         f_out.close()
@@ -263,7 +260,7 @@ def postprocess_translation_nematus(args, temp_trans, engine):
 def cleanup_tempfiles_nematus(tempdir, temp_pre, temp_trans):
     '''
     Delete temporary directory and secure named temporary files.
-    ###BH check reference cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
+    Cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
     '''
     os.remove(temp_pre)
     os.remove(temp_trans)
@@ -317,8 +314,7 @@ def main():
     # distinguish chosen backend
     if args.backend == BACKEND_NEMATUS:
         '''
-        ###BH todo add reference for general approach when translating with nematus model:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+        Cf. wmt instructions in https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
         '''
         # abort if environment variables for nematus backend are not set
         check_environment_nematus()
