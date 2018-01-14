@@ -311,4 +311,4 @@ Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian
 * https://github.com/EdinburghNLP/nematus/blob/master/nematus/nmt.py
 * https://github.com/EdinburghNLP/nematus/blob/master/nematus/translate.py
 
-Rami Al-Rfou, Guillaume Alain, Amjad Almahairi, Christof Angermueller, Dzmitry Bahdanau et al. (2016): Theano: A Python Framework for fast Computation of Mathematical Expressions. arXiv preprints, abs/1605.02688.
+Rami Al-Rfou, Guillaume Alain, Amjad Almahairi, Christof Angermueller, Dzmitry Bahdanau et al. (2016): Theano: A Python Framework for fast Computation of Mathematical Expressions. CoRR, 1605.02688.
