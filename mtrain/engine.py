@@ -161,6 +161,16 @@ class EngineNematus(object):
         @param temp_pre path to temporary file holding preprocessed segments as one text
         @param temp_trans path to temporary file for translated text
 
+        Script reference https://github.com/EdinburghNLP/nematus/blob/master/nematus/translate.py:
+            Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli,
+            Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation.
+            In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational
+            Linguistics (EACL 2017). Valencia, Spain, pp. 65-68.
+
+        Code directly applied from example shellscript https://github.com/rsennrich/wmt16-scripts/blob/master/sample/translate.sh:
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machine Translation Systems for WMT 16.
+            In Proceedings of the First Conference on Machine Translation (WMT16). Berlin, Germany.
+
         Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} '.format(

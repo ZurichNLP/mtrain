@@ -88,7 +88,7 @@ class BytePairEncoderFile(object):
         Note that the JSON files such as train.truecased.bpe.SRC.json and train.truecased.bpe.TRG.json
         are automatically stored at the location of the input files, which is the basepath's subfolder 'corpus'.
 
-        Scipt reference https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py:
+        Script reference https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py:
             Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli,
             Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation.
             In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational

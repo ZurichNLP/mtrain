@@ -268,20 +268,7 @@ class TranslationEngineNematus(TranslationEngineBase):
     '''
     Nematus translation engine trained using `mtrain`.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt preprocess.sh, including:
-            moses normalize-punctuation.perl
-            wmt normalise-romanian.py
-            wmt remove-diacritics.py
-            moses tokenizer.perl
-            moses truecase.perl
-            subword_nmt apply_bpe.py
-        wmt translate.sh, including:
-            nematus translate.py
-        wmt postprocess-test.sh, including:
-            moses detruecase.perl
-            moses detokenizer.perl
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     def __init__(self, basepath, src_lang, trg_lang, adjust_dictionary=False):
         '''
@@ -312,6 +299,8 @@ class TranslationEngineNematus(TranslationEngineBase):
         in the basepath's corpus folder. Necessary when models were trained in a path different than
         the current basepath. If paths are not matching, nematus returns an empty string for any translation
         without error message OR may use the wrong .json files for translation.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # get path and file name of model config
         model_config = self._path_nematus_model + '.json'
@@ -355,10 +344,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         Create byte-pair encoder: Uses the bpe model learnt in `mtrain`.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                subword_nmt apply_bpe.py
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         bpe_model_path = os.sep.join([
             self._basepath,
@@ -372,10 +358,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         Start a process for Nematus translation engine.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt translate.sh, including:
-                nematus translate.py
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         self._path_nematus_model = os.sep.join([
             self._basepath,
@@ -411,15 +394,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         No addition to abstract method @params.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                moses normalize-punctuation.perl
-                wmt normalise-romanian.py
-                wmt remove-diacritics.py
-                moses tokenizer.perl
-                moses truecase.perl
-                subword_nmt apply_bpe.py
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # normalize input segment
         segment = self._normalizer.normalize_punctuation(segment)
@@ -443,11 +418,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         '''
         Postprocesses a single @param segment.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt postprocess-test.sh, including:
-                moses detruecase.perl
-                moses detokenizer.perl
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # decode translated segment
         segment = self._decoder.bpdecode_segment(segment)
@@ -475,10 +446,7 @@ class TranslationEngineNematus(TranslationEngineBase):
         @param temp_pre path to temporary file holding preprocessed segments as one text
         @param temp_trans path to temporary file for translated text
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt translate.sh, including:
-                nematus translate.py
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # translate preprocessed text provided by @param temp_pre,
         # translated text will be available from @param temp_trans, thus no @return

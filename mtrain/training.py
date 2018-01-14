@@ -20,7 +20,7 @@ from mtrain.preprocessing.tokenizer import Tokenizer
 from mtrain.preprocessing.masking import Masker, write_masking_patterns
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
 from mtrain.preprocessing.bpe import BytePairEncoderFile
-from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus ###BH @MM obsolete in training.py?
+from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus #@MM maybe obsolete in training.py
 
 class TrainingBase(object):
     '''
@@ -373,7 +373,7 @@ class TrainingMoses(TrainingBase):
         if self._masking_strategy:
             tokenizer_protects = True
             protected_patterns_path = self._get_path_masking_patterns(
-                overall_strategy=MASK, ###BH @MM todo: MASK is not defined
+                overall_strategy=MASK, #@MM todo: MASK is not defined
                 detailed_strategy=self._masking_strategy
             )
         elif self._xml_strategy == XML_MASK:
@@ -946,25 +946,7 @@ class TrainingNematus(TrainingBase):
     Models the training process of a Nematus engine, including all files
     that are required and generated.
 
-    ###BH todo add reference to:
-        wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        wmt preprocess.sh, including:
-            moses normalize-punctuation.perl
-            wmt normalise-romanian.py
-            wmt remove-diacritics.py
-            moses tokenizer.perl
-            moses train-truecaser.perl
-            moses truecase.perl
-            subword_nmt learn_bpe.py
-            subword_nmt apply_bpe.py
-            nematus build_dictionary.py
-        wmt train.sh, including:
-            wmt config.py for parameter examples AND nematus nmt.py, including:
-                wmt validate.sh, including:
-                    nematus translate.py
-                    moses multi-bleu.perl
-                    wmt postprocess-dev.sh, including:
-                        detruecase.perl
+    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
     '''
     def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation):
         '''
@@ -994,7 +976,7 @@ class TrainingNematus(TrainingBase):
         '''
         No addition to abstract method @params.
 
-        ###BH todo: unclear if reference necessary as scripts and technique already in moses backend
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         super(TrainingNematus, self).preprocess(corpus_base_path, min_tokens, max_tokens, preprocess_external)
 
@@ -1017,25 +999,20 @@ class TrainingNematus(TrainingBase):
                 max_tokens,
                 preprocess_external=False, # never preprocess EVAL corpus
             )
-        # lowercase as needed
-        ###BH no effect when truecasing strategy # self._lowercase()
-        # mark final files (.final symlinks)
-        ###BH effect in nematus unclear yet # self._mark_final_files()
+
+        # self._lowercase() omitted as it has no effect when truecasing
+        # self._mark_final_files() omitted in backend nematus
 
     def bpe_encoding(self, bpe_operations):
         '''
         Further preprocessing for nematus backend: byte-pair encoding the given parallel corpora.
 
         @param bpe_operations "Create this many new symbols (each representing a character n-gram)"
-                    Rico Sennrich, Barry Haddow and Alexandra Birch (2016). Neural Machine Translation of Rare Words with Subword Units.
-                    Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+            Script reference https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py:
+                Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units.
+                In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
 
-        ###BH todo check reference above AND add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                subword_nmt learn_bpe.py
-                subword_nmt apply_bpe.py
-                nematus build_dictionary.py
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # get input: paths of truecased training and truecased tuning corpora. no language ending
         corpus_train_tc=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_TRUECASED
@@ -1065,7 +1042,7 @@ class TrainingNematus(TrainingBase):
         @return the input segment. None means that the segment should be
             discarded.
 
-        ###BH todo: unclear if reference necessary as scripts and technique already in moses backend
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         original_segment = segment
 
@@ -1092,15 +1069,7 @@ class TrainingNematus(TrainingBase):
         '''
         No addition to abstract method @params.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                moses normalize-punctuation.perl
-                wmt normalise-romanian.py
-                wmt remove-diacritics.py
-                moses tokenizer.perl
-
-            unclear if reference to tokenizer.perl needed as already used in moses backend
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
@@ -1144,12 +1113,12 @@ class TrainingNematus(TrainingBase):
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
             self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
             max_size=num_eval,
-            preprocess=False, ###BH for eval corpus preprocessing later in evaluation step
-            tokenize=False, ###BH for eval corpus preprocessing later in evaluation step
+            preprocess=False, # for eval corpus preprocessing later in evaluation step
+            tokenize=False, # for eval corpus preprocessing later in evaluation step
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
             mask=None, masker=None, process_xml=None, xml_processor=None, # not needed in nematus but necessary as positional argumuments
-            normalize=False, ###BH for eval corpus preprocessing later in evaluation step
+            normalize=False, # for eval corpus preprocessing later in evaluation step
             normalizer_src=self._normalizer_source,
             normalizer_trg=self._normalizer_target,
             src_lang=self._src_lang,
@@ -1200,15 +1169,7 @@ class TrainingNematus(TrainingBase):
         '''
         No addition to abstract method @params.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt preprocess.sh, including:
-                moses normalize-punctuation.perl
-                wmt normalise-romanian.py
-                wmt remove-diacritics.py
-                moses tokenizer.perl
-
-            unclear if reference to tokenizer.perl needed as already used in moses backend
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # preprocess external corpora:
         #   user choice 'preprocess_external' influences whether or not external tuning corpus
@@ -1265,15 +1226,7 @@ class TrainingNematus(TrainingBase):
         @param max_epochs maximum number of epochs
         @param max_updates maximum number of updates
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt train.sh, including:
-                wmt config.py for parameter examples AND nematus nmt.py, including:
-                    wmt validate.sh, including:
-                        nematus translate.py
-                        moses multi-bleu.perl
-                        wmt postprocess-dev.sh, including:
-                            detruecase.perl
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
@@ -1304,12 +1257,23 @@ class TrainingNematus(TrainingBase):
         @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt validate.sh, including:
-                nematus translate.py
-                moses multi-bleu.perl
-                wmt postprocess-dev.sh
+        Script reference https://github.com/EdinburghNLP/nematus/blob/master/nematus/translate.py:
+            Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli,
+            Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation.
+            In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational
+            Linguistics (EACL 2017). Valencia, Spain, pp. 65-68.
+
+        Script reference https://github.com/moses-smt/mosesdecoder/blob/master/scripts/generic/multi-bleu.perl:
+            Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen,
+            Christine Moran, Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit
+            for Statistical Machine Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007).
+            Prague, Czech Republic.
+
+        Code directly applied from example shellscript https://github.com/rsennrich/wmt16-scripts/blob/master/sample/validate.sh:
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machine Translation Systems for WMT 16.
+            In Proceedings of the First Conference on Machine Translation (WMT16). Berlin, Germany.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # check if mtrain-managed external validation
         if self._mtrain_managed_val:
@@ -1373,10 +1337,17 @@ fi"""
         Setting up postprocessing script that is called by external validation script during training of nematus engine.
         This does not execute postprocessing, but enabling postprocessing during training's validation steps to work properly.
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt postprocess-dev.sh, including:
-                detruecase.perl
+        Script reference https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/detruecase.perl:
+            Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen,
+            Christine Moran, Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit
+            for Statistical Machine Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007).
+            Prague, Czech Republic.
+
+        Code directly applied from example shellscript https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-dev.sh:
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machine Translation Systems for WMT 16.
+            In Proceedings of the First Conference on Machine Translation (WMT16). Berlin, Germany.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # check if mtrain-managed postprocessing
         if self._mtrain_managed_val:
@@ -1416,10 +1387,17 @@ $moses_detruecaser"""
         @param max_epochs maximum number of epochs
         @param max_updates maximum number of updates
 
-        ###BH todo add reference to:
-            wmt instructions https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-            wmt train.sh, including:
-                wmt config.py for parameter examples AND nematus nmt.py
+        Script reference https://github.com/EdinburghNLP/nematus/blob/master/nematus/nmt.py:
+            Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli,
+            Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation.
+            In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational
+            Linguistics (EACL 2017). Valencia, Spain, pp. 65-68.
+
+        Further references given below when WMT16 scripts were adopted:
+            Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units.
+            In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+
+        Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
         '''
         # distinguish mtrain-managed from user-defined external validation
         if self._mtrain_managed_val:
@@ -1431,13 +1409,13 @@ $moses_detruecaser"""
         # setting up training and validation command for nematus engine (postprocessing is managed by external validation script)
 
         # theano flags in training:
-        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/train.sh
+        #   Code directly applied from https://github.com/rsennrich/wmt16-scripts/blob/master/sample/train.sh
         theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 '.format(
             device=device_train,
             preallocate=preallocate_train
         )
         # nematus files in training:
-        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        #   Code directly applied from https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         nematus_train_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries} '.format(
             script=NEMATUS_NMT,
             model_path=self._base_dir_model,
@@ -1455,7 +1433,7 @@ $moses_detruecaser"""
                          # e.g. 'train.truecased.bpe.ro.json train.truecased.bpe.en.json' split by a space
         )
         # nematus options in training (split in sections for better overview):
-        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        #   Code directly applied from https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         nematus_train_options_a = '--max_epochs {max_epo} --finish_after {max_upd} --dispFreq {dispFreq} --validFreq {validFreq} --saveFreq {saveFreq} --sampleFreq {sampleFreq} '.format(
             max_epo=max_epochs, # default 5000
             max_upd=max_updates, # default 10000000, renamed for user as easier to understand
@@ -1492,7 +1470,7 @@ $moses_detruecaser"""
             maxlen=50 # default 50
         )
         # external validation script:
-        #   cf. https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+        #   Code directly applied from https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
         external_validation = '--external_validation_script={script} '.format(
             script=script_path_full
         )

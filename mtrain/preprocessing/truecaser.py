@@ -52,7 +52,7 @@ class Detruecaser(object):
         '''
         Detruecaser only needs script, no model.
 
-        Scipt reference https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/detruecase.perl:
+        Script reference https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/detruecase.perl:
             Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen, Christine Moran,
             Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit for Statistical Machine
             Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007). Prague, Czech Republic.
