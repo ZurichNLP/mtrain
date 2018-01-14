@@ -270,3 +270,43 @@ Handling XML input is controlled by the `--xml_input` option. Here are all possi
 * `mask` in training, replacing markup strings with mask tokens. Before translation, replace markup with mask tokens, "un"-replace mask tokens again in the machine-translated segment.
 
 For more detailed descriptions of those strategies, look [here](http://www.cl.uzh.ch/dam/jcr:e7fb9132-4761-4af4-8f95-7e610a12a705/MA_mathiasmueller_05012017_0008.pdf).
+
+## References on Nematus implementation
+
+For implementing backend Nematus, a multitude of repositories, instructions and scripts were used. This list summarises publications and respective instructions and scripts:
+
+Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machine Translation Systems for WMT 16. In Proceedings of the First Conference on Machine Translation (WMT16). Berlin, Germany.
+
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/train.sh
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/validate.sh
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-dev.sh
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/translate.sh
+* https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-test.sh
+* https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py
+* https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py
+
+Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen, Christine Moran, Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit for Statistical Machine Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007). Prague, Czech Republic.
+
+* https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/normalize-punctuation.perl
+* https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl
+* https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/train-truecaser.perl
+* https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/truecase.perl
+* https://github.com/moses-smt/mosesdecoder/blob/master/scripts/generic/multi-bleu.perl
+* https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/detruecase.perl
+* https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/detokenizer.perl
+
+Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units. In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+
+* https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py
+* https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py
+
+Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli, Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation. In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational Linguistics (EACL 2017). Valencia, Spain, pp. 65-68.
+
+* https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py
+* https://github.com/EdinburghNLP/nematus/blob/master/nematus/nmt.py
+* https://github.com/EdinburghNLP/nematus/blob/master/nematus/translate.py
+
+Rami Al-Rfou, Guillaume Alain, Amjad Almahairi, Christof Angermueller, Dzmitry Bahdanau et al. (2016): Theano: A Python Framework for fast Computation of Mathematical Expressions. arXiv preprints, abs/1605.02688.
