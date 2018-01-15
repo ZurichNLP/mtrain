@@ -275,7 +275,7 @@ For more detailed descriptions of those strategies, look [here](http://www.cl.uz
 
 For implementing backend Nematus, a multitude of repositories, instructions and scripts were used. This list summarises publications and respective instructions and scripts:
 
-Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machine Translation Systems for WMT 16. In Proceedings of the First Conference on Machine Translation (WMT16). Berlin, Germany.
+Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machine Translation Systems for WMT 16. In Proceedings of the First Conference on Machine Translation (WMT16). Berlin, Germany. Association for Computational Linguistics.
 
 * https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
 * https://github.com/rsennrich/wmt16-scripts/blob/master/sample/preprocess.sh
@@ -288,7 +288,7 @@ Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Edinburgh Neural Machin
 * https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/normalise-romanian.py
 * https://github.com/rsennrich/wmt16-scripts/blob/master/preprocess/remove-diacritics.py
 
-Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen, Christine Moran, Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit for Statistical Machine Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007). Prague, Czech Republic.
+Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Federico, Nicola Bertoldi, Brooke Cowan, Wade Shen, Christine Moran, Richard Zens, Chris Dyer, Ondrej Bojar, Alexandra Constantin, and Evan Herbst (2007): Moses: Open Source Toolkit for Statistical Machine Translation. In Proceedings of the 45th Annual Meeting of the Association for Computational Linguistics (ACL 2007). Prague, Czech Republic. Association for Computational Linguistics.
 
 * https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/normalize-punctuation.perl
 * https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl
@@ -298,17 +298,17 @@ Philipp Koehn, Hieu Hoang, Alexandra Birch, Chris Callison-Burch, Marcello Feder
 * https://github.com/moses-smt/mosesdecoder/blob/master/scripts/recaser/detruecase.perl
 * https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/detokenizer.perl
 
-Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units. In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany.
+Rico Sennrich, Barry Haddow, and Alexandra Birch (2016): Neural Machine Translation of Rare Words with Subword Units. In Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics (ACL 2016). Berlin, Germany. Association for Computational Linguistics.
 
 * https://github.com/rsennrich/subword-nmt/blob/master/README.md
 * https://github.com/rsennrich/subword-nmt/blob/master/learn_bpe.py
 * https://github.com/rsennrich/subword-nmt/blob/master/apply_bpe.py
 
-Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli, Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation. In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational Linguistics (EACL 2017). Valencia, Spain, pp. 65-68.
+Rico Sennrich, Orhan Firat, Kyunghyun Cho, Alexandra Birch, Barry Haddow, Julian Hitschler, Marcin Junczys-Dowmunt, Samuel Läubli, Antonio Valerio Miceli Barone, Jozef Mokry, and Maria Nadejde (2017): Nematus: a Toolkit for Neural Machine Translation. In Proceedings of the Software Demonstrations of the 15th Conference of the European Chapter of the Association for Computational Linguistics (EACL 2017). Valencia, Spain, pp. 65-68. European Chapter of the Association for Computational Linguistics.
 
 * https://github.com/EdinburghNLP/nematus/blob/master/README.md
 * https://github.com/EdinburghNLP/nematus/blob/master/data/build_dictionary.py
 * https://github.com/EdinburghNLP/nematus/blob/master/nematus/nmt.py
 * https://github.com/EdinburghNLP/nematus/blob/master/nematus/translate.py
 
-Rami Al-Rfou, Guillaume Alain, Amjad Almahairi, Christof Angermueller, Dzmitry Bahdanau et al. (2016): Theano: A Python Framework for fast Computation of Mathematical Expressions. CoRR, 1605.02688.
+Rami Al-Rfou, Guillaume Alain, Amjad Almahairi, Christof Angermueller, Dzmitry Bahdanau et al. (2016): Theano: A Python Framework for fast Computation of Mathematical Expressions. CoRR, 1605.02688. DBLP Computer Science Bibliography, University of Trier and Schloss Dagstuhl, Germany.
