@@ -592,7 +592,7 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
         of test process is initiated due to time consumption, skip respective file checks.
         '''
         # setup path and filenames for corpus
-        random_basedir_name = self.get_random_basename() ### use this in case random basename gets locked: random_basedir_name = 'test_cases/nematus_training'
+        random_basedir_name = 'test_cases/nematus_training'
         os.mkdir(random_basedir_name)
         corpus_file_ro = os.sep.join([random_basedir_name, 'sample-corpus.ro'])
         corpus_file_en = os.sep.join([random_basedir_name, 'sample-corpus.en'])
@@ -652,6 +652,11 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
             "'model.npz.json' must be created"
         )
 
+
+        '''
+        These are optional checks as they are depending on the parameters used. Moreover, they need a lot of time to proceed,
+        training is consired successful when the conditions above are met.
+
         # created early in training, approximately after 3 minutes. check optional because if missing, it is mainly due to unfortunate parameters or data.
         self.assertTrue(
             "model.npz.dev.npz" in files_created,
@@ -689,3 +694,4 @@ class TestTrainingNematus(TestCaseWithCleanup, TestCaseHelper):
             "model.npz.progress.json" in files_created,
             "'model.npz.progress.json' must be created"
         )
+        '''
