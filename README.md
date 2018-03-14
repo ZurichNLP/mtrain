@@ -11,7 +11,7 @@ echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine
 ```
 
 Installation and usage instructions are given below. To report a bug or suggest
-improvements, please feel free to [open a ticket](https://gitlab.cl.uzh.ch/laeubli/mtrain/issues).
+improvements, please feel free to [open a ticket](https://gitlab.cl.uzh.ch/mt/mtrain/issues).
 
 ## Installation
 
