@@ -53,7 +53,7 @@ your shell sessions, simply add the export statements above to your
 
 ### Installation using [pip](https://pypi.python.org/pypi/pip)
 ```sh
-pip install git+https://gitlab.cl.uzh.ch/laeubli/mtrain.git
+pip install git+https://gitlab.cl.uzh.ch/mt/mtrain.git
 ```
 After installation, the main binaries should be available on your system. Just
 type `mtrain` or `mtrans` into your console to make sure.
