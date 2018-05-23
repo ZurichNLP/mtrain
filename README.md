@@ -1,9 +1,9 @@
 # mtrain
 
 This Python 3 package provides convenience wrappers to train (`mtrain`) and
-translate (`mtrans`) with Moses-based Statistical Machine Translation engines
-or Nematus-based Neural Network Translation engines. Given a
-parallel corpus of any size, training and translation are as easy as
+translate with (`mtrans`) machine translation engines. Two types of engines are supported: Moses models and Nematus models.
+
+Given a parallel corpus of any size, training and translation are as easy as
 
 ```sh
 mkdir ~/my_engine
@@ -214,7 +214,7 @@ capitalised words accordingly. If you prefer lowercased output, just add the
 
 ### Translation with a trained Nematus model
 
-For using your trained Nematus engine for translating a segment, choose the respecive backend, GPU and preallocated memory:
+For using your trained Nematus engine for translating a segment, choose the Nematus backend, device and preallocated memory:
 
 ```sh
 echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr --backend nematus --device_trans cuda0 --preallocate_trans 0.1
