@@ -7,8 +7,8 @@ Given a parallel corpus of any size, training and translation are as easy as
 
 ```sh
 mkdir ~/my_engine
-mtrain /path/to/my/parallel-corpus en fr --tune 1000 -o ~/my_engine --backend {moses|nematus}
-echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr --backend {moses|nematus}
+mtrain /path/to/my/parallel-corpus en fr --tune 1000 -o ~/my_engine
+echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr
 ```
 
 Installation and further usage instructions are given below. To report a bug or suggest
