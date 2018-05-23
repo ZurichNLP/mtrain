@@ -27,7 +27,7 @@ The requirements of `mtrain` depend on the backend (either Moses or Nematus) tha
 #### Requirements for Nematus backend
 * Python >= 3.5, and Python >= 2.7. Both versions are necessary because `Nematus` is a Python 2-only tool. To manage two versions of Python on your system, we recommend virtual environments where both `python2` and `python3` are available.
 * [Moses](https://github.com/moses-smt/mosesdecoder) (tested with release 3.0). Make sure to compile with cmph (`./bjam --with-cmph=/path/to/cmph`).
-* [Nematus](https://github.com/EdinburghNLP/nematus), see their Github page for installation guidelines. Make sure to compile `Theano` with GPU usage if you have a GPU, and install `CUDA` and `CuDNN`.
+* [Nematus](https://github.com/EdinburghNLP/nematus), see their Github page for installation guidelines. If you intend to use a GPU, make sure you install all backend libraries `Theano` needs to run on GPU. Specifically, install `CUDA`, `CuDNN`, `libgpuarray` and `pygpu`.
 * [Subword NMT](https://github.com/rsennrich/subword-nmt)
 * [fast_align](https://github.com/clab/fast_align) (optional, only for markup handling)
 * [MultEval](https://github.com/cidermole/multeval) (optional, only for evaluation)
