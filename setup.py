@@ -8,11 +8,11 @@ def readme():
 
 setup(name='mtrain',
       version='0.1',
-      description='Training automation for Moses-based machine translation engines',
+      description='Training automation for Moses and Nematus machine translation engines',
       long_description=readme(),
-      url='https://gitlab.cl.uzh.ch/laeubli/mtrain.git',
-      author='Samuel Läubli',
-      author_email='laeubli@cl.uzh.ch',
+      url='https://github.com/ZurichNLP/mtrain.git',
+      author='Samuel Läubli, Mathias Müller',
+      author_email='laeubli@cl.uzh.ch, mmueller@cl.uzh.ch',
       license='LGPL',
       packages=['mtrain', 'mtrain.preprocessing'],
       test_suite='nose.collector',
@@ -20,4 +20,5 @@ setup(name='mtrain',
       scripts=['bin/mtrain', 'bin/mtrans'],
       include_package_data=True,
       zip_safe=False,
-      setup_requires=['nose>=1.0'])
+      setup_requires=['nose>=1.0'],
+      install_requires=['lxml'])
