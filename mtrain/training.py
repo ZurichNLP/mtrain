@@ -1380,13 +1380,13 @@ $moses_detruecaser"""
         # setting up training and validation command for nematus engine (postprocessing is managed by external validation script)
 
         # theano flags in training
-        theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 '.format(
+        theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2'.format(
             device=device_train,
             preallocate=preallocate_train
         )
         # nematus files in training:
         #   Code directly applied from https://github.com/rsennrich/wmt16-scripts/blob/master/sample/config.py
-        nematus_train_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries} '.format(
+        nematus_train_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries}'.format(
             script=C.NEMATUS_NMT,
             model_path=self._base_dir_model,
             datasets=self._get_path_corpus([C.BASENAME_TRAINING_CORPUS,
@@ -1411,7 +1411,7 @@ $moses_detruecaser"""
         # nematus options for training
         nematus_train_options = " ".join(["%s %s" % (k, v) if v != "" else k for k, v in C.NEMATUS_OPTIONS.items()])
         # external validation script:
-        external_validation = '--external_validation_script={script} '.format(
+        external_validation = '--external_validation_script={script}'.format(
             script=script_path_full
         )
 
@@ -1428,9 +1428,6 @@ $moses_detruecaser"""
         logging.info("Initiating training, observe progress in logfile: %s", logfile)
 
         # train nematus engine
-        commander.run(
-            '{nematus_command}'.format(
-                nematus_command=theano_train_flags + nematus_train_files + nematus_train_options + external_validation + log_to_file
-            ),
+        commander.run(" ".join([theano_train_flags, nematus_train_files, nematus_train_options, external_validation, log_to_file]),
             "Training Nematus engine: device %s" % device_train
         )
