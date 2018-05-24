@@ -252,6 +252,10 @@ For more detailed descriptions of those strategies, look [here](http://www.cl.uz
 
 ## Troubleshooting
 
-### My Moses model training fails
+**My Moses model training fails**
 
 Make sure to use _absolute_ paths for the `-o` argument (where the trained model will be stored) and the paths to your data sets.
+
+**Python libraries are not found, even though I have installed them**
+
+Explicitly set `PYTHON2` and `PYTHON3`, see section "Environment variables for Python versions" above.
