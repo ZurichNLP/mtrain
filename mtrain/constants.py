@@ -238,9 +238,44 @@ BACKEND_MOSES = 'moses'
 BACKEND_NEMATUS = 'nematus'
 # Valid backend choices
 BACKEND_CHOICES = {
-    BACKEND_MOSES: "Trains a Statistical Machine Translation system based on Moses (default)",
-    BACKEND_NEMATUS: "Trains a Neural Network system based on Nematus"
+    BACKEND_MOSES: "Trains a phrase-based, statistical machine translation system based on Moses (default)",
+    BACKEND_NEMATUS: "Trains a neural machine translation system based on Nematus"
 }
+
+
+NEMATUS_OPTIONS = {
+    # training progress
+    "--reload": "",  # will reload progress
+    "--max_epochs": 5000,
+    "--finish_after": 10000000,
+    # intervals
+    "--dispFreq": 100,
+    "--validFreq": 10000,
+    "--saveFreq": 30000,
+    "--sampleFreq": 10000,
+    # model
+    "--dim": 512,
+    "--dim_word": 1024,
+    "--n_words": 90000,
+    "--n_words_src": 90000,
+    "--enc_depth": 1,
+    "--dec_depth": 1,
+    "--dropout_embedding": 0.2,
+    "--dropout_hidden": 0.2,
+    "--dropout_source": 0.1,
+    "--dropout_target": 0.1,
+    "--layer_normalisation": "",  # will use layer normalization
+    "--tie_decoder_embeddings": "",  # will tie decoder embeddings
+    # training procedure
+    "--maxlen": 50,
+    "--batch_size": 80,
+    "--valid_batch_size": 80,
+    "--decay_c": 0.,
+    "--clip_c": 1.,
+    "--lrate": 0.0001,
+    "--optimizer": "adam"
+}
+
 
 # Distinction of python versions in backend nematus, useful when mixed environment with python 2 and 3 causes trouble:
 # E.g. bpe.py's BytePairEncoderSegment needs to call the script explicitly as Python 3. If 'python' does not point to Python 3
