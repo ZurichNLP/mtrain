@@ -59,6 +59,12 @@ def main():
             args.tune = int(args.tune)
         except ValueError:
             pass  # string is fine; means path to external tuning corpus was provided
+    elif args.backend == C.BACKEND_NEMATUS:
+        # validation data is mandatory for Nematus models
+        logging.warning("No tuning corpus was provided with -t/--tune, taking 2000 segments" +
+                        " from the training corpus at random.")
+        args.tune = 2000
+
     if args.eval:
         try:
             args.eval = int(args.eval)
