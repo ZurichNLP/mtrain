@@ -1,7 +1,7 @@
 # mtrain
 
 This Python 3 package provides convenience wrappers to train (`mtrain`) and
-translate with (`mtrans`) machine translation engines. Two types of engines are supported: Moses models and Nematus models.
+translate with (`mtrans`) machine translation engines. Two types of engines are supported: Moses and Nematus.
 
 Given a parallel corpus of any size, training and translation are as easy as
 
@@ -249,3 +249,9 @@ Handling XML input is controlled by the `--xml_input` option. Here are all possi
 * `mask` in training, replacing markup strings with mask tokens. Before translation, replace markup with mask tokens, "un"-replace mask tokens again in the machine-translated segment.
 
 For more detailed descriptions of those strategies, look [here](http://www.cl.uzh.ch/dam/jcr:e7fb9132-4761-4af4-8f95-7e610a12a705/MA_mathiasmueller_05012017_0008.pdf).
+
+## Troubleshooting
+
+### My Moses model training fails
+
+Make sure to use _absolute_ paths for the `-o` argument (where the trained model will be stored) and the paths to your data sets.
