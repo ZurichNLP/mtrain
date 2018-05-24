@@ -3,12 +3,12 @@
 from unittest import TestCase
 from mtrain.preprocessing.normalizer import Normalizer
 
-class TestNormalizer(TestCase):
-    '''
-    Test cases and comments derived from script normalize-punctuation.perl.
 
-    Cf. https://gitlab.cl.uzh.ch/mt/mtrain/blob/nematus/README.md for list of references.
-    '''
+class TestNormalizer(TestCase):
+    """
+    Test cases and comments derived from script normalize-punctuation.perl.
+    """
+
     # English test cases
     test_cases_en = {
         'This  has  too  much  spaces!': 'This has too much spaces!', # remove extra spaces
@@ -23,9 +23,9 @@ class TestNormalizer(TestCase):
     }
 
     def test_normalize_punctuation(self):
-        '''
+        """
         Testing implementation of script normalize-punctuation.perl.
-        '''
+        """
         # English normalizer
         normalizer_en = Normalizer("en")
         for example_segment, normalized_segment in self.test_cases_en.items():

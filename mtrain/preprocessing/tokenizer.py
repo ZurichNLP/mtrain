@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from mtrain.constants import *
+from mtrain import constants as C
 from mtrain.preprocessing.external import ExternalProcessor
 
 '''
 Tokenizes files using the default Moses tokenizer.
 '''
+
 
 class Tokenizer(object):
     '''
@@ -18,27 +19,27 @@ class Tokenizer(object):
         @param lang_code language identifier
         @param protect whether the tokenizer should respect patterns that should not be tokenized
         @param protected_patterns_path path to file with protected patterns
-        @param escape whether characters critical to the decoder should be escaped
+        @param escape whether characters that break the Moses decoder should be escaped
         '''
         arguments = [
             '-l %s' % lang_code,
-            '-b', #disable Perl buffering
-            '-q', #don't report version
-            '-a', #aggressive mode
+            '-b',  # disable Perl buffering
+            '-q',  # don't report version
+            '-a',  # aggressive mode
         ]
 
         if protect:
             arguments.append(
-                '-protected %s' % protected_patterns_path, # protect e.g. inline XML, URLs and email
+                '-protected %s' % protected_patterns_path,  # protect e.g. inline XML, URLs and email
             )
 
         if not escape:
             arguments.append(
-                '-no-escape' # do not escape reserved characters in Moses
+                '-no-escape'  # do not escape reserved characters in Moses
             )
-        
+
         self._processor = ExternalProcessor(
-            command=" ".join([MOSES_TOKENIZER] + arguments)
+            command=" ".join([C.MOSES_TOKENIZER] + arguments)
         )
 
     def close(self):
@@ -56,6 +57,7 @@ class Tokenizer(object):
         else:
             return tokenized_segment
 
+
 class Detokenizer(object):
     '''
     Creates a detokenizer which detokenizes lists of tokens on-the-fly, i.e.,
@@ -70,13 +72,13 @@ class Detokenizer(object):
         '''
         arguments = [
             '-l %s' % lang_code,
-            '-b', #disable Perl buffering
-            '-q', #don't report version
+            '-b',  # disable Perl buffering
+            '-q',  # don't report version
         ]
         if uppercase_first_letter:
             arguments.append('-u')
         self._processor = ExternalProcessor(
-            command=" ".join([MOSES_DETOKENIZER] + arguments),
+            command=" ".join([C.MOSES_DETOKENIZER] + arguments),
             stream_stderr=True
         )
 

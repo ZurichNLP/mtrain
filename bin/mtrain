@@ -1,436 +1,16 @@
 #!/usr/bin/env python3
 
 import logging
-import argparse
-import sys
 import os
 
 from mtrain.training import TrainingMoses, TrainingNematus
-from mtrain.constants import *
+from mtrain import constants as C
 from mtrain import checker, assertions
+from mtrain.arguments import get_training_parser, check_environment, check_arguments
 
-LOGGING_LEVELS = {
-    "DEBUG": logging.DEBUG,
-    "INFO": logging.INFO,
-    "WARNING": logging.WARNING,
-    "ERROR": logging.ERROR,
-    "CRITICAL": logging.CRITICAL,
-}
 
-def get_argument_parser():
-    parser = argparse.ArgumentParser()
-    parser.description = ("Trains either a Moses-based Statistical Machine Translation system " +
-        "or a Nematus-based Neural Network translation system.")
-
-    # positional arguments for either backend
-    parser.add_argument(
-        "basepath",
-        type=str,
-        help="common path/file prefix of the training corpus' source and " +
-        "target side, e.g., `/foo/bar/training_corpus`"
-    )
-    parser.add_argument(
-        "src_lang",
-        type=str,
-        help="source language code: valid choices are `" +
-            "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
-            "`",
-        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' # overrides ugly double-listing of available choices in '--help'
-    )
-    parser.add_argument(
-        "trg_lang",
-        type=str,
-        help="target language code: same valid choices as in src_lang",
-        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' # overrides ugly double-listing of available choices in '--help'
-    )
-
-    # optional arguments for either backend
-    parser.add_argument(
-        "--backend", # '-b' removed as it would conflict with '--bpe_ops'
-        type=str,
-        help="decide which backend is to be used as training engine." +
-            " Valid choices are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in BACKEND_CHOICES.items()]),
-        choices=BACKEND_CHOICES.keys(),
-        default='moses'
-    )
-    parser.add_argument(
-        "-o", "--output_dir",
-        type=str,
-        help="target directory for all output. The curent working directory " +
-            "($PWD) is used by default.",
-        default=os.getcwd()
-    )
-    parser.add_argument(
-        "--min_tokens",
-        type=int,
-        help="the minimum number of tokens per segments; segments with less " +
-            "tokens will be discarded, default=`1`",
-        default=1
-    )
-    parser.add_argument(
-        "--max_tokens",
-        type=int,
-        help="the maximum number of tokens per segments; segments with more " +
-            "tokens will be discarded, default=`80`",
-        default=80
-    )
-    parser.add_argument(
-        "-c", "--caser",
-        type=str,
-        help="casing strategy: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in CASING_STRATEGIES.items()]),
-        choices=CASING_STRATEGIES.keys(),
-        default="recasing"
-    )
-    parser.add_argument(
-        "-t", "--tune",
-        help="enable tuning. If an integer is provided, the given number of " +
-            "segments will be randomly taken from the training corpus " +
-            "(basepath). Alternatively, the basepath to a separate tuning " +
-            "corpus can be provided. Examples: `2000`, `/foo/bar/tuning_corpus`"
-    )
-    parser.add_argument(
-        "--preprocess_external_tune",
-        help="preprocess external tuning corpus. Don't use if " +
-            "the external files provided in '--tune' are already preprocessed.",
-        default=False,
-        action='store_true'
-    )
-    parser.add_argument(
-        "-e", "--eval",
-        help="enable evaluation. If an integer is provided, the given number " +
-            "of segments will be randomly taken from the training corpus " +
-            "(basepath). Alternatively, the basepath to a separate evaluation " +
-            "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
-    ) # todo: '--eval' in backend nematus does build an eval corpus, but not yet trigger any evaluation
-    parser.add_argument(
-        "--logging",
-        help="logging level in STDERR, default=`INFO`",
-        choices=LOGGING_LEVELS.keys(),
-        default="INFO"
-    )
-
-    # arguments specific for moses backend
-    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
-    moses_args = parser.add_argument_group("Moses arguments")
-
-    moses_args.add_argument(
-        "--masking",
-        help="enable masking. Valid strategies are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in MASKING_STRATEGIES.items()]),
-        choices=MASKING_STRATEGIES.keys(),
-        default=None
-    )
-    moses_args.add_argument(
-        "--xml_input",
-        type=str,
-        help="decide how XML fragments in the input segments should " +
-            "be dealt with. Valid choices are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES.items()]),
-        choices=XML_STRATEGIES.keys(),
-        default=None
-    )
-    moses_args.add_argument(
-        "-n", "--n_gram_order",
-        type=int,
-        help="the language model's n-gram order, default=`5`",
-        default=5
-    )
-    moses_args.add_argument(
-        "--threads",
-        type=int,
-        help="the number of threads to be used at most, default=`8`",
-        default=8
-    )
-    moses_args.add_argument(
-        "--temp_dir",
-        help="directory for temporary files created during trainig, default=`/tmp`",
-        default="/tmp"
-    ) # '--temp_dir' not implemented in backend nematus as it uses '--output_dir' by default for training temp files and doing fine
-    moses_args.add_argument(
-        "--keep_uncompressed_models",
-        help="do not delete uncompressed models created during training",
-        action='store_true'
-    )
-    moses_args.add_argument(
-        "--eval_lowercase",
-        help="lowercase reference and translation before evaluation. Otherwise," +
-            "evaluation uses the engine's casing strategy.",
-        default=False,
-        action='store_true'
-    ) # todo: '--eval_lowercase' not yet active in moses backend as 'lowercase_eval=False' when calling evaluation
-    moses_args.add_argument(
-        "--extended_eval",
-        action="store_true",
-        help="perform multiple evaluations that vary the appearance of the test files: " +
-            "lowercased or not, detokenized or not, with markup or without.",
-        default=False
-    )
-
-    # arguments specific for nematus backend
-    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
-    nematus_args = parser.add_argument_group("Nematus arguments")
-
-    nematus_args.add_argument(
-        "--preprocessing_only",
-        action="store_true",
-        help="choose when only preprocessing for backend nematus shall be executed, " +
-        "e.g. when you need to verify or backup preprocessed data before training",
-        default=False
-    )
-    nematus_args.add_argument(
-        "--bpe_ops",
-        type=int,
-        help="decide how many byte-pair operations are to be performed when learning the " +
-        "byte-pair encoding model with nematus backend, default=`89500` operations"
-        # set default when calling 'bpe_encoding()' below, but NOT here as it would trigger warning for backend moses
-    )
-    nematus_args.add_argument(
-        "--training_only",
-        action="store_true",
-        help="choose when only training for backend nematus shall be executed, " +
-        "e.g. when you already preprocessed data",
-        default=False
-    )
-    nematus_args.add_argument(
-        "--device_train",
-        type=str,
-        help="choose a free processing unit for nematus training, consult your server responsible " +
-            "to learn about appropriate settings"
-        # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
-    )
-    nematus_args.add_argument(
-        "--preallocate_train",
-        type=str,
-        help="preallocate processing unit memory for nematus training if applicable on your server. " +
-            "Do not preallocate more than `0.8` = 80 percent of memory. " +
-            "The system will automatically use more memory if available and safe."
-        # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
-    )
-    nematus_args.add_argument(
-        "--device_validate",
-        type=str,
-        help="choose a free processing unit for nematus validation, consult your server responsible " +
-            "to learn about appropriate settings. " + 
-            "Omit if '--external_validation_script' is provided."
-        # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
-    )
-    nematus_args.add_argument(
-        "--preallocate_validate",
-        type=str,
-        help="preallocate processing unit memory for nematus validation if applicable on your server. " +
-            "Do not preallocate more than `0.3` = 30 percent of memory. " +
-            "The system will automatically use more memory if available and safe. " +
-            "Omit if '--external_validation_script' is provided."
-        # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
-    )
-    nematus_args.add_argument(
-        "--validation_freq",
-        type=int,
-        help="state after how many updates of nematus training external validation " +
-            "shall be called, default=`10000` updates"
-        # set default when calling 'train_engine()' below, but NOT here as it would trigger warning for backend moses
-    )
-    nematus_args.add_argument(
-        "--external_validation_script",
-        type=str,
-        help="optional path to external validation script that is called during " +
-            "training of nematus engine. If chosen, also a preprocessing script " +
-            "must be provided which is called by the validation script. " +
-            "See https://github.com/rsennrich/wmt16-scripts/blob/master/sample/validate.sh " +
-            "and https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-dev.sh " +
-            "for examples and adapt all parameters, corpora, models etc. accordingly. " +
-            "Do not use if you want mtrain to manage external validation.",
-        default=None
-    )
-    nematus_args.add_argument(
-        "--max_epochs",
-        type=int,
-        help="state how many epochs are to be performed in nematus training, " +
-            "default=`5000` updates"
-        # set default when calling 'train_engine()' below, but NOT here as it would trigger warning for backend moses
-    )
-    nematus_args.add_argument(
-        "--max_updates",
-        type=int,
-        help="state how many updates are to be performed in nematus training, " +
-            "default=`10000000` updates"
-        # set default when calling 'train_engine()' below, but NOT here as it would trigger warning for backend moses
-    )
-
-    return parser
-
-def check_environment_moses(args):
-    '''
-    Abort if environment variables specific for moses backend are not set.
-
-    Note: 'MULTEVAL_HOME' ist specific for evaluation and thus,
-    checked only if evaluation chosen.
-    '''
-    checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
-    if args.eval:
-        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
-
-def check_environment_nematus(args):
-    '''
-    Abort if environment variables specific for nematus backend are not set.
-
-    Note: 'SUBWORD_NMT_HOME' ist specific for preprocessing and thus,
-    checked only when preprocessing chosen.
-    '''
-    checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
-    if args.training_only != True:
-        checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
-
-def check_arguments_moses(args):
-    '''
-    Check for arguments if fit for moses, either combination or specific argument may
-    be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
-    program terminated.
-
-    @param args all arguments passed from 'get_argument_parser()'
-    '''
-    # generic masking and XML masking currently not possible at the same time for backend moses
-    if args.masking and args.xml_input == XML_MASK:
-        logging.critical("Invalid command line options. For backend %s, " +
-            "choose either '--masking' or '--xml_input mask', but not both. " +
-            "See '-h'/'--help' for more information.", BACKEND_MOSES)
-        sys.exit()
-
-    # for backend moses, ignore nematus specific arguments, warn user but continue processing
-    if args.preprocessing_only or args.training_only:
-        logging.warning("Invalid command line options. For backend %s, " +
-            "neither '--preprocessing_only' nor '--training_only' are applicable and will be ignored. " +
-            "See '-h'/'--help' for more information.", BACKEND_MOSES)
-    if args.bpe_ops or args.device_train or args.preallocate_train or args.device_validate or args.preallocate_validate or args.external_validation_script or args.validation_freq or args.max_epochs or args.max_updates:
-        logging.warning("Invalid command line options. For backend %s, " +
-            "'--bpe_ops', --device_train', '--preallocate_train', '--device_validate', '--preallocate_validate', " +
-            "'--external_validation_script', '--validation_freq', '--max_epochs' and '--max_updates' " +
-            "are not applicable and will be ignored. " +
-            "See '-h'/'--help' for more information.", BACKEND_MOSES)
-
-def check_arguments_nematus(args):
-    '''
-    Check for arguments if fit for nematus, either combination or specific argument may
-    be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
-    program terminated.
-
-    @param args all arguments passed from 'get_argument_parser()'
-    '''
-    # for backend nematus, ignore moses specific arguments, warn user but continue processing:
-    #   '--masking' and '--xml_input' not implemented yet,
-    #   '--keep_uncompressed_models' only for moses training,
-    #   '--eval_lowercase' and '--extended_eval' not implemented yet.
-    # Note: '--n_gram_order', '--threads' and '--temp_dir' only for moses training but cannot
-    #   be checked here as their default would trigger false warning
-    if args.masking or args.xml_input or args.keep_uncompressed_models or args.eval_lowercase or args.extended_eval:
-        logging.warning("Invalid command line options. For backend %s, " +
-            "'--masking', '--xml_input', '--keep_uncompressed_models', '--eval_lowercase' " +
-            "and '--extended_eval' are not applicable and will be ignored." +
-            "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-
-    # prevent argument combination that results in the program doing nothing
-    if args.preprocessing_only and args.training_only:
-        logging.critical("Invalid command line options. For backend %s, " +
-            "do not choose '--preprocessing_only' and '--training_only' " +
-            "simultaneously as the program would not process anything. " +
-            "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-        sys.exit()
-
-    # check for preprocessing to be skipped
-    if args.training_only:
-        # for arguments with no effect in '--training_only', warn user but continue
-        # Note: '--min_tokens', '--max_tokens' are only used in preprocessing but
-        #   cannot be checked here as their default would trigger false warning
-        if args.caser == TRUECASING or args.tune or args.preprocess_external_tune or args.eval or args.bpe_ops:
-            logging.warning("Invalid command line options. For backend %s, " +
-                "'--caser', '--tune', '--preprocess_external_tune', '--eval' and '--bpe_ops' "
-                "only affect preprocessing and will be ignored when '--training_only' applies. " +
-                "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-
-    # check for preprocessing to be executed
-    elif not args.training_only:
-        # ensure tuning corpus is being provided in preprocessing for later training,
-        # either '--tune INT' or '--tune STR' (if preprocessed) is fine
-        if not args.tune:
-            logging.critical("Invalid command line options. For backend %s, " +
-                "you need to choose and specify '--tune' for preprocessing as subsequent " +
-                "training would not work without a preprocessed tuning corpus. " +
-                "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-            sys.exit()
-
-        # currently no casing other than `truecasing` for backend nematus, warn and continue using 'TRUECASING'
-        if args.caser != TRUECASING:
-            logging.warning("Invalid command line options. For backend %s, " +
-                "only `%s` is applicable as casing strategy in preprocessing " +
-                "and will therefore be used. " +
-                "See '-h'/'--help' for more information.", BACKEND_NEMATUS, TRUECASING)
-            args.caser = TRUECASING
-
-    # check for training to be skipped
-    if args.preprocessing_only:
-        # for arguments with no effect in '--preprocessing_only', warn user but continue
-        if args.device_train or args.preallocate_train or args.device_validate or args.preallocate_validate or args.validation_freq or args.external_validation_script or args.max_epochs or args.max_updates:
-            logging.warning("Invalid command line options. For backend %s, " +
-                "'--device_train', '--preallocate_train', '--device_validate', '--preallocate_validate', " +
-                "'--validation_freq', '--external_validation_script', '--max_epochs' and '--max_updates'" +
-                "only affect preprocessing and will be ignored when '--training_only' applies. " +
-                "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-
-    # preemptive measures: exit when arguments and/or external scripts necessary for training are missing,
-    #   ensures that user is not loosing time when training will be unable to provide serviceable model
-    # check for training to be executed
-    elif not args.preprocessing_only:
-        # check if mtrain-managed external validation chosen (meaning no user-defined scripts provided)
-        if not isinstance(args.external_validation_script, str):
-            # check arguments necessary for training and mtrain-managed external validation
-            if not args.device_train or not args.preallocate_train or not args.device_validate or not args.preallocate_validate:
-                logging.critical("Invalid command line options. For backend %s, " +
-                    "server specific options necessary for training must be set. " +
-                    "Consult your server responsible on how to choose '--device_train', " +
-                    "'--preallocate_train', '--device_validate' and '--preallocate_validate' " +
-                    "adequately. " +
-                    "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-                sys.exit()
-        # user-defined external validation script chosen
-        else:
-            # check arguments necessary for training
-            if not args.device_train or not args.preallocate_train:
-                logging.critical("Invalid command line options. For backend %s, " +
-                    "server specific options necessary for training must be set. " +
-                    "Consult your server responsible on how to choose '--device_train', " +
-                    "and '--preallocate_train' adequately. " +
-                    "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-                sys.exit()
-            # check obsolete arguments for validation, must be provided in user-defined script instead
-            if args.device_validate or args.preallocate_validate:
-                logging.critical("Invalid command line options. For backend %s " +
-                    "using your own external validation script during training, " +
-                    "'--device_validate' and '--preallocate_validate' are not " +
-                    "applicable from command line but must be set in the " + 
-                    "external script instead. " +
-                    "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-                sys.exit()
-
-def main():
-    parser = get_argument_parser()
-    args = parser.parse_args()
-    # parse arguments
-    if args.tune:
-        try:
-            args.tune = int(args.tune)
-        except ValueError:
-            pass # string is fine; means path to external tuning corpus was provided
-    if args.eval:
-        try:
-            args.eval = int(args.eval)
-        except ValueError:
-            pass # string is fine; means path to external evalution corpus was provided
-
-    # initialize logging (stderr)
+def set_up_logging(args):
+    # initialize logging to STDERR
     # check existence of '--output_dir' before creating logfile
     assertions.dir_exists(
         args.output_dir,
@@ -444,21 +24,49 @@ def main():
     )
     # log WARNING and above (or as specified by user) to stdout
     console = logging.StreamHandler()
-    console.setLevel(LOGGING_LEVELS[args.logging])
+    console.setLevel(C.LOGGING_LEVELS[args.logging])
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
 
-    # distinguish chosen backend
-    if args.backend == BACKEND_MOSES:
+    logging.info(args)
 
-        # abort if environment variables for moses backend are not set
-        check_environment_moses(args)
 
-        # check if arguments suiting moses
-        check_arguments_moses(args)
+def perform_checks(args):
+    """
+    Check python version, environment, arguments.
+    """
+    # abort if Python version is not supported
+    checker.check_python_version()
+    # abort if environment variables are not set
+    check_environment(args)
+    # abort if arguments are incompatible
+    check_arguments(args)
 
-        # create instance of TrainingBase subclass suiting backend
+
+def main():
+    parser = get_training_parser()
+    args = parser.parse_args()
+
+    perform_checks(args)
+
+    set_up_logging(args)
+
+    logging.info("Configured backend: %s" % args.backend)
+
+    if args.tune:
+        try:
+            args.tune = int(args.tune)
+        except ValueError:
+            pass  # string is fine; means path to external tuning corpus was provided
+    if args.eval:
+        try:
+            args.eval = int(args.eval)
+        except ValueError:
+            pass  # string is fine; means path to external evalution corpus was provided
+
+    if args.backend == C.BACKEND_MOSES:
+
         training = TrainingMoses(
             basepath=args.output_dir,
             src_lang=args.src_lang,
@@ -470,10 +78,9 @@ def main():
             xml_strategy=args.xml_input
         )
 
-        # initiate preprocessing
-        logging.info("Initiating preprocessing for backend %s", args.backend)
+        logging.info("Start preprocessing.")
         training.preprocess(
-            corpus_base_path=args.basepath, #@MM: changed from 'base_corpus_path=args.basepath,'
+            corpus_base_path=args.basepath,
             min_tokens=args.min_tokens,
             max_tokens=args.max_tokens,
             preprocess_external=args.preprocess_external_tune,
@@ -481,10 +88,10 @@ def main():
             process_xml=bool(args.xml_input)
         )
         # continue preprocessing: apply casing strategy
-        if args.caser == TRUECASING:
+        if args.caser == C.TRUECASING:
             training.train_truecaser()
             training.truecase()
-        elif args.caser == RECASING:
+        elif args.caser == C.RECASING:
             training.train_recaser(
                 args.threads,
                 args.temp_dir,
@@ -494,9 +101,9 @@ def main():
         # initiate training
         training.train_engine(
             n=args.n_gram_order,
-            alignment='grow-diag-final-and', # todo: make changeable
-            max_phrase_length=7, # todo: make changeable
-            reordering='msd-bidirectional-fe', # todo: make changeable
+            alignment='grow-diag-final-and',  # todo: make changeable
+            max_phrase_length=7,  # todo: make changeable
+            reordering='msd-bidirectional-fe',  # todo: make changeable
             num_threads=args.threads,
             path_temp_files=args.temp_dir,
             keep_uncompressed=args.keep_uncompressed_models
@@ -519,18 +126,8 @@ def main():
                 extended=args.extended_eval
             )
 
-    # distinguish chosen backend
-    if args.backend == BACKEND_NEMATUS:
-        '''
-        Cf. wmt instructions in https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        '''
-        # abort if environment variables for nematus backend are not set
-        check_environment_nematus(args)
+    elif args.backend == C.BACKEND_NEMATUS:
 
-        # check if arguments suiting nematus
-        check_arguments_nematus(args)
-
-        # create instance of TrainingBase subclass suiting backend
         training = TrainingNematus(
             basepath=args.output_dir,
             src_lang=args.src_lang,
@@ -540,48 +137,36 @@ def main():
             evaluation=args.eval
         )
 
-        # check for preprocessing to be executed
-        if args.training_only != True:
-            # initiate preprocessing
-            logging.info("Initiating preprocessing for backend %s", args.backend)
-            training.preprocess(
-                corpus_base_path=args.basepath, #@MM: changed from 'base_corpus_path=args.basepath,'
-                min_tokens=args.min_tokens,
-                max_tokens=args.max_tokens,
-                preprocess_external=args.preprocess_external_tune
-            )
-            # continue preprocessing: apply truecasing
-            training.train_truecaser()
-            training.truecase()
-            # continue preprocessing: byte-pair encoding for backend nematus
-            # set default for '--bpe_ops' here
-            training.bpe_encoding(bpe_operations=89500 if args.bpe_ops == None else args.bpe_ops)
-        else:
-            # chosen not to preprocess data
-            logging.warning("No preprocessing: Only training chosen to be executed")
+        logging.info("Start preprocessing.")
+        training.preprocess(
+            corpus_base_path=args.basepath,
+            min_tokens=args.min_tokens,
+            max_tokens=args.max_tokens,
+            preprocess_external=args.preprocess_external_tune
+        )
+        # continue preprocessing: apply truecasing
+        training.train_truecaser()
+        training.truecase()
+        # continue preprocessing: byte-pair encoding for backend nematus
+        # set default for '--bpe_ops' here
+        training.bpe_encoding(bpe_operations=args.bpe_ops)
 
-        # check for training to be executed
-        if args.preprocessing_only != True:
-            # initiate training
-            training.train_engine(
-                device_train=args.device_train,
-                preallocate_train=args.preallocate_train,
-                device_validate=args.device_validate,
-                preallocate_validate=args.preallocate_validate,
-                validation_frequency=10000 if args.validation_freq == None else args.validation_freq,
-                external_validation_script=args.external_validation_script,
-                max_epochs=5000 if args.max_epochs == None else args.max_epochs,
-                max_updates=10000000 if args.max_updates == None else args.max_updates
-            )
-        else:
-            # chosen not to train engine
-            logging.warning("No training: Only preprocessing chosen to be executed")
+        # initiate training
+        training.train_engine(
+            device_train=args.device_train,
+            preallocate_train=args.preallocate_train,
+            device_validate=args.device_validate,
+            preallocate_validate=args.preallocate_validate,
+            validation_frequency=args.validation_freq,
+            external_validation_script=args.external_validation_script,
+            max_epochs=args.max_epochs,
+            max_updates=args.max_updates
+        )
+
+        # TODO: eval
+
 
 if __name__ == '__main__':
-    # abort if Python version is not supported
-    checker.check_python_version()
-    # abort if environment variables necessary for either backend are not set
-    # (check env variables specific for a backend in respective method)
-    checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
+
     # run main routine
     main()

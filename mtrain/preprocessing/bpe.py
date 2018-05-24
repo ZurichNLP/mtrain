@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-from mtrain.constants import *
+from mtrain import constants as C
 from mtrain import commander
 from mtrain.preprocessing.external import ExternalProcessor
 
-'''
+"""
 Provides further processing and postprocessing steps in order to use neural network training and translation in backend nematus.
-'''
+"""
+
 class BytePairEncoderFile(object):
     '''
     Further preprocessing for nematus backend by byte-pair encoding the given parallel corpora.
