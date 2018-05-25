@@ -16,7 +16,7 @@ def run(command, description=None):
     @param description the description of the running command. Will
         be logged as INFO event type. Example: `Training truecaser`
 
-    Note: An exception is risen if the shell command fails to execute.
+    Note: An exception is raised if the shell command fails to execute.
     '''
     if description:
         logging.info(description)
@@ -41,11 +41,11 @@ def run_parallel(commands, description=None, num_threads=None):
         as arguments.
     '''
     assert isinstance(commands, list)
-    num_threads = len(commands) if num_threads == None else num_threads
+    num_threads = len(commands) if num_threads is None else num_threads
     if description:
         logging.info(description)
-    with Pool(num_threads) as p:
-        p.map(run, commands)
+    with Pool(num_threads) as pool:
+        pool.map(run, commands)
 
 def _is_relevant_for_log(line):
     '''

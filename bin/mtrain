@@ -7,29 +7,7 @@ from mtrain.training import TrainingMoses, TrainingNematus
 from mtrain import constants as C
 from mtrain import checker, assertions
 from mtrain.arguments import get_training_parser, check_environment, check_arguments
-
-
-def set_up_logging(args):
-    # initialize logging to STDERR
-    # check existence of '--output_dir' before creating logfile
-    assertions.dir_exists(
-        args.output_dir,
-        raise_exception="%s does not exist" % args.output_dir
-    )
-    # log all events to file
-    logging.basicConfig(
-        filename=args.output_dir + os.sep + 'training.log',
-        level=logging.DEBUG,
-        format='%(asctime)s - mtrain - %(levelname)s - %(message)s'
-    )
-    # log WARNING and above (or as specified by user) to stdout
-    console = logging.StreamHandler()
-    console.setLevel(C.LOGGING_LEVELS[args.logging])
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger("").addHandler(console)
-
-    logging.info(args)
+from mtrain.utils import set_up_logging
 
 
 def perform_checks(args):
@@ -41,7 +19,7 @@ def perform_checks(args):
     # abort if environment variables are not set
     check_environment(args)
     # abort if arguments are incompatible
-    check_arguments(args)
+    check_train_arguments(args)
 
 
 def main():

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+"""
+Defines command line arguments.
+"""
+
 import os
 import sys
 import logging
@@ -7,10 +11,6 @@ import argparse
 
 from mtrain import constants as C
 from mtrain import checker
-
-"""
-Defines command line arguments.
-"""
 
 
 def add_required_arguments(parser):
@@ -43,6 +43,7 @@ def add_required_arguments(parser):
 
 def add_backend_arguments(parser):
     """
+    General backend arguments.
     """
     parser.add_argument(
         "--backend",
@@ -106,6 +107,7 @@ def add_moses_arguments(parser):
 
 def add_preprocessing_arguments(parser):
     """
+    Arguments for data preprocessing.
     """
     parser.add_argument(
         "--min_tokens",
@@ -163,6 +165,7 @@ def add_preprocessing_arguments(parser):
 
 def add_eval_arguments(parser):
     """
+    Arguments for automatic evaluation.
     """
     parser.add_argument(
         "-e", "--eval",
@@ -187,7 +190,7 @@ def add_eval_arguments(parser):
     )
 
 
-def add_nematus_arguments(parser):
+def add_nematus_train_arguments(parser):
     """
     Adds arguments specific to Nematus.
     """
@@ -208,7 +211,7 @@ def add_nematus_arguments(parser):
     )
     nematus_args.add_argument(
         "--preallocate_train",
-        type=str,
+        type=float,
         help="Preallocate memory on a GPU device for training.",
         default=C.TRAIN_PREALLOCATE
     )
@@ -221,7 +224,7 @@ def add_nematus_arguments(parser):
     )
     nematus_args.add_argument(
         "--preallocate_validate",
-        type=str,
+        type=float,
         help="Preallocate memory on a GPU device for validation.",
         default=C.VALIDATE_PREALLOCATE
     )
@@ -253,6 +256,9 @@ def add_nematus_arguments(parser):
 
 
 def get_training_parser():
+    """
+    Training arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.description = ("Trains either an SMT system with Moses " +
                           "or an NMT system with Nematus.")
@@ -265,18 +271,104 @@ def get_training_parser():
 
     # options specific to a backend
     add_moses_arguments(parser)
-    add_nematus_arguments(parser)
+    add_nematus_train_arguments(parser)
 
     return parser
 
 
+def add_pre_postprocessing_arguments(parser):
+    """
+    Processing before and after translation.
+    """
+    parser.add_argument(
+        "--xml_input",
+        type=str,
+        help="decide how XML fragments in the input segments should " +
+        "be dealt with. Valid choices are: " +
+        "; ".join(["`%s`: %s" % (name, descr) for name, descr \
+             in C.XML_STRATEGIES.items()]),
+        choices=C.XML_STRATEGIES.keys()
+    )
+    parser.add_argument(
+        "-l", "--lowercase",
+        help="lowercase segments after translation",
+        default=False,
+        action='store_true'
+    )
+    parser.add_argument(
+        "--skip_preprocess",
+        help="do not preprocess segments at all before translation",
+        default=False,
+        action="store_true"
+    )
+    parser.add_argument(
+        "--skip_detokenize",
+        help="do not detokenize segments after translation",
+        default=False,
+        action="store_true"
+    )
+
+def add_nematus_trans_arguments(parser):
+    """
+    Translation options specific to Nematus.
+    """
+    nematus_args = parser.add_argument_group("Nematus arguments")
+
+    nematus_args.add_argument(
+        "--device_trans",
+        type=str,
+        help="GPU or CPU device for translation.",
+        default=C.TRANS_DEVICE
+    )
+    nematus_args.add_argument(
+        "--preallocate_trans",
+        type=float,
+        help="Preallocate memory on a GPU device for translation.",
+        default=C.TRANS_PREALLOCATE
+    )
+    nematus_args.add_argument(
+        "--adjust_dictionary",
+        help="Ensures that dictionary paths referred to in model config (file model.npz.json in model basepath) " +
+        "match the actual dictionaries (.json files for source and target language in the corpus basepath). " +
+        "Adjustment is necessary when the model was trained with `mtrain` and saved to a path different to the " +
+        "`mtrans` 'basepath'. If paths are not matching, nematus returns an empty string for any " +
+        "translation without error message OR may use the wrong .json files for translation.",
+        default=False,
+        action="store_true"
+    )
+
+def get_translation_parser():
+    """
+    Command line argument for translation.
+    """
+    parser = argparse.ArgumentParser()
+    parser.description = ("Translates text using a trained mtrain engine.")
+
+    parser.add_argument(
+        "basepath",
+        type=str,
+        help="basepath of the machine translation system, i.e., the output " +
+        "directory ('-o') used in `mtrain`."
+    )
+    parser.add_argument(
+        "--logging",
+        help="logging level in STDERR, default=`INFO`",
+        choices=C.LOGGING_LEVELS.keys(),
+        default="INFO"
+    )
+
+    add_pre_postprocessing_arguments(parser)
+    add_nematus_trans_arguments(parser)
+
+    return parser
+
 def check_environment(args):
-    '''
+    """
     Abort if environment variables specific for chosen backend are not set.
 
     Note: 'MULTEVAL_HOME' ist specific for evaluation and thus,
     checked only if evaluation chosen.
-    '''
+    """
     checker.check_environment_variable(C.MOSES_HOME, 'MOSES_HOME', 'moses')
 
     if args.backend == C.BACKEND_MOSES:
@@ -289,23 +381,53 @@ def check_environment(args):
         checker.check_environment_variable(C.MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
 
 
-def check_arguments_moses(args):
-    '''
-    Check for arguments if fit for moses, either combination or specific argument may
-    be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
-    program terminated.
+def check_train_arguments_moses(args):
+    """
+    Check for incompatible arguments.
 
     @param args all arguments passed from 'get_argument_parser()'
-    '''
+    """
     # generic masking and XML masking currently not possible at the same time for backend moses
     if args.masking and args.xml_input == C.XML_MASK:
-        logging.critical("Invalid command line options. For backend %s, " +
-                         "choose either '--masking' or '--xml_input mask', but not both. " +
-                         "See '-h'/'--help' for more information.", C.BACKEND_MOSES)
+        logging.critical("Invalid command line options. Choose either '--masking' or '--xml_input mask', but not both. See '-h'/'--help' for more information.")
         sys.exit()
 
 
-def check_arguments_nematus(args):
+def check_train_arguments_nematus(args):
+    """
+    Check for incompatible arguments.
+
+    @param args all arguments passed from 'get_argument_parser()'
+    """
+    pass
+
+
+def check_train_arguments(args):
+    """
+    Check for incompatible arguments.
+    """
+    if args.backend == C.BACKEND_MOSES:
+        check_train_arguments_moses(args)
+    else:
+        check_train_arguments_nematus(args)
+
+
+def check_trans_arguments_moses(args):
+    '''
+    Check for incompatible arguments.
+
+    @param args all arguments passed from 'get_argument_parser()'
+    '''
+    # for backend moses, ignore nematus specific arguments,
+    # warn user but continue processing
+    if args.device_trans or args.preallocate_trans:
+        logging.warning("Invalid command line options. For backend %s, "
+                        "'--device_trans', '--preallocate_trans'"
+                        "are not applicable and will be ignored. "
+                        "See '-h'/'--help' for more information.", C.BACKEND_MOSES)
+
+
+def check_trans_arguments_nematus(args):
     '''
     Check for arguments if fit for nematus, either combination or specific argument may
     be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
@@ -316,10 +438,11 @@ def check_arguments_nematus(args):
     pass
 
 
-def check_arguments(args):
+def check_trans_arguments(args):
     """
+    Check for incompatible arguments.
     """
     if args.backend == C.BACKEND_MOSES:
-        check_arguments_moses(args)
+        check_trans_arguments_moses(args)
     else:
-        check_arguments_nematus(args)
+        check_trans_arguments_nematus(args)

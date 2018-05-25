@@ -1,200 +1,37 @@
 #!/usr/bin/env python3
 
-import logging
-import argparse
+"""
+Command line interface for translation.
+"""
+
 import sys
 import os
-import fileinput
 import tempfile
-import datetime
 
 from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus
-from mtrain.constants import *
-from mtrain import checker, assertions
+from mtrain import constants as C
+from mtrain import checker
+from mtrain.arguments import get_translation_parser, check_environment, check_trans_arguments
+from mtrain.utils import set_up_logging
 
-LOGGING_LEVELS = {
-    "DEBUG": logging.DEBUG,
-    "INFO": logging.INFO,
-    "WARNING": logging.WARNING,
-    "ERROR": logging.ERROR,
-    "CRITICAL": logging.CRITICAL,
-}
 
-def get_argument_parser():
-    parser = argparse.ArgumentParser()
-    parser.description = ("Translates text using a Moses-based or Nematus-based machine " +
-        "translation system trained with `mtrain`.")
+def perform_checks(args):
+    """
+    Check python version, environment, arguments.
+    """
+    # abort if Python version is not supported
+    checker.check_python_version()
+    # abort if environment variables are not set
+    check_environment(args)
+    # abort if arguments are incompatible
+    check_trans_arguments(args)
 
-    # positional arguments for either backend
-    parser.add_argument(
-        "basepath",
-        type=str,
-        help="basepath of the machine translation system, i.e., the output " +
-        "directory ('-o') used in `mtrain`."
-    )
-    parser.add_argument(
-        "src_lang",
-        type=str,
-        help="source language code: valid choices are `" +
-            "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
-            "`",
-        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' # overrides ugly double-listing of available choices in '--help'
-    )
-    parser.add_argument(
-        "trg_lang",
-        type=str,
-        help="target language code: same valid choices as in src_lang",
-        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' # overrides ugly double-listing of available choices in '--help'
-    )
-
-    # optional arguments for either backend
-    parser.add_argument(
-        "--backend", # '-b' removed as it would conflict with '--bpe_ops'
-        type=str,
-        help="indicate which backend was used as training engine in `mtrain`." +
-            " Valid choices are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in BACKEND_CHOICES.items()]),
-        choices=BACKEND_CHOICES.keys(),
-        default='moses'
-    )
-    parser.add_argument(
-        "--logging",
-        help="logging level in STDERR, default=`INFO`",
-        choices=LOGGING_LEVELS.keys(),
-        default="INFO"
-    )
-
-    # arguments specific for moses backend
-    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
-    moses_args = parser.add_argument_group("Moses arguments")
-
-    moses_args.add_argument(
-        "--xml_input",
-        type=str,
-        help="decide how XML fragments in the input segments should " +
-            "be dealt with. Valid choices are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES.items()]),
-        choices=XML_STRATEGIES.keys()
-    )
-    moses_args.add_argument(
-        "-l", "--lowercase",
-        help="lowercase translated segments",
-        default=False,
-        action='store_true'
-    )
-    moses_args.add_argument(
-        "--skip_preprocess",
-        help="do not preprocess segments at all before translation",
-        default=False,
-        action="store_true"
-    )
-    moses_args.add_argument(
-        "--skip_detokenize",
-        help="do not detokenize segments after translation",
-        default=False,
-        action="store_true"
-    )
-
-    # arguments specific for nematus backend
-    # (consider moving argument to section 'optional arguments for either backend' if implemented accordingly)
-    nematus_args = parser.add_argument_group("Nematus arguments")
-
-    nematus_args.add_argument(
-        "--device_trans",
-        type=str,
-        help="choose a free processing unit for nematus translation, consult your server responsible " +
-            "to learn about appropriate settings"
-        # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
-    )
-    nematus_args.add_argument(
-        "--preallocate_trans",
-        type=str,
-        help="preallocate processing unit memory for nematus translation if applicable on your server. " +
-            "Do not preallocate more than `0.2` = 20 percent of memory. " +
-            "The system will automatically use more memory if available and safe."
-        # do NOT set default as it would trigger warning for backend moses. settings are server specific, thus enforced from user.
-    )
-    nematus_args.add_argument(
-        "--adjust_dictionary",
-        help="Ensures that dictionary paths referred to in model config (file model.npz.json in model basepath) " +
-            "match the actual dictionaries (.json files for source and target language in the corpus basepath). " +
-            "Adjustment is necessary when the model was trained with `mtrain` and saved to a path different to the " +
-            "`mtrans` 'basepath'. If paths are not matching, nematus returns an empty string for any " +
-            "translation without error message OR may use the wrong .json files for translation.",
-        default=False,
-        action="store_true"
-    )
-    nematus_args.add_argument(
-        "--keep_translation",
-        help="Note that the translation will not be written to the logfile " +
-            "but to the console (STDERR). Choose '--keep_translation' in case you want to " +
-            "append a copy of your translation to `results.mtrans.txt` stored in your 'basepath'.",
-        default=False,
-        action="store_true"
-    )
-
-    return parser
-
-def check_environment_nematus():
-    '''
-    Abort if environment variables specific for nematus backend are not set.
-    '''
-    checker.check_environment_variable(NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
-    checker.check_environment_variable(SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
-
-def check_arguments_moses(args):
-    '''
-    Check for arguments if fit for moses, either combination or specific argument may
-    be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
-    program terminated.
-
-    @param args all arguments passed from 'get_argument_parser()'
-    '''
-    # for backend moses, ignore nematus specific arguments, warn user but continue processing
-    if args.device_trans or args.preallocate_trans or args.adjust_dictionary or args.keep_translation:
-        logging.warning("Invalid command line options. For backend %s, " +
-            "'--device_trans', '--preallocate_trans', '--adjust_dictionary' and '--keep_translation' " +
-            "are not applicable and will be ignored. " +
-            "See '-h'/'--help' for more information.", BACKEND_MOSES)
-
-def check_arguments_nematus(args):
-    '''
-    Check for arguments if fit for nematus, either combination or specific argument may
-    be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
-    program terminated.
-
-    @param args all arguments passed from 'get_argument_parser()'
-    '''
-    # for backend nematus, ignore moses specific arguments, warn user but continue processing
-    if args.xml_input or args.lowercase or args.skip_preprocess or args.skip_detokenize:
-        logging.warning("Invalid command line options. For backend %s, " +
-            "'--xml_input', '--lowercase', '--skip_preprocess' and '--skip_detokenize' " +
-            "are not applicable and will be ignored. " +
-            "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-
-    # check arguments necessary for translation
-    if not args.device_trans or not args.preallocate_trans:
-        logging.critical("Invalid command line options. For backend %s, " +
-            "server specific options necessary for translation must be set. " +
-            "Consult your server responsible on how to choose '--device_trans', " +
-            "and '--preallocate_trans' adequately. " +
-            "See '-h'/'--help' for more information.", BACKEND_NEMATUS)
-        sys.exit()
-
-    # warn user that tranlation will not be stored but continue processing
-    if not args.keep_translation:
-        logging.warning("Final translation will not be written to logfile, only to " +
-            "console (STDERR). For longer and, thus, timeconsuming translations we " +
-            "recommend using '--keep_translation'. " +
-            "See '-h'/'--help' for more information.")
 
 def create_tempfiles_nematus():
-    '''
+    """
     Create temporary directory and secure named temporary files.
     Cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
-    '''
+    """
     tempdir = tempfile.mkdtemp()
     mtrans_temp_pre = 'mtrans.tmp.pre'
     mtrans_temp_trans = 'mtrans.tmp.trans'
@@ -204,99 +41,67 @@ def create_tempfiles_nematus():
     return tempdir, temp_pre, temp_trans
 
 def preprocess_input_nematus(temp_pre, engine):
-    '''
-    Preprocess segments and store in temp file.
+    """
+    Preprocesses segments and stores them in temp file.
 
     @param temp_pre path to temporary file where preprocessed segments are stored
     @param engine object holding the nematus translation engine providing preprocessing,
         translation and postprocessing functionality
-    '''
+    """
     with open(temp_pre, 'a') as f_pre:
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
             if source_segment != '':
                 # call preprocessing routine for each input segment
-                preprocessed_segment = engine.preprocess(source_segment)
+                preprocessed_segment = engine.preprocess_segment(source_segment)
                 preprocessed_segment = preprocessed_segment.rstrip()
                 f_pre.write(preprocessed_segment + '\n')
     f_pre.close()
 
-def postprocess_translation_nematus(args, temp_trans, engine):
-    '''
-    Postprocess segments by reading from translated temp file.
-    Also prepares final translation file and stores output if user chose so.
-    '''
-    # if chosen by user, set up translation file for storing output
-    if args.keep_translation:
-        translation_file = args.basepath + '/results.mtrans.txt'
-        with open(translation_file, 'a') as f_out:
-            # write identifying translation title and timestamp
-            # cf. https://www.saltycrane.com/blog/2008/06/how-to-get-current-date-and-time-in/
-            now = datetime.datetime.now()
-            f_out.write("\n%s - mtrans - INFO - Your `%s` input translated to `%s` using backend %s:\n\n" % (now.strftime("%Y-%m-%d %H:%M:%S"), args.src_lang, args.trg_lang, args.backend))
-        f_out.close()
-
+def postprocess_translation_nematus(temp_trans, engine):
+    """
+    Postprocesses segments by reading from translated temp file.
+    Also prepares final translation file.
+    """
     # postprocess segments, display on console and store if chosen by user
     with open(temp_trans, 'r') as f_trans:
         for line in f_trans:
             trans_segment = line.strip()
             if trans_segment != '':
                 # call postprocessing routine for each translated segment
-                postprocessed_segment = engine.postprocess(trans_segment)
+                postprocessed_segment = engine.postprocess_segment(trans_segment)
                 postprocessed_segment = postprocessed_segment.rstrip()
-                # display result (translated and postprocessed segment) on console
-                sys.stderr.write(postprocessed_segment + '\n')
-                # storing result in translation file if chosen by user
-                if args.keep_translation:
-                    with open(translation_file, 'a') as f_out:
-                        f_out.write(postprocessed_segment + '\n')
-                    f_out.close()
-    f_trans.close()
 
-    # inform user where to find translation file
-    if args.keep_translation:
-        logging.info("`%s` translation stored in file %s" % (args.trg_lang, translation_file))
+                sys.stdout.write(postprocessed_segment + '\n')
+
 
 def cleanup_tempfiles_nematus(tempdir, temp_pre, temp_trans):
-    '''
-    Delete temporary directory and secure named temporary files.
-    Cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
-    '''
+    """
+    Deletes temporary directory and secure named temporary files.
+    """
     os.remove(temp_pre)
     os.remove(temp_trans)
     os.rmdir(tempdir)
 
 def main():
-    parser = get_argument_parser()
+    """
+    Main translation interface.
+    """
+    parser = get_translation_parser()
     args = parser.parse_args()
-    # initialize logging (stderr)
-    # check existence of 'basepath' before creating logfile
-    assertions.dir_exists(
-        args.basepath,
-        raise_exception="%s does not exist" % args.basepath
-    )
-    # log all events to file
-    logging.basicConfig(
-        filename=args.basepath + os.sep + 'translation.log',
-        level=logging.DEBUG,
-        format='%(asctime)s - mtrans - %(levelname)s - %(message)s'
-    )
-    # log WARNING and above (or as specified by user) to stdout
-    console = logging.StreamHandler()
-    console.setLevel(LOGGING_LEVELS[args.logging])
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger("").addHandler(console)
+
+    perform_checks(args)
+
+    set_up_logging(args, mode="translate")
 
     # distinguish chosen backend
-    if args.backend == BACKEND_MOSES:
-
-        # check if arguments suiting moses
-        check_arguments_moses(args)
+    if args.backend == C.BACKEND_MOSES:
 
         # instantiating moses translation engine
-        engine = TranslationEngineMoses(args.basepath, args.src_lang, args.trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
-        logging.info("Translating `%s` input to `%s` using backend %s" % (args.src_lang, args.trg_lang, args.backend))
+        engine = TranslationEngineMoses(basepath=args.basepath,
+                                        src_lang=args.src_lang,
+                                        trg_lang=args.trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
+
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
             if source_segment != '':
@@ -312,46 +117,26 @@ def main():
                     sys.stderr.write(translation + '\n')
 
     # distinguish chosen backend
-    if args.backend == BACKEND_NEMATUS:
-        '''
-        Cf. wmt instructions in https://github.com/rsennrich/wmt16-scripts/blob/master/sample/README.md
-        '''
-        # abort if environment variables for nematus backend are not set
-        check_environment_nematus()
-
-        # check if arguments suiting nematus
-        check_arguments_nematus(args)
+    elif args.backend == C.BACKEND_NEMATUS:
 
         # create temporary directory and secure named temporary files
         tempdir, temp_pre, temp_trans = create_tempfiles_nematus()
 
-        # instantiating nematus translation engine
-        logging.info("Initiating translation process for backend %s", args.backend)
         engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang, args.adjust_dictionary)
 
         # preprocess segments and store in temp file
-        logging.info("Preprocessing `%s` input" % args.src_lang)
         preprocess_input_nematus(temp_pre, engine)
 
         # translate preprocessed segments as whole text using temp files:
         # as each call of nematus' translate.py takes time to initialize cpu/gpu/cuda,
         # segment by segment translation would result in significant loss of time
-        logging.info("Translating `%s` input to `%s`: device `%s`" % (args.src_lang, args.trg_lang, args.device_trans))
         engine.translate(args.device_trans, args.preallocate_trans, temp_pre, temp_trans)
 
         # postprocess segments by reading from translated temp file
-        logging.info("Postprocessing `%s` translation" % args.trg_lang)
-        logging.info("Your `%s` input translated to `%s`:" % (args.src_lang, args.trg_lang))
-        postprocess_translation_nematus(args, temp_trans, engine)
+        postprocess_translation_nematus(temp_trans, engine)
 
         # cleanup temp files and temp dir
         cleanup_tempfiles_nematus(tempdir, temp_pre, temp_trans)
 
 if __name__ == '__main__':
-    # abort if Python version is not supported
-    checker.check_python_version()
-    # abort if environment variables necessary for either backend are not set
-    # (check env variables specific for a backend in respective method)
-    checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
-    # run main routine
     main()
