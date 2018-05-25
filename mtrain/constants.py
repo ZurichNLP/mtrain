@@ -96,6 +96,8 @@ PATH_COMPONENT = {
     "evaluation": "evaluation"
 }
 
+CONFIG = "config.json"
+
 # Subfolder for bpe model and file suffix when byte-pair encoded in nematus
 BPE = 'bpe'
 
@@ -104,7 +106,7 @@ BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
 BASENAME_EVALUATION_CORPUS = 'eval' #@MM: changed value from 'test'
 SUFFIX_TOKENIZED = 'tokenized'
-SUFFIX_DETOKENIZED= 'detokenized'
+SUFFIX_DETOKENIZED = 'detokenized'
 SUFFIX_MASKED = 'masked'
 SUFFIX_UNMASKED = 'unmasked'
 SUFFIX_CLEANED = 'cleaned'
