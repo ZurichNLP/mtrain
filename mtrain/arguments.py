@@ -10,7 +10,6 @@ import logging
 import argparse
 
 from mtrain import constants as C
-from mtrain import checker
 
 def add_lang_arguments(parser):
     """
@@ -368,28 +367,6 @@ def get_translation_parser():
 
     return parser
 
-def check_environment(args):
-    """
-    Abort if environment variables specific for chosen backend are not set.
-
-    Note: 'MULTEVAL_HOME' ist specific for evaluation and thus,
-    checked only if evaluation chosen.
-    """
-    checker.check_environment_variable(C.MOSES_HOME, 'MOSES_HOME', 'moses')
-
-    if args.backend == C.BACKEND_MOSES:
-        checker.check_environment_variable(C.FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
-    else:
-        checker.check_environment_variable(C.NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
-        checker.check_environment_variable(C.SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
-
-    try:
-        if args.eval:
-            checker.check_environment_variable(C.MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
-    except AttributeError:
-        # args.eval does not even exist, ignore
-        pass
-
 
 def check_train_arguments_moses(args):
     """
@@ -423,28 +400,22 @@ def check_train_arguments(args):
 
 
 def check_trans_arguments_moses(args):
-    '''
+    """
     Check for incompatible arguments.
 
     @param args all arguments passed from 'get_argument_parser()'
-    '''
-    # for backend moses, ignore nematus specific arguments,
-    # warn user but continue processing
-    if args.device_trans or args.preallocate_trans:
-        logging.warning("Invalid command line options. For backend %s, "
-                        "'--device_trans', '--preallocate_trans'"
-                        "are not applicable and will be ignored. "
-                        "See '-h'/'--help' for more information.", C.BACKEND_MOSES)
+    """
+    pass
 
 
 def check_trans_arguments_nematus(args):
-    '''
+    """
     Check for arguments if fit for nematus, either combination or specific argument may
     be not (yet) applicable for the backend. Depending on severity, user is warned and maybe
     program terminated.
 
     @param args all arguments passed from 'get_argument_parser()'
-    '''
+    """
     pass
 
 

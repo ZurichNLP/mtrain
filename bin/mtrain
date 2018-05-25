@@ -135,11 +135,10 @@ def main():
             max_tokens=args.max_tokens,
             preprocess_external=args.preprocess_external_tune
         )
-        # continue preprocessing: apply truecasing
+
         training.train_truecaser()
         training.truecase()
-        # continue preprocessing: byte-pair encoding for backend nematus
-        # set default for '--bpe_ops' here
+
         training.bpe_encoding(bpe_operations=args.bpe_ops)
 
         # initiate training

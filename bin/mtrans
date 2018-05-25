@@ -11,7 +11,7 @@ import tempfile
 from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus
 from mtrain import constants as C
 from mtrain import checker
-from mtrain.arguments import get_translation_parser, check_environment, check_trans_arguments
+from mtrain.arguments import get_translation_parser, check_trans_arguments
 from mtrain.utils import set_up_logging, infer_backend
 
 
@@ -22,7 +22,7 @@ def perform_checks(args):
     # abort if Python version is not supported
     checker.check_python_version()
     # abort if environment variables are not set
-    check_environment(args)
+    checker.check_environment(args)
     # abort if arguments are incompatible
     check_trans_arguments(args)
 
@@ -115,9 +115,8 @@ def main():
                 # uppercase translation's first letter if first letter in source_segment is uppercased
                 if not args.lowercase and source_segment[0].isupper():
                     translation = translation[0].upper() + translation[1:]
-                    sys.stderr.write(translation + '\n')
+                    sys.stdout.write(translation + '\n')
 
-    # distinguish chosen backend
     elif args.backend == C.BACKEND_NEMATUS:
 
         # create temporary directory and secure named temporary files
