@@ -383,8 +383,12 @@ def check_environment(args):
         checker.check_environment_variable(C.NEMATUS_HOME, 'NEMATUS_HOME', 'nematus')
         checker.check_environment_variable(C.SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
 
-    if args.eval:
-        checker.check_environment_variable(C.MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
+    try:
+        if args.eval:
+            checker.check_environment_variable(C.MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
+    except AttributeError:
+        # args.eval does not even exist, ignore
+        pass
 
 
 def check_train_arguments_moses(args):
