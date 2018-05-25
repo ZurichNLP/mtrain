@@ -42,7 +42,6 @@ def add_required_arguments(parser):
         help="common path/file prefix of the training corpus' source and " +
         "target side, e.g., `/foo/bar/training_corpus`"
     )
-    add_lang_arguments(parser)
 
 
 def add_backend_arguments(parser):
@@ -268,6 +267,8 @@ def get_training_parser():
                           "or an NMT system with Nematus.")
 
     add_required_arguments(parser)
+    add_lang_arguments(parser)
+
     add_backend_arguments(parser)
     add_io_arguments(parser)
     add_preprocessing_arguments(parser)
@@ -319,13 +320,13 @@ def add_nematus_trans_arguments(parser):
     nematus_args = parser.add_argument_group("Nematus arguments")
 
     nematus_args.add_argument(
-        "--device_trans",
+        "--device",
         type=str,
         help="GPU or CPU device for translation.",
         default=C.TRANS_DEVICE
     )
     nematus_args.add_argument(
-        "--preallocate_trans",
+        "--preallocate",
         type=float,
         help="Preallocate memory on a GPU device for translation.",
         default=C.TRANS_PREALLOCATE
@@ -360,7 +361,6 @@ def get_translation_parser():
         choices=C.LOGGING_LEVELS.keys(),
         default="INFO"
     )
-    add_lang_arguments(parser)
 
     add_pre_postprocessing_arguments(parser)
     add_nematus_trans_arguments(parser)

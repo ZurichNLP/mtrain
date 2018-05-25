@@ -12,7 +12,7 @@ from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus
 from mtrain import constants as C
 from mtrain import checker
 from mtrain.arguments import get_translation_parser, check_trans_arguments
-from mtrain.utils import set_up_logging, infer_backend
+from mtrain.utils import set_up_logging, infer_backend, infer_languages
 
 
 def perform_checks(args):
@@ -91,6 +91,7 @@ def main():
     args = parser.parse_args()
 
     args.backend = infer_backend(args)
+    src_lang, trg_lang = infer_languages(args)
 
     perform_checks(args)
     set_up_logging(args, mode="translate")
@@ -100,8 +101,8 @@ def main():
 
         # instantiating moses translation engine
         engine = TranslationEngineMoses(basepath=args.basepath,
-                                        src_lang=args.src_lang,
-                                        trg_lang=args.trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
+                                        src_lang=src_lang,
+                                        trg_lang=trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
 
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
@@ -122,7 +123,10 @@ def main():
         # create temporary directory and secure named temporary files
         tempdir, temp_pre, temp_trans = create_tempfiles_nematus()
 
-        engine = TranslationEngineNematus(args.basepath, args.src_lang, args.trg_lang, args.adjust_dictionary)
+        engine = TranslationEngineNematus(args.basepath,
+                                          src_lang,
+                                          trg_lang,
+                                          args.adjust_dictionary)
 
         # preprocess segments and store in temp file
         preprocess_input_nematus(temp_pre, engine)
@@ -130,7 +134,7 @@ def main():
         # translate preprocessed segments as whole text using temp files:
         # as each call of nematus' translate.py takes time to initialize cpu/gpu/cuda,
         # segment by segment translation would result in significant loss of time
-        engine.translate(args.device_trans, args.preallocate_trans, temp_pre, temp_trans)
+        engine.translate(args.device, args.preallocate, temp_pre, temp_trans)
 
         # postprocess segments by reading from translated temp file
         postprocess_translation_nematus(temp_trans, engine)

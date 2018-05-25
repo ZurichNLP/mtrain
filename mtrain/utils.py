@@ -70,3 +70,11 @@ def infer_backend(translation_args):
     training_args = load_config(translation_args)
 
     return training_args.backend
+
+def infer_languages(translation_args):
+    """
+    Read lang arguments from saved training arguments.
+    """
+    training_args = load_config(translation_args)
+
+    return training_args.src_lang, training_args.trg_lang
