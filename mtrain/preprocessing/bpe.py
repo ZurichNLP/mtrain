@@ -37,7 +37,7 @@ class BytePairEncoderFile(object):
         Learns BPE model on preprocessed training corpus.
         Stores the bpe model in the basepath's subfolder 'engine/bpe/'.
         """
-        blueprint = 'cat {corpus}.{src} {corpus}.{trg} | {script} --write-vocabulary {vocab}.{src} {vocab}.{trg} --s {bpe_ops} > {bpe_model}/{src}-{trg}.bpe'
+        blueprint = 'cat {corpus}.{src} {corpus}.{trg} | {script} --write-vocabulary {vocab}.{src} {vocab}.{trg} --symbols {bpe_ops} > {bpe_model}/{src}-{trg}.bpe'
 
         commander.run(blueprint.format(
                 corpus=self._corpus_train,
@@ -57,7 +57,7 @@ class BytePairEncoderFile(object):
         """
         def command(current_corpus, current_lang):
 
-            blueprint = '{script} -c {bpe_model}/{src}-{trg}.bpe -- vocabulary vocab.{lang} --vocabulary-threshold {threshold} < {corpus}.{lang} > {corpus}.bpe.{lang}'
+            blueprint = '{script} -c {bpe_model}/{src}-{trg}.bpe --vocabulary vocab.{lang} --vocabulary-threshold {threshold} < {corpus}.{lang} > {corpus}.bpe.{lang}'
 
             return blueprint.format(script=C.SUBWORD_NMT_APPLY,
                                     bpe_model=self._model_path,
