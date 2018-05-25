@@ -8,7 +8,7 @@ Given a parallel corpus of any size, training and translation are as easy as
 ```sh
 mkdir ~/my_engine
 mtrain /path/to/my/parallel-corpus en fr --tune 1000 -o ~/my_engine
-echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr
+echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine
 ```
 
 Installation and further usage instructions are given below. To report a bug or suggest
@@ -158,8 +158,7 @@ In order to store the engine in a different location than in the current working
 mtrain ~/my-corpus en fr --backend nematus -o ~/my_engine
 ```
 
-Nematus depends on a tuning set, which is used for validation during training.
-Therefore, you need to use `-t`/`--tune` to specify the number of segments sampled from your parallel corpus. If the argument for `-t` is not a number, it must be the path to an existing validation set.
+Nematus depends on a tuning set, which is used for validation during training. Use `-t`/`--tune` to specify the number of segments sampled from your parallel corpus. If the argument for `-t` is not a number, it must be the path to an existing validation set. If you omit this argument, a validation set is sampled at random from the training data.
 
 ```sh
 mtrain ~/my-corpus en fr --backend nematus -o ~/my_engine -t 1000
@@ -173,18 +172,10 @@ mtrain ~/my-corpus en fr --backend nematus -o ~/my_engine -t 1000 -c truecasing
 
 Training a Nematus model is best done on GPUs. Use `--device_train` and `--device_validate` to indicate the names of the devices that should be used for training and validation (can be the same as training if the training process does not use all memory on the GPU and devices are not process-exclusive). For CPU, use the name `cpu`. GPU training also benefits from memory preallocation, which you can control with `--preallocate_train` and `--preallocate_validate`.
 
-Here is a full training command:
+Here is a more explicit training command:
 
 ```sh
 mtrain ~/my-corpus en fr --backend nematus -o ~/my_engine -t 1000 -c truecasing --device_train cuda0 --preallocate_train 0.8 --device_validate cuda1 --preallocate_validate 0.3
-```
-
-You may want to perform separately preprocessing data and training, for example when you need to verify the preprocessed data before training. When using `--preprocessing_only` and `--training_only`, you only have to provide the parameters necessary for the respective step.
-For example, type:
-
-```sh
-mtrain ~/my-corpus en fr --backend nematus -o ~/my_engine -t 1000 -c truecasing --preprocessing_only
-mtrain ~/my-corpus en fr --backend nematus -o ~/my_engine --training_only --device_train cuda0 --preallocate_train 0.8 --device_validate cuda1 --preallocate_validate 0.3
 ```
 
 ### Further training options
@@ -201,13 +192,13 @@ Once training has finished, you can use your engine to translate a sample
 segment:
 
 ```sh
-echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr
+echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine
 ```
 
 or an entire file:
 
 ```sh
-mtrans ~/my_engine en fr < my-english-file.txt > french-translation.txt
+mtrans ~/my_engine < my-english-file.txt > french-translation.txt
 ```
 
 `mtrans` will detect your engine's casing strategy automatically and handle
@@ -216,16 +207,16 @@ capitalised words accordingly. If you prefer lowercased output, just add the
 
 ### Translation with a trained Nematus model
 
-For using your trained Nematus engine for translating a segment, choose the Nematus backend, device and preallocated memory:
+For using your trained Nematus engine for translating a segment, choose additionally a device and preallocated memory:
 
 ```sh
-echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine en fr --backend nematus --device_trans cuda0 --preallocate_trans 0.1
+echo "Consistency is the last refuge of the unimaginative." | mtrans ~/my_engine --device cuda0 --preallocate 0.1
 ```
 
 To translate an entire file, type the command below:
 
 ```sh
-mtrans ~/my_engine en fr --backend nematus --device_trans cuda0 --preallocate_trans 0.1  < my-english-file.txt > french-translation.txt
+mtrans ~/my_engine --device cuda0 --preallocate 0.1  < my-english-file.txt > french-translation.txt
 ```
 
 ### Further translation options
@@ -259,3 +250,21 @@ Make sure to use _absolute_ paths for the `-o` argument (where the trained model
 **Python libraries are not found, even though I have installed them**
 
 Explicitly set `PYTHON2` and `PYTHON3`, see section "Environment variables for Python versions" above.
+
+**Nematus validation during training fails with a Theano exception**
+
+If your Nematus training fails with:
+
+    RuntimeError: "You can't initialize the GPU in a subprocess if the parent process already did it"
+
+Then install a specific version of theano, 1.0.0. With pip:
+    
+    pip install --force-reinstall theano==1.0.0
+
+See [here](https://groups.google.com/forum/#!topic/theano-users/HJGQ0jeTZf8) for more information.
+
+**Output during training of a Nematus model is not logged**
+
+It is. Output from the training process is appended directly to the training log file. You can track progress with, e.g.
+
+    tail -f training.log
