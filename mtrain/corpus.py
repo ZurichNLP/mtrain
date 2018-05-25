@@ -3,8 +3,6 @@
 import os
 import random
 
-from mtrain.preprocessing import cleaner
-
 
 class ParallelCorpus(object):
     """
@@ -103,7 +101,7 @@ class ParallelCorpus(object):
         """
         Writes all segments in this corpus to disk and closes the file handles.
         """
-        assert self._closed == False, "Can't manipulate a closed corpus."
+        assert self._closed is False, "Can't manipulate a closed corpus."
         if not self._flush_immediately:
             for bisegment in self._bisegments:
                 self._write_bisegment(bisegment)
