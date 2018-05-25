@@ -221,7 +221,7 @@ def add_nematus_train_arguments(parser):
     nematus_args.add_argument(
         "--device_validate",
         type=str,
-        help="A GPU or CPu device for validation." +
+        help="A GPU or CPU device for validation. "
              "Omit if '--external_validation_script' is provided.",
         default=C.VALIDATE_DEVICE
     )

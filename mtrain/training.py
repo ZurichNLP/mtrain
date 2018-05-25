@@ -1429,7 +1429,7 @@ $moses_detruecaser"""
         )
 
         # inform user to observe logfile, as debug log is never printed to terminal during training due to length
-        logging.info("Initiating training, observe progress in logfile: %s", logfile)
+        logging.info("Start training, observe progress in logfile: %s", logfile)
 
         # train nematus engine
         commander.run(" ".join([theano_train_flags, nematus_train_files, nematus_train_options, external_validation, log_to_file]),
