@@ -57,7 +57,7 @@ class BytePairEncoderFile(object):
         """
         def command(current_corpus, current_lang):
 
-            blueprint = '{script} -c {bpe_model}/{src}-{trg}.bpe --vocabulary vocab.{lang} --vocabulary-threshold {threshold} < {corpus}.{lang} > {corpus}.bpe.{lang}'
+            blueprint = '{script} -c {bpe_model}/{src}-{trg}.bpe --vocabulary {bpe_model}/vocab.{lang} --vocabulary-threshold {threshold} < {corpus}.{lang} > {corpus}.bpe.{lang}'
 
             return blueprint.format(script=C.SUBWORD_NMT_APPLY,
                                     bpe_model=self._model_path,
