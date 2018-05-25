@@ -90,10 +90,10 @@ def main():
     parser = get_translation_parser()
     args = parser.parse_args()
 
+    args.backend = infer_backend(args)
+
     perform_checks(args)
     set_up_logging(args, mode="translate")
-
-    args.backend = infer_backend(args)
 
     # distinguish chosen backend
     if args.backend == C.BACKEND_MOSES:
