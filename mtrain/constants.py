@@ -183,6 +183,8 @@ CASING_STRATEGIES = {
 BPE_NUM_SINGLE_OPERATIONS = 89500
 BPE_NUM_JOINT_OPERATIONS = 50000  # joint vocabulary
 
+BPE_VOCAB_THRESHOLD = 50
+
 
 ######################################
 # Constants related to XML processing

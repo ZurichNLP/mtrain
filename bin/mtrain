@@ -8,7 +8,7 @@ import logging
 
 from mtrain.training import TrainingMoses, TrainingNematus
 from mtrain import constants as C
-from mtrain import checker, assertions
+from mtrain import checker
 from mtrain.arguments import get_training_parser, check_train_arguments
 from mtrain.utils import set_up_logging, write_config
 

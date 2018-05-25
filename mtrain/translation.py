@@ -37,12 +37,14 @@ class TranslationEngineBase(object):
         self._src_lang = src_lang
         self._trg_lang = trg_lang
 
+        self._truecaser = None
+
     @abc.abstractmethod
-    def _load_engine():
+    def _load_engine(self):
         pass
 
     @abc.abstractmethod
-    def _load_tokenizer():
+    def _load_tokenizer(self):
         pass
 
     def _load_truecaser(self):
@@ -335,19 +337,19 @@ class TranslationEngineNematus(TranslationEngineBase):
 
     def _load_normalizer(self):
         """
-        Create normalizer: Additional preprocessing step for backend nematus.
+        Creates normalizer.
         """
         self._normalizer = Normalizer(self._src_lang)
 
     def _load_tokenizer(self):
         """
-        Create tokenizer: So far neither masking_strategy nor xml_strategy for backend nematus.
+        Creates tokenizer.
         """
         self._tokenizer = Tokenizer(self._src_lang)
 
     def _load_encoder(self):
         """
-        Create byte-pair encoder: Uses the bpe model learnt in `mtrain`.
+        Creates byte-pair encoder. Uses a trained BPE model.
         """
         bpe_model_path = os.sep.join([
             self._basepath,
@@ -359,7 +361,7 @@ class TranslationEngineNematus(TranslationEngineBase):
 
     def _load_engine(self):
         """
-        Start a process for Nematus translation engine.
+        Starts a process that holds a Nematus translation engine.
         """
         self._path_nematus_model = os.sep.join([
             self._basepath,
