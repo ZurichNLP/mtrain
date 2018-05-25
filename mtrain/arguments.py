@@ -238,6 +238,12 @@ def add_nematus_train_arguments(parser):
         default=C.VALIDATION_FREQ
     )
     nematus_args.add_argument(
+        "--save_freq",
+        type=int,
+        help="Saving a model checkpoint after X updates.",
+        default=C.VALIDATION_FREQ
+    )
+    nematus_args.add_argument(
         "--external_validation_script",
         type=str,
         help="Optional path to external validation script that is called during " +

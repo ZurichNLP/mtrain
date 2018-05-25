@@ -148,6 +148,7 @@ def main():
             device_validate=args.device_validate,
             preallocate_validate=args.preallocate_validate,
             validation_frequency=args.validation_freq,
+            save_frequency=args.save_freq,
             external_validation_script=args.external_validation_script,
             max_epochs=args.max_epochs,
             max_updates=args.max_updates

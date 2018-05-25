@@ -1011,8 +1011,8 @@ class TrainingNematus(TrainingBase):
 
         @param bpe_operations Create this many new symbols (each representing a character n-gram)
         """
-        corpus_train_tc=self._get_path('corpus') + os.sep + C.BASENAME_TRAINING_CORPUS + '.' + C.SUFFIX_TRUECASED
-        corpus_tune_tc=self._get_path('corpus') + os.sep + C.BASENAME_TUNING_CORPUS + '.' + C.SUFFIX_TRUECASED
+        corpus_train_tc = self._get_path('corpus') + os.sep + C.BASENAME_TRAINING_CORPUS + '.' + C.SUFFIX_TRUECASED
+        corpus_tune_tc = self._get_path('corpus') + os.sep + C.BASENAME_TUNING_CORPUS + '.' + C.SUFFIX_TRUECASED
 
         # create target directory for bpe model
         bpe_model_path = os.sep.join([self._get_path('engine'), C.BPE])
@@ -1215,6 +1215,7 @@ class TrainingNematus(TrainingBase):
                      device_validate=None,
                      preallocate_validate=None,
                      validation_frequency=None,
+                     save_frequency=None,
                      external_validation_script=None,
                      max_epochs=None,
                      max_updates=None):
@@ -1249,7 +1250,7 @@ class TrainingNematus(TrainingBase):
         # prepare and execute nematus training
         self._prepare_validation(device_validate, preallocate_validate)
         self._prepare_valid_postprocessing()
-        self._train_nematus_engine(device_train, preallocate_train, validation_frequency, max_epochs, max_updates)
+        self._train_nematus_engine(device_train, preallocate_train, validation_frequency, save_frequency, max_epochs, max_updates)
 
     def _prepare_validation(self, device_validate, preallocate_validate):
         """
@@ -1357,8 +1358,7 @@ $moses_detruecaser"""
             # chmod script to make executable
             os.chmod(file_location, 0o755)
 
-    def _train_nematus_engine(self, device_train, preallocate_train, validation_frequency,
-                              max_epochs, max_updates):
+    def _train_nematus_engine(self, device_train, preallocate_train, validation_frequency, save_frequency, max_epochs, max_updates):
         """
         Trains the nematus engine.
 
@@ -1409,7 +1409,11 @@ $moses_detruecaser"""
                          # e.g. 'train.truecased.bpe.ro.json train.truecased.bpe.en.json' split by a space
         )
         # nematus options for training
-        nematus_train_options = " ".join(["%s %s" % (k, v) if v != "" else k for k, v in C.NEMATUS_OPTIONS.items()])
+        options_dict = C.NEMATUS_OPTIONS
+        options_dict["--saveFreq"] = save_frequency
+        options_dict["--validFreq"] = validation_frequency
+
+        nematus_train_options = " ".join(["%s %s" % (k, v) if v != "" else k for k, v in options_dict.items()])
         # external validation script:
         external_validation = '--external_validation_script={script}'.format(
             script=script_path_full
