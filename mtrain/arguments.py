@@ -12,17 +12,10 @@ import argparse
 from mtrain import constants as C
 from mtrain import checker
 
-
-def add_required_arguments(parser):
+def add_lang_arguments(parser):
     """
-    Adds positional arguments.
+    Adds language arguments.
     """
-    parser.add_argument(
-        "basepath",
-        type=str,
-        help="common path/file prefix of the training corpus' source and " +
-        "target side, e.g., `/foo/bar/training_corpus`"
-    )
     parser.add_argument(
         "src_lang",
         type=str,
@@ -39,6 +32,18 @@ def add_required_arguments(parser):
         choices=C.MOSES_TOKENIZER_LANG_CODES.keys(),
         metavar='trg_lang'  # overrides ugly double-listing of available choices in '--help'
     )
+
+def add_required_arguments(parser):
+    """
+    Adds positional arguments.
+    """
+    parser.add_argument(
+        "basepath",
+        type=str,
+        help="common path/file prefix of the training corpus' source and " +
+        "target side, e.g., `/foo/bar/training_corpus`"
+    )
+    add_lang_arguments(parser)
 
 
 def add_backend_arguments(parser):
@@ -356,6 +361,7 @@ def get_translation_parser():
         choices=C.LOGGING_LEVELS.keys(),
         default="INFO"
     )
+    add_lang_arguments(parser)
 
     add_pre_postprocessing_arguments(parser)
     add_nematus_trans_arguments(parser)

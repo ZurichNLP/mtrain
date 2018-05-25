@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+"""
+Command line interface for training.
+"""
+
 import logging
-import os
 
 from mtrain.training import TrainingMoses, TrainingNematus
 from mtrain import constants as C
 from mtrain import checker, assertions
-from mtrain.arguments import get_training_parser, check_environment, check_arguments
+from mtrain.arguments import get_training_parser, check_environment, check_train_arguments
 from mtrain.utils import set_up_logging
 
 
@@ -23,6 +26,9 @@ def perform_checks(args):
 
 
 def main():
+    """
+    Training interface.
+    """
     parser = get_training_parser()
     args = parser.parse_args()
 
@@ -30,7 +36,7 @@ def main():
 
     set_up_logging(args)
 
-    logging.info("Configured backend: %s" % args.backend)
+    logging.info("Configured backend: %s", args.backend)
 
     if args.tune:
         try:
