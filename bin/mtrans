@@ -12,7 +12,7 @@ from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus
 from mtrain import constants as C
 from mtrain import checker
 from mtrain.arguments import get_translation_parser, check_trans_arguments
-from mtrain.utils import set_up_logging, infer_backend, infer_languages
+from mtrain.utils import set_up_logging, infer_backend
 
 
 def perform_checks(args):
@@ -26,63 +26,6 @@ def perform_checks(args):
     # abort if arguments are incompatible
     check_trans_arguments(args)
 
-
-def create_tempfiles_nematus():
-    """
-    Create temporary directory and secure named temporary files.
-    Cf. https://security.openstack.org/guidelines/dg_using-temporary-files-securely.html
-    """
-    tempdir = tempfile.mkdtemp()
-    mtrans_temp_pre = 'mtrans.tmp.pre'
-    mtrans_temp_trans = 'mtrans.tmp.trans'
-    # path to named temp files needed for passing to translation engine
-    temp_pre = os.path.join(tempdir, mtrans_temp_pre)
-    temp_trans = os.path.join(tempdir, mtrans_temp_trans)
-    return tempdir, temp_pre, temp_trans
-
-def preprocess_input_nematus(temp_pre, engine):
-    """
-    Preprocesses segments and stores them in temp file.
-
-    @param temp_pre path to temporary file where preprocessed segments are stored
-    @param engine object holding the nematus translation engine providing preprocessing,
-        translation and postprocessing functionality
-    """
-    with open(temp_pre, 'a') as f_pre:
-        for line in sys.stdin: # read stdin
-            source_segment = line.strip()
-            if source_segment != '':
-                # call preprocessing routine for each input segment
-                preprocessed_segment = engine.preprocess_segment(source_segment)
-                preprocessed_segment = preprocessed_segment.rstrip()
-                f_pre.write(preprocessed_segment + '\n')
-    f_pre.close()
-
-def postprocess_translation_nematus(temp_trans, engine):
-    """
-    Postprocesses segments by reading from translated temp file.
-    Also prepares final translation file.
-    """
-    # postprocess segments, display on console and store if chosen by user
-    with open(temp_trans, 'r') as f_trans:
-        for line in f_trans:
-            trans_segment = line.strip()
-            if trans_segment != '':
-                # call postprocessing routine for each translated segment
-                postprocessed_segment = engine.postprocess_segment(trans_segment)
-                postprocessed_segment = postprocessed_segment.rstrip()
-
-                sys.stdout.write(postprocessed_segment + '\n')
-
-
-def cleanup_tempfiles_nematus(tempdir, temp_pre, temp_trans):
-    """
-    Deletes temporary directory and secure named temporary files.
-    """
-    os.remove(temp_pre)
-    os.remove(temp_trans)
-    os.rmdir(tempdir)
-
 def main():
     """
     Main translation interface.
@@ -91,7 +34,6 @@ def main():
     args = parser.parse_args()
 
     args.backend = infer_backend(args)
-    src_lang, trg_lang = infer_languages(args)
 
     perform_checks(args)
     set_up_logging(args, mode="translate")
@@ -101,13 +43,12 @@ def main():
 
         # instantiating moses translation engine
         engine = TranslationEngineMoses(basepath=args.basepath,
-                                        src_lang=src_lang,
-                                        trg_lang=trg_lang, uppercase_first_letter=False, xml_strategy=args.xml_input, quiet=False)
+                                        training_config=None)
 
         for line in sys.stdin: # read stdin
             source_segment = line.strip()
             if source_segment != '':
-                translation = engine.translate(
+                translation = engine.translate_segment(
                     source_segment,
                     preprocess=not(args.skip_preprocess),
                     lowercase=args.lowercase,
@@ -120,27 +61,39 @@ def main():
 
     elif args.backend == C.BACKEND_NEMATUS:
 
-        # create temporary directory and secure named temporary files
-        tempdir, temp_pre, temp_trans = create_tempfiles_nematus()
-
         engine = TranslationEngineNematus(args.basepath,
-                                          src_lang,
-                                          trg_lang,
-                                          args.adjust_dictionary)
+                                          training_config=None,
+                                          device=args.device,
+                                          preallocate=args.preallocate)
 
-        # preprocess segments and store in temp file
-        preprocess_input_nematus(temp_pre, engine)
+        # Note: MM:
+        # Text must be translated as a whole, even from STDIN, because
+        # the Nematus script translate.py does not process line-by-line
+        tempdir = tempfile.mkdtemp()
+        input_path = tempfile.NamedTemporaryFile(prefix="input", dir=tempdir)
+        input_handle = open(input_path, "w")
 
-        # translate preprocessed segments as whole text using temp files:
-        # as each call of nematus' translate.py takes time to initialize cpu/gpu/cuda,
-        # segment by segment translation would result in significant loss of time
-        engine.translate(args.device, args.preallocate, temp_pre, temp_trans)
+        for line in sys.stdin:
+            input_handle.write(line)
 
-        # postprocess segments by reading from translated temp file
-        postprocess_translation_nematus(temp_trans, engine)
+        input_handle.close()
+        input_handle = open(input_path, "r")
 
-        # cleanup temp files and temp dir
-        cleanup_tempfiles_nematus(tempdir, temp_pre, temp_trans)
+        output_path = tempfile.NamedTemporaryFile(prefix="input", dir=tempdir)
+        output_handle = open(output_path, "w")
+
+        engine.translate_file(input_handle=input_handle, output_handle=output_handle)
+
+        output_handle.close()
+        output_handle = open(output_path, "r")
+
+        for line in output_handle:
+            sys.stdout.write(line)
+
+        os.remove(input_path)
+        os.remove(output_path)
+        os.rmdir(tempdir)
+
 
 if __name__ == '__main__':
     main()

@@ -18,7 +18,7 @@ class BytePairEncoderFile(object):
         """
         @params corpus_train location of  training corpus (no language ending)
         @params corpus_tune location of truecased tuning corpus (no language ending)
-        @params model_path path of byte-pair encoding model to be stored (no filename)
+        @params model_path directory where trained model should be stored
         @params num_operations number of merging operations
         @params src_lang language identifier of source language
         @params trg_lang language identifier of target language
@@ -93,11 +93,11 @@ class BytePairEncoderFile(object):
 
 class BytePairEncoderSegment(object):
     """
-    Learns a BPE model and applies it to individual segments.
+    Applies a trained BPE model to individual segments.
     """
     def __init__(self, bpe_model):
         """
-        @param bpe_model full path to byte-pair processing model trained in `mtrain`
+        @param bpe_model full path to BPE model
         """
         arguments = [
             '-c %s' % bpe_model
@@ -114,7 +114,7 @@ class BytePairEncoderSegment(object):
     def close(self):
         del self._processor
 
-    def bpencode_segment(self, segment):
+    def encode_segment(self, segment):
         '''
         Encodes a single @param segment by applying a trained BPE model.
         '''
@@ -122,12 +122,8 @@ class BytePairEncoderSegment(object):
         return encoded_segment
 
 
-class BytePairDecoderSegment(object):
+def bpe_decode_segment(segment):
     """
-    Removes BPE from segments.
+    Removes byte pair encoding.
     """
-    def bpdecode_segment(self, segment):
-        """
-        Decodes a single @param segment.
-        """
-        return segment.replace("@@ ", "")
+    return segment.replace("@@ ", "")

@@ -87,7 +87,7 @@ class ParallelCorpus(object):
         into this corpus. If the maximum number of entries is exhausted, a random segment
         already contained in this corpus will be returned.
         """
-        assert self._closed == False, "Can't manipulate a closed corpus."
+        assert self._closed is False, "Can't manipulate a closed corpus."
         bisegment = (segment_source, segment_target)
         self._num_bisegments += 1
         if self._flush_immediately:

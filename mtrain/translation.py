@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import os
-
+import tempfile
 import abc
+
 from abc import ABCMeta
 
 from mtrain import inspector
 from mtrain import constants as C
+from mtrain import utils
 from mtrain.engine import EngineMoses, EngineNematus
 from mtrain.preprocessing import lowercaser
 from mtrain.preprocessing.truecaser import Truecaser, Detruecaser
@@ -15,7 +17,7 @@ from mtrain.preprocessing.normalizer import Normalizer
 from mtrain.preprocessing.tokenizer import Tokenizer, Detokenizer
 from mtrain.preprocessing.masking import Masker
 from mtrain.preprocessing.xmlprocessor import XmlProcessor
-from mtrain.preprocessing.bpe import BytePairEncoderSegment, BytePairDecoderSegment
+from mtrain.preprocessing.bpe import BytePairEncoderSegment, bpe_decode_segment
 
 
 class TranslationEngineBase(object):
@@ -24,116 +26,59 @@ class TranslationEngineBase(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, basepath, src_lang, trg_lang):
+    def __init__(self,
+                 basepath,
+                 training_config):
         '''
         @param basepath the path to the engine, i.e., `mtrain`'s output
             directory (-o).
-        @param src_lang the source language
-        @param trg_lang the target language
         '''
         assert inspector.is_mtrain_engine(basepath)
         self._basepath = basepath.rstrip(os.sep)
 
-        self._src_lang = src_lang
-        self._trg_lang = trg_lang
-
-        self._truecaser = None
-
-    @abc.abstractmethod
-    def _load_engine(self):
-        pass
-
-    @abc.abstractmethod
-    def _load_tokenizer(self):
-        pass
-
-    def _load_truecaser(self):
-        path_model = os.sep.join([
-            self._basepath,
-            C.PATH_COMPONENT['engine'],
-            C.TRUECASING,
-            'model.%s' % self._src_lang
-        ])
-        self._truecaser = Truecaser(path_model)
-
-    @abc.abstractmethod
-    def preprocess_segment(self, segment):
-        """
-        Preprocesses a single @param segment.
-        """
-        pass
-
-    @abc.abstractmethod
-    def postprocess_segment(self):
-        pass
-
-    @abc.abstractmethod
-    def translate(self):
-        pass
-
-
-class TranslationEngineMoses(TranslationEngineBase):
-    """
-    Moses translation engine trained using `mtrain`.
-    """
-    def __init__(self,
-                 basepath,
-                 src_lang,
-                 trg_lang,
-                 uppercase_first_letter=False,
-                 xml_strategy=None,
-                 quiet=False):
-        """
-        In addition to metaclass @params:
-        @param uppercase_first_letter uppercase first letter of translation
-        @param xml_strategy how XML is dealt with during translation
-        @param quiet if quiet, do not INFO log events
-        """
-        super(TranslationEngineMoses, self).__init__(basepath, src_lang, trg_lang)
-
-        self._quiet = quiet
-        # set strategies
-        self._casing_strategy = inspector.get_casing_strategy(self._basepath, quiet=self._quiet)
-        self._masking_strategy = inspector.get_masking_strategy(self._basepath, quiet=self._quiet)
-        # if no XML strategy, guess from directory
-        if xml_strategy:
-            self._xml_strategy = xml_strategy
+        # determine config of trained model, if not given
+        if training_config is None:
+            self._training_config = utils.load_config(basepath)
         else:
-            self._xml_strategy = inspector.get_xml_strategy(self._basepath, quiet=self._quiet)
-        # load components
+            self._training_config = training_config
+
+        # set strategies for convenience
+        self._casing_strategy = self._training_config.caser
+        self._masking_strategy = self._training_config.masking
+        self._xml_strategy = self._training_config.xml_input
+
+        # set languages for convenience
+        self._src_lang = self._training_config.src_lang
+        self._trg_lang = self._training_config.trg_lang
+
+        self._components = []
+
+        self._load_engine()
+        self._load_components()
+
+
+    ####################################
+    # loading components
+    ####################################
+
+    def _load_components(self):
+        """
+        Loads preprocessing and postprocessing components.
+        """
         self._load_tokenizer()
-        self._detokenizer = Detokenizer(trg_lang, uppercase_first_letter)
+        self._load_detokenizer()
+
         if self._casing_strategy == C.TRUECASING:
             self._load_truecaser()
+            self._load_detruecaser()
         elif self._casing_strategy == C.RECASING:
             self._load_recaser()
         if self._masking_strategy:
             self._load_masker()
         if self._xml_strategy:
             self._load_xml_processor()
-        # load engine
-        if self._masking_strategy or self._xml_strategy:
-            self._load_engine(report_alignment=True, report_segmentation=True)
-        else:
-            self._load_engine()
 
-    def _load_engine(self, report_alignment=False, report_segmentation=False):
-        """
-        Start a Moses process and keep it running.
-        @param report_alignment whether Moses should report word alignments
-        @param report_segmentation whether Moses should report how the translation is
-            made up of phrases
-        """
-        path_moses_ini = os.sep.join([
-            self._basepath,
-            C.PATH_COMPONENT['engine'],
-            'moses.ini'
-        ])
-        self._engine = EngineMoses(
-            path_moses_ini=path_moses_ini,
-            report_alignment=report_alignment,
-            report_segmentation=report_segmentation,
-        )
+        # add all components to self._components list
 
     def _load_tokenizer(self):
         """
@@ -162,6 +107,15 @@ class TranslationEngineMoses(TranslationEngineBase):
         else:
             self._tokenizer = Tokenizer(self._src_lang)
 
+        self._components.append(self._tokenizer)
+
+    def _load_detokenizer(self):
+        self._detokenizer = Detokenizer(self._trg_lang, uppercase_first_letter=False)
+        self._components.append(self._detokenizer)
+
+    def _load_detruecaser(self):
+        pass
+
     def _load_recaser(self):
         path_moses_ini = os.sep.join([
             self._basepath,
@@ -170,14 +124,95 @@ class TranslationEngineMoses(TranslationEngineBase):
             'moses.ini'
         ])
         self._recaser = Recaser(path_moses_ini)
+        self._components.append(self._recaser)
 
     def _load_masker(self):
         self._masker = Masker(self._masking_strategy)
+        self._components.append(self._masker)
 
     def _load_xml_processor(self):
         self._xml_processor = XmlProcessor(self._xml_strategy)
+        self._components.append(self._xml_processor)
 
-    def preprocess_segment(self, segment):
+    def _load_truecaser(self):
+        path_model = os.sep.join([
+            self._basepath,
+            C.PATH_COMPONENT['engine'],
+            C.TRUECASING,
+            'model.%s' % self._src_lang
+        ])
+        self._truecaser = Truecaser(path_model)
+
+        self._components.append(self._truecaser)
+
+    def _load_detruecaser(self):
+        """
+        Create detruecaser.
+        """
+        self._detruecaser = Detruecaser()
+        self._components.append(self._detruecaser)
+
+    def close(self):
+        """
+        Deletes references to obsolete objects.
+        """
+        for component in self._components:
+            del component
+
+    ####################################
+    # to be defined in subclasses
+    ####################################
+
+    @abc.abstractmethod
+    def _load_engine(self):
+        pass
+
+    @abc.abstractmethod
+    def _preprocess_segment(self, segment):
+        pass
+
+    @abc.abstractmethod
+    def _postprocess_segment(self, segment):
+        pass
+
+    @abc.abstractmethod
+    def translate_segment(self, segment):
+        pass
+
+    @abc.abstractmethod
+    def translate_file(self, input_handle, output_handle):
+        """
+        Translates a whole file given input and output handles.
+        """
+        pass
+
+
+class TranslationEngineMoses(TranslationEngineBase):
+    """
+    Moses translation engine trained using `mtrain`.
+    """
+
+    def _load_engine(self):
+        """
+        Starts a Moses process and keep it running.
+        """
+        path_moses_ini = os.sep.join([
+            self._basepath,
+            C.PATH_COMPONENT['engine'],
+            'moses.ini'
+        ])
+
+        report = self._masking_strategy or self._xml_strategy
+
+        self._engine = EngineMoses(
+            path_moses_ini=path_moses_ini,
+            report_alignment=report,
+            report_segmentation=report,
+        )
+
+        self._components.append(self._engine)
+
+    def _preprocess_segment(self, segment):
         # general preprocessing
         tokens = self._tokenizer.tokenize(segment)
         if self._casing_strategy == C.TRUECASING:
@@ -204,7 +239,7 @@ class TranslationEngineMoses(TranslationEngineBase):
 
         return source_segment, segment, mask_mapping, xml_mapping
 
-    def postprocess_segment(self,
+    def _postprocess_segment(self,
                              source_segment,
                              target_segment,
                              masked_source_segment=None,
@@ -233,18 +268,7 @@ class TranslationEngineMoses(TranslationEngineBase):
         # implicit else
         return target_segment.translation
 
-    def close(self):
-        del self._engine
-        if self._casing_strategy == C.TRUECASING:
-            self._truecaser.close()
-        elif self._casing_strategy == C.RECASING:
-            self._recaser.close()
-        if self._masking_strategy is not None:
-            del self._masker
-        if self._xml_strategy is not None:
-            del self._xml_processor
-
-    def translate(self, segment, preprocess=True, lowercase=False, detokenize=True):
+    def translate_segment(self, segment, preprocess=True, lowercase=False, detokenize=True):
         """
         Translates a single @param segment.
 
@@ -254,7 +278,7 @@ class TranslationEngineMoses(TranslationEngineBase):
         @param detokenize whether to detokenize the translated segment
         """
         if preprocess:
-            source_segment, segment, mask_mapping, xml_mapping = self.preprocess_segment(segment)
+            source_segment, segment, mask_mapping, xml_mapping = self._preprocess_segment(segment)
         else:
             source_segment = segment
             mask_mapping = None
@@ -262,10 +286,7 @@ class TranslationEngineMoses(TranslationEngineBase):
         # an mtrain.engine.TranslatedSegment object is returned
         translated_segment = self._engine.translate_segment(segment)
 
-        # TODO: investigate use of this variable
-        translation = translated_segment.translation
-
-        return self.postprocess_segment(
+        return self._postprocess_segment(
             source_segment=source_segment,
             masked_source_segment=segment,
             target_segment=translated_segment,
@@ -275,79 +296,47 @@ class TranslationEngineMoses(TranslationEngineBase):
             xml_mapping=xml_mapping
         )
 
+    def translate_file(self, input_handle, output_handle):
+        """
+        Translates a whole file given input and output handles.
+
+        TODO: use translate_file on the Engine level.
+        """
+        for line in input_handle:
+            segment = line.strip()
+            translated_segment = self.translate_segment(segment)
+            output_handle.write(translated_segment + "\n")
+
+
 class TranslationEngineNematus(TranslationEngineBase):
     """
     Nematus translation engine trained using `mtrain`.
     """
-    def __init__(self, basepath, src_lang, trg_lang, adjust_dictionary=False):
-        """
-        In addition to metaclass @params:
-        @param adjust_dictionary whether or not dictionary paths in model config
-            shall be adjusted.
-        """
-        super(TranslationEngineNematus, self).__init__(basepath, src_lang, trg_lang)
 
-        self._basepath = basepath.rstrip(os.sep)
+    def __init__(self, basepath, training_config, device, preallocate):
+        """
+        """
+        super(TranslationEngineNematus, self).__init__(basepath, training_config)
 
-        # load components
+        self._device = device
+        self._preallocate = preallocate
+
+    def _load_components(self):
+        """
+        Loads additional components.
+        """
+        super(TranslationEngineNematus, self)._load_components()
         self._load_normalizer()
-        self._load_tokenizer()
-        self._load_truecaser()
-        self._load_encoder()
-        self._load_engine()
-        self._load_decoder()
-        self._load_detruecaser()
-        self._load_detokenizer()
-
-        if adjust_dictionary:
-            self._adjust_dictionary()
-
-    def _adjust_dictionary(self):
-        """
-        Ensure dictionary paths in model config (model.npz.json located in model basepath) match the .json files
-        in the basepath's corpus folder. Necessary when models were trained in a path different than
-        the current basepath. If paths are not matching, nematus returns an empty string for any translation
-        without error message OR may use the wrong .json files for translation.
-        """
-        # get path and file name of model config
-        model_config = self._path_nematus_model + '.json'
-        # get identifiers for finding entries of source and target dictionary
-        old_src_json = ".".join([self._src_lang, 'json'])
-        old_trg_json = ".".join([self._trg_lang, 'json'])
-        # get correct entry in config file for source and target dictionary
-        corpus_path = os.sep.join([
-            self._basepath,
-            C.PATH_COMPONENT['corpus']
-        ])
-        new_src_json = '    "' + corpus_path + '/' + ".".join([C.BASENAME_TRAINING_CORPUS, C.SUFFIX_TRUECASED, C.BPE, self._src_lang, 'json",\n'])
-        new_trg_json = '    "' + corpus_path + '/' + ".".join([C.BASENAME_TRAINING_CORPUS, C.SUFFIX_TRUECASED, C.BPE, self._trg_lang, 'json"\n'])
-        # replace lines with source and target dictionary with correct entries
-        with open(model_config) as f:
-            old_config = f.readlines()
-        f.close()
-        with open(model_config, 'w') as f:
-            for line in old_config:
-                if old_src_json in line:
-                    f.write(new_src_json)
-                elif old_trg_json in line:
-                    f.write(new_trg_json)
-                else:
-                    f.write(line)
-        f.close()
+        self._load_bpe_encoder()
 
     def _load_normalizer(self):
         """
         Creates normalizer.
         """
         self._normalizer = Normalizer(self._src_lang)
+        self._components.append(self._normalizer)
 
-    def _load_tokenizer(self):
-        """
-        Creates tokenizer.
-        """
-        self._tokenizer = Tokenizer(self._src_lang)
-
-    def _load_encoder(self):
+    def _load_bpe_encoder(self):
         """
         Creates byte-pair encoder. Uses a trained BPE model.
         """
@@ -356,8 +345,10 @@ class TranslationEngineNematus(TranslationEngineBase):
             C.PATH_COMPONENT['engine'],
             C.BPE
         ])
-        model = bpe_model_path + '/' + self._src_lang + '-' + self._trg_lang + '.bpe'
-        self._encoder = BytePairEncoderSegment(model)
+        model = os.sep.join([bpe_model_path, "%s-%s.bpe" % (self._src_lang, self._trg_lang)])
+        self._bpe_encoder = BytePairEncoderSegment(model)
+
+        self._components.append(self._bpe_encoder)
 
     def _load_engine(self):
         """
@@ -371,68 +362,86 @@ class TranslationEngineNematus(TranslationEngineBase):
             'model.npz'
         ])
 
-        self._engine = EngineNematus(
-            self._path_nematus_model
-        )
+        self._engine = EngineNematus(model_path=self._path_nematus_model,
+                                     device=self._device,
+                                     preallocate=self._preallocate)
+        self._components.append(self._engine)
 
-    def _load_decoder(self):
-        """
-        Create byte-pair decoder.
-        """
-        self._decoder = BytePairDecoderSegment()
-
-    def _load_detruecaser(self):
-        """
-        Create detruecaser.
-        """
-        self._detruecaser = Detruecaser()
-
-    def _load_detokenizer(self):
-        """
-        Create detokenizer.
-        """
-        self._detokenizer = Detokenizer(self._trg_lang, uppercase_first_letter=False)
-
-    def preprocess_segment(self, segment):
+    def _preprocess_segment(self, segment):
         """
         Preprocesses segments. Specifically: normalization, tokenization,
         truecasing and applying BPE.
+
+        TODO: only truecase if that's the requested strategy
         """
-        # normalize input segment
         segment = self._normalizer.normalize_punctuation(segment)
-        # tokenize normalized segment
-        tokens = self._tokenizer.tokenize(segment)
-        # truecase tokens (using truecasing model trained in `mtrain`)
-        tokens = self._truecaser.truecase_tokens(tokens)
-        # join truecased tokens to a segment
-        segment = " ".join(tokens)
-        # encode truecased segment (applying byte-pair processing model trained in `mtrain`)
-        segment = self._encoder.bpencode_segment(segment)
-        # return encoded segment
+        segment = self._tokenizer.tokenize(segment, split=False)
+        segment = self._truecaser.truecase_segment(segment)
+        segment = self._bpe_encoder.encode_segment(segment)
+
         return segment
 
-    def postprocess_segment(self, segment):
+    def _postprocess_segment(self, segment):
         """
         Postprocesses a single @param segment.
+
+        TODO: only detruecase if input was truecased
         """
-        # decode translated segment
-        segment = self._decoder.bpdecode_segment(segment)
-        # detruecase decoded segment
-        segment = self._detruecaser.detruecase(segment)
-        # split detruecased segment into tokens
+        segment = bpe_decode_segment(segment)
+        segment = self._detruecaser.detruecase_segment(segment)
         tokens = segment.split(" ")
-        # detokenize detruecased tokens
         segment = self._detokenizer.detokenize(tokens)
-        # return detokenized segment
+
         return segment
 
-    def translate(self, device_trans=None, preallocate_trans=None, temp_pre=None, temp_trans=None):
+    def _postprocess_file(self, input_handle, output_handle):
         """
-        Translates an entire text of preprocessed segments.
+        """
+        for line in input_handle:
+            segment = line.strip()
+            postprocessed_segment = self._postprocess_segment(segment)
+            output_handle.write(postprocessed_segment)
 
-        @param device_trans GPU or CPU device
-        @param preallocate_trans percentage of memory to be preallocated for translation
-        @param temp_pre path to temporary file holding preprocessed segments as one file
-        @param temp_trans path to temporary file for translated text
+    def _preprocess_file(self, input_handle, output_handle):
         """
-        self._engine.translate_text(device_trans, preallocate_trans, temp_pre, temp_trans)
+        """
+        for line in input_handle:
+            segment = line.strip()
+            preprocessed_segment = self._preprocess_segment(segment)
+            output_handle.write(preprocessed_segment)
+
+    def translate_segment(self, segment):
+        """
+        Currently not possible because of a limitation of the Nematus
+        script translate.py.
+        """
+        raise NotImplementedError
+
+    def translate_file(self, input_handle, output_handle):
+        """
+        Translates a whole file given input and output handles.
+        """
+        tempdir = tempfile.mkdtemp()
+        preprocessed_path = tempfile.NamedTemporaryFile(prefix="preprocessed", dir=tempdir)
+        translated_path = tempfile.NamedTemporaryFile(prefix="translated", dir=tempdir)
+
+        preprocessed_handle = open(preprocessed_path, "w")
+
+        # takes the overall input handle because first step
+        self._preprocess_file(input_handle=input_handle, output_handle=preprocessed_handle)
+
+        self._engine.translate_file(input_path=preprocessed_path,
+                                    output_path=translated_path)
+
+        translated_handle = open(translated_path, "r")
+
+        # takes the overall output handle because last step
+        self._postprocess_file(input_handle=translated_handle, output_handle=output_handle)
+
+        # only close handles opened by this method
+        preprocessed_handle.close()
+        translated_handle.close()
+
+        os.remove(preprocessed_path)
+        os.remove(translated_path)
+        os.rmdir(tempdir)

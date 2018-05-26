@@ -249,10 +249,13 @@ XML_STRATEGIES_DEFAULTS = {
 }
 
 # Evaluation
-MULTEVAL_TOOL = 'MultEval'
+MULTEVAL_TOOL = 'multeval'
+MULTIBLEU_DETOK_TOOL = 'multibleu'
 EVALUATION_TOOLS = {
     MULTEVAL_TOOL: "evaluate with MultEval, computes BLEU, TER and " +
-                   "METEOR scores (the latter only if target language is supported)"
+                   "METEOR scores (the latter only if target language is supported)",
+    MULTIBLEU_DETOK_TOOL: "evaluate with multibleu-detok.perl from Moses, "
+                          "performs internal tokenization."
 }
 
 # Python logging levels

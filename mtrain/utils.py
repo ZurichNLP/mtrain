@@ -5,11 +5,14 @@ Helper functions.
 """
 
 import os
+import re
 import json
+import errno
 import logging
 import argparse
 
 from mtrain import assertions
+from mtrain.preprocessing import cleaner
 from mtrain import constants as C
 
 
@@ -42,6 +45,13 @@ def set_up_logging(args, mode="train"):
     logging.getLogger("").addHandler(console)
 
     logging.info(args)
+
+def make_dir_if_not_exist(dir_path):
+    """
+    Make a directory if it does not exist.
+    """
+    if not assertions.dir_exists(dir_path):
+        os.mkdir(dir_path)
 
 def write_config(args):
     """
@@ -78,3 +88,28 @@ def infer_languages(translation_args):
     training_args = load_config(translation_args)
 
     return training_args.src_lang, training_args.trg_lang
+
+def symlink(orig, link_name):
+    '''
+    Creates a symlink @param link_name to file or path @param orig.
+    '''
+    try:
+        os.symlink(orig, link_name)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            os.remove(link_name)
+            os.symlink(orig, link_name)
+
+def _escape_if_not_markup(segment):
+    '''
+    Splits a segment into tokens (markup-aware) and escapes tokens
+    if they are not markup tags.
+    '''
+    escaped_tokens = []
+    for token in re.split("(<[^<>]+>)", segment):
+        if re.match("<[^<>]+>", token):
+            # markup, do not escape
+            escaped_tokens.append(token)
+        elif token:
+            escaped_tokens.append(cleaner.escape_special_chars(token.strip()))
+    return " ".join(escaped_tokens)

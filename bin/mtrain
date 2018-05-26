@@ -11,6 +11,7 @@ from mtrain import constants as C
 from mtrain import checker
 from mtrain.arguments import get_training_parser, check_train_arguments
 from mtrain.utils import set_up_logging, write_config
+from mtrain.evaluator import Evaluator
 
 
 def perform_checks(args):
@@ -107,16 +108,6 @@ def main():
         # symlink to final 'moses.ini'
         training.write_final_ini()
 
-        # initiate evaluation
-        if args.eval:
-            training.evaluate(
-                num_threads=args.threads,
-                lowercase_eval=False,
-                detokenize_eval=True,
-                strip_markup_eval=False,
-                extended=args.extended_eval
-            )
-
     elif args.backend == C.BACKEND_NEMATUS:
 
         training = TrainingNematus(
@@ -136,8 +127,15 @@ def main():
             preprocess_external=args.preprocess_external_tune
         )
 
-        training.train_truecaser()
-        training.truecase()
+        if args.caser == C.TRUECASING:
+            training.train_truecaser()
+            training.truecase()
+        elif args.caser == C.RECASING:
+            training.train_recaser(
+                args.threads,
+                args.temp_dir,
+                args.keep_uncompressed_models
+            )
 
         training.bpe_encoding(bpe_operations=args.bpe_ops)
 
@@ -154,7 +152,11 @@ def main():
             max_updates=args.max_updates
         )
 
-        # TODO: eval
+    if args.eval:
+
+        logging.info("Performing automatic evaluation.")
+        evaluator = Evaluator(basepath=args.output_dir)
+        evaluator.evaluate(eval_tool=C.MULTEVAL_TOOL)
 
 
 if __name__ == '__main__':

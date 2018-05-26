@@ -137,32 +137,47 @@ class EngineMoses(object):
             segmentation=segmentation
         )
 
+    def translate_file(self, input_path, output_path):
+        """
+        Translates an entire file.
+
+        @param input_path path to temp file with preprocessed input segments
+        @param output_path path to temp file were raw translations should be written
+        """
+
+        raise NotImplementedError
+
+
 class EngineNematus(object):
     """
     Starts a translation engine process for a Nematus backend.
     """
-    def __init__(self, path_nematus_model):
-        '''
-        @param path_nematus_model full path to model trained in `mtrain` using backend nematus
-        '''
-        self._model = path_nematus_model
-
-    def translate_text(self, device_trans, preallocate_trans, temp_pre, temp_trans):
+    def __init__(self, model_path, device, preallocate):
         """
-        @param device_trans defines the processor (cpu, gpuN or cudaN) for translation
-        @param preallocate_trans defines the percentage of memory to be preallocated for translation
-        @param temp_pre path to temporary file holding preprocessed segments as one text
-        @param temp_trans path to temporary file for translated text
+        @param model_path full path to model trained in `mtrain` using backend nematus
+        @param device GPU or CPU device for translation
+        @param preallocate preallocate memory on a GPU device
+        """
+        self._model_path = model_path
+        self._device = device
+        self._preallocate = preallocate
+
+    def translate_file(self, input_path, output_path):
+        """
+        Translates an entire file.
+
+        @param input_path path to temp file with preprocessed input segments
+        @param output_path path to temp file were raw translations should be written
         """
         theano_trans_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 {script} '.format(
-            device=device_trans,
-            preallocate=preallocate_trans,
+            device=self._device,
+            preallocate=self._preallocate,
             script=C.NEMATUS_TRANSLATE
         )
         nematus_trans_options = '-m {model} -i {input} -o {output} -k 12 -n -p 1'.format(
-            model=self._model,
-            input=temp_pre,
-            output=temp_trans
+            model=self._model_path,
+            input=input_path,
+            output=output_path
         )
         commander.run(
             '{nematus_command}'.format(
@@ -171,10 +186,10 @@ class EngineNematus(object):
         )
 
 class TranslatedSegment(object):
-    '''
+    """
     Models a single translated segment together with its word alignments and
     phrase segmentation.
-    '''
+    """
     def __init__(self, translated_segment, alignment=None, segmentation=None):
         self.translation = translated_segment
         self.alignment = alignment
