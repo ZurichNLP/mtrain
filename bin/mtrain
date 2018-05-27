@@ -150,7 +150,9 @@ def main():
             save_frequency=args.save_freq,
             external_validation_script=args.external_validation_script,
             max_epochs=args.max_epochs,
-            max_updates=args.max_updates
+            max_updates=args.max_updates,
+            hidden_size=args.hidden_size,
+            embedding_size=args.embedding_size
         )
 
     if args.eval:

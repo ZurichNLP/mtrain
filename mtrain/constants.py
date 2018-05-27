@@ -293,6 +293,9 @@ VALIDATION_FREQ = 10000
 MAX_EPOCHS = 5000
 MAX_UPDATES = 10000000
 
+NEMATUS_SIZE_HIDDEN = 512
+NEMATUS_SIZE_EMB = 1024
+
 
 NEMATUS_OPTIONS = {
     # training progress
@@ -305,8 +308,8 @@ NEMATUS_OPTIONS = {
     "--saveFreq": 30000,
     "--sampleFreq": 10000,
     # model
-    "--dim": 512,
-    "--dim_word": 1024,
+    "--dim": NEMATUS_SIZE_HIDDEN,
+    "--dim_word": NEMATUS_SIZE_EMB,
     "--n_words": 90000,
     "--n_words_src": 90000,
     "--enc_depth": 1,

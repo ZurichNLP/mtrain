@@ -1101,7 +1101,7 @@ $moses_detruecaser"""
             # chmod script to make executable
             os.chmod(file_location, 0o755)
 
-    def _train_nematus_engine(self, device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates):
+    def _train_nematus_engine(self, device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates, hidden_size, embedding_size):
         """
         Trains the nematus engine.
 
@@ -1112,6 +1112,8 @@ $moses_detruecaser"""
         @param save_frequency save a model checkpoint after that many updates
         @param max_epochs maximum number of epochs
         @param max_updates maximum number of updates
+        @param hidden_size size of hidden states
+        @param embedding_size size of embedding vectors
 
         Reference: https://github.com/rsennrich/wmt16-scripts.
         """
@@ -1161,6 +1163,8 @@ $moses_detruecaser"""
         options_dict["--validFreq"] = validation_frequency
         options_dict["--max_epochs"] = max_epochs
         options_dict["--finish_after"] = max_updates
+        options_dict["--dim"] = hidden_size
+        options_dict["--dim_word"] = embedding_size
 
         nematus_train_options = " ".join(["%s %s" % (k, v) if v != "" else k for k, v in options_dict.items()])
         # external validation script:

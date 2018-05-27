@@ -203,9 +203,20 @@ def add_nematus_train_arguments(parser):
     nematus_args.add_argument(
         "--bpe_ops",
         type=int,
-        help="decide how many byte-pair operations are to be performed when learning the " +
-        "byte-pair encoding model with nematus backend, default=`89500` operations",
+        help="how many BPE operations are learned, for a joint model",
         default=C.BPE_NUM_JOINT_OPERATIONS
+    )
+    nematus_args.add_argument(
+        "--hidden_size",
+        type=int,
+        help="size of hidden states",
+        default=C.NEMATUS_SIZE_HIDDEN
+    )
+    nematus_args.add_argument(
+        "--embedding_size",
+        type=int,
+        help="size of embedding vectors",
+        default=C.NEMATUS_SIZE_EMB
     )
     nematus_args.add_argument(
         "--device_train",
