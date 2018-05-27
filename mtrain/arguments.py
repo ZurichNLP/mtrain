@@ -89,7 +89,7 @@ def add_io_arguments(parser):
     )
 
 
-def add_moses_arguments(parser):
+def add_moses_train_arguments(parser):
     """
     Adds arguments specific to Moses.
     """
@@ -112,6 +112,12 @@ def add_preprocessing_arguments(parser):
     """
     Arguments for data preprocessing.
     """
+    parser.add_argument(
+        "--dry_run",
+        help="preprocess all files and create folders, but do not train or evaluate",
+        action='store_true',
+        default=False
+    )
     parser.add_argument(
         "--min_tokens",
         type=int,
@@ -293,7 +299,7 @@ def get_training_parser():
     add_eval_arguments(parser)
 
     # options specific to a backend
-    add_moses_arguments(parser)
+    add_moses_train_arguments(parser)
     add_nematus_train_arguments(parser)
 
     return parser
