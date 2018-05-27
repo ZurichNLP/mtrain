@@ -152,15 +152,17 @@ class EngineNematus(object):
     """
     Starts a translation engine process for a Nematus backend.
     """
-    def __init__(self, model_path, device, preallocate):
+    def __init__(self, model_path, device, preallocate, beam_size):
         """
         @param model_path full path to model trained in `mtrain` using backend nematus
         @param device GPU or CPU device for translation
         @param preallocate preallocate memory on a GPU device
+        @param beam_size size of beam in beam search
         """
         self._model_path = model_path
         self._device = device
         self._preallocate = preallocate
+        self._beam_size = beam_size
 
     def translate_file(self, input_path, output_path):
         """
@@ -174,10 +176,11 @@ class EngineNematus(object):
             preallocate=self._preallocate,
             script=C.NEMATUS_TRANSLATE
         )
-        nematus_trans_options = '-m {model} -i {input} -o {output} -k 12 -n -p 1'.format(
+        nematus_trans_options = '-m {model} -i {input} -o {output} -k {beam_size} -n -p 1'.format(
             model=self._model_path,
             input=input_path,
-            output=output_path
+            output=output_path,
+            beam_size=self._beam_size
         )
         commander.run(
             '{nematus_command}'.format(

@@ -350,6 +350,12 @@ def add_nematus_trans_arguments(parser):
         default=C.TRANS_DEVICE
     )
     nematus_args.add_argument(
+        "-b", "--beam_size",
+        type=int,
+        help="beam size for translation",
+        default=C.TRANS_BEAM_SIZE
+    )
+    nematus_args.add_argument(
         "--preallocate",
         type=float,
         help="Preallocate memory on a GPU device for translation.",

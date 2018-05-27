@@ -51,7 +51,8 @@ class Evaluator(object):
         Loads a translation engine, depending on the training config.
 
         Note: Nematus translation engines use the training device, but with
-        a fixed amount of memory preallocation.
+        a fixed amount of memory preallocation. Also, beam size is fixed to
+        12 for now.
         """
 
         if self._training_args.backend == C.BACKEND_MOSES:
@@ -61,7 +62,8 @@ class Evaluator(object):
             self._engine = TranslationEngineNematus(basepath=self._basepath,
                                                   training_config=self._training_args,
                                                   device=self._training_args.device_train,
-                                                  preallocate=0.2)
+                                                  preallocate=0.2,
+                                                  beam_size=12)
         else:
             raise NotImplementedError
 

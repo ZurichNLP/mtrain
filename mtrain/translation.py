@@ -314,11 +314,12 @@ class TranslationEngineNematus(TranslationEngineBase):
     Nematus translation engine trained using `mtrain`.
     """
 
-    def __init__(self, basepath, training_config, device, preallocate, keep_temp_files=False):
+    def __init__(self, basepath, training_config, device, preallocate, beam_size,  keep_temp_files=False):
         """
         """
         self._device = device
         self._preallocate = preallocate
+        self._beam_size = beam_size
         self._keep_temp_files = keep_temp_files
 
         super(TranslationEngineNematus, self).__init__(basepath, training_config)
@@ -368,7 +369,8 @@ class TranslationEngineNematus(TranslationEngineBase):
 
         self._engine = EngineNematus(model_path=self._path_nematus_model,
                                      device=self._device,
-                                     preallocate=self._preallocate)
+                                     preallocate=self._preallocate,
+                                     beam_size=self._beam_size)
         self._components.append(self._engine)
 
     def _preprocess_segment(self, segment):

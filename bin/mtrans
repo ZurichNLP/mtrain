@@ -66,6 +66,7 @@ def main():
                                           training_config=None,
                                           device=args.device,
                                           preallocate=args.preallocate,
+                                          beam_size=args.beam_size,
                                           keep_temp_files=args.keep_temp_files)
 
         # Note: MM:
