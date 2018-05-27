@@ -995,17 +995,18 @@ class TrainingNematus(TrainingBase):
             self._path_ext_val = self._base_dir_model
 
         # prepare and execute nematus training
-        self._prepare_validation(device_validate, preallocate_validate)
+        self._prepare_validation(device_validate, preallocate_validate, num_threads)
         self._prepare_valid_postprocessing()
         self._train_nematus_engine(device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates, hidden_size, embedding_size)
 
-    def _prepare_validation(self, device_validate, preallocate_validate):
+    def _prepare_validation(self, device, preallocate, num_threads):
         """
         Sets up external validation script that is called by Nematus during training.
         Note: This does not execute validation, only supplies a shell script to Nematus.
 
-        @param device_validate defines the processor (cpu, gpuN or cudaN) for validation
-        @param preallocate_validate defines the percentage of memory to be preallocated for validation
+        @param device defines the processor (cpu, gpuN or cudaN) for validation
+        @param preallocate defines the percentage of memory to be preallocated for validation
+        @param num_threads number of threads if device is CPU
 
         Reference for this script:
         https://github.com/rsennrich/wmt16-scripts/blob/master/sample/validate.sh
@@ -1025,7 +1026,7 @@ moses_multi_bleu={moses}
 dev={dev}
 ref={ref}
 
-THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 $nematus_translate \\
+{omp_flag}THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 $nematus_translate \\
     -m {prefix}.dev.npz \\
     -i $dev \\
     -o $dev.output.dev \\
@@ -1048,12 +1049,13 @@ fi"""
 
             # format blueprint as script content
             script_content = script_blueprint.format(
+                omp_flag="OMP_NUM_THREADS=%d " % num_threads if "cpu" in device else "",
                 nematus=C.NEMATUS_TRANSLATE,
                 moses=C.MOSES_MULTI_BLEU,
                 dev=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._src_lang),
                 ref=self._get_path_corpus(C.BASENAME_TUNING_CORPUS, self._trg_lang),
-                device=device_validate,
-                preallocate=preallocate_validate,
+                device=device,
+                preallocate=preallocate,
                 prefix=self._base_dir_model + '/model.npz',
                 # `script_path`: absolute path to where postprocessing script is stored,
                 # otherwise not found if mtrain executed in other directory
