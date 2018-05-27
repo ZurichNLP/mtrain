@@ -310,8 +310,6 @@ NEMATUS_OPTIONS = {
     # model
     "--dim": NEMATUS_SIZE_HIDDEN,
     "--dim_word": NEMATUS_SIZE_EMB,
-    "--n_words": 90000,
-    "--n_words_src": 90000,
     "--enc_depth": 1,
     "--dec_depth": 1,
     "--dropout_embedding": 0.2,
