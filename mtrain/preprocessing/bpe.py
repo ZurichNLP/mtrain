@@ -77,7 +77,7 @@ class BytePairEncoderFile(object):
     def build_bpe_dictionary(self):
         """
         Builds BPE vocabulary files (JSON) for a training corpus.
-        Note that the JSON files such as train.truecased.bpe.SRC.json and train.truecased.bpe.TRG.json are automatically stored at the location
+        Note that the JSON files such as train.final.bpe.SRC.json and train.final.bpe.TRG.json are automatically stored at the location
         of the input files, which is the basepath's subfolder 'corpus'.
         """
         commander.run(

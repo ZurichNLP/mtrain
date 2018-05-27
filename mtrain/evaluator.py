@@ -163,4 +163,13 @@ class Evaluator(object):
         Computes BLEU scores with internal tokenization, output identical
         to multi-bleu-detok.perl.
         """
-        raise NotImplementedError
+        multibleu_command = '{script} {reference_path} < {hypothesis_path} > {output_path}'.format(
+            script=C.MULTIBLEU_DETOK_TOOL,
+            reference_path=reference_path,
+            hypothesis=hypothesis_path,
+            output_path=output_path
+        )
+        commander.run(
+            multibleu_command,
+            "Evaluating with multi-bleu-detok.perl."
+        )
