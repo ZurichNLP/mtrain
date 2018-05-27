@@ -1026,7 +1026,7 @@ moses_multi_bleu={moses}
 dev={dev}
 ref={ref}
 
-{omp_flag}THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2 $nematus_translate \\
+{omp_flag}THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} {python_exec} $nematus_translate \\
     -m {prefix}.dev.npz \\
     -i $dev \\
     -o $dev.output.dev \\
@@ -1050,6 +1050,7 @@ fi"""
             # format blueprint as script content
             script_content = script_blueprint.format(
                 omp_flag="OMP_NUM_THREADS=%d " % num_threads if "cpu" in device else "",
+                python_exec=C.PYTHON2,
                 nematus=C.NEMATUS_TRANSLATE,
                 moses=C.MOSES_MULTI_BLEU,
                 dev=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._src_lang),
@@ -1136,9 +1137,10 @@ $moses_detruecaser"""
             omp_flag = ""
 
         # theano flags
-        theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2'.format(
+        theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} {python_exec}'.format(
             device=device_train,
-            preallocate=preallocate_train
+            preallocate=preallocate_train,
+            python_exec=C.PYTHON2
         )
         # nematus files
 
