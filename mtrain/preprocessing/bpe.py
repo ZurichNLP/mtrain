@@ -48,7 +48,7 @@ class BytePairEncoderFile(object):
                 src=self._src_lang,
                 trg=self._trg_lang
             ),
-            "Learning BPE model: %s operations" % self._num_operations
+            "Learning joint BPE model: %s operations" % self._num_operations
         )
 
     def apply_bpe_model(self):

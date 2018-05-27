@@ -178,20 +178,21 @@ def add_eval_arguments(parser):
              "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
     )
     parser.add_argument(
+        "--eval_tool",
+        help="Tool for automatic evaluation"
+             " Valid choices are: " +
+             "; ".join(["`%s`: %s" % (name, descr) for name, descr in C.EVALUATION_TOOLS.items()]),
+        type=str,
+        choices=C.EVALUATION_TOOLS.keys(),
+        default=C.MULTEVAL_TOOL
+    )
+    parser.add_argument(
         "--eval_lowercase",
         help="lowercase reference and translation before evaluation. Otherwise," +
              "evaluation uses the engine's casing strategy.",
         default=False,
         action='store_true'
     )
-    parser.add_argument(
-        "--extended_eval",
-        action="store_true",
-        help="perform multiple evaluations that vary the appearance of the test files: " +
-             "lowercased or not, detokenized or not, with markup or without.",
-        default=False
-    )
-
 
 def add_nematus_train_arguments(parser):
     """
@@ -338,12 +339,8 @@ def add_nematus_trans_arguments(parser):
         default=C.TRANS_PREALLOCATE
     )
     nematus_args.add_argument(
-        "--adjust_dictionary",
-        help="Ensures that dictionary paths referred to in model config (file model.npz.json in model basepath) " +
-        "match the actual dictionaries (.json files for source and target language in the corpus basepath). " +
-        "Adjustment is necessary when the model was trained with `mtrain` and saved to a path different to the " +
-        "`mtrans` 'basepath'. If paths are not matching, nematus returns an empty string for any " +
-        "translation without error message OR may use the wrong .json files for translation.",
+        "--keep_temp_files",
+        help="Keep temporary directories and files created. Paths are logged in 'translation.log'.",
         default=False,
         action="store_true"
     )

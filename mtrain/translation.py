@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+import logging
 import abc
 
 from abc import ABCMeta
@@ -38,7 +39,7 @@ class TranslationEngineBase(object):
 
         # determine config of trained model, if not given
         if training_config is None:
-            self._training_config = utils.load_config(basepath)
+            self._training_config = utils.load_config_from_basepath(basepath)
         else:
             self._training_config = training_config
 
@@ -313,13 +314,14 @@ class TranslationEngineNematus(TranslationEngineBase):
     Nematus translation engine trained using `mtrain`.
     """
 
-    def __init__(self, basepath, training_config, device, preallocate):
+    def __init__(self, basepath, training_config, device, preallocate, keep_temp_files=False):
         """
         """
-        super(TranslationEngineNematus, self).__init__(basepath, training_config)
-
         self._device = device
         self._preallocate = preallocate
+        self._keep_temp_files = keep_temp_files
+
+        super(TranslationEngineNematus, self).__init__(basepath, training_config)
 
     def _load_components(self):
         """
@@ -400,12 +402,13 @@ class TranslationEngineNematus(TranslationEngineBase):
         for line in input_handle:
             segment = line.strip()
             postprocessed_segment = self._postprocess_segment(segment)
-            output_handle.write(postprocessed_segment)
+            output_handle.write(postprocessed_segment + "\n")
 
     def _preprocess_file(self, input_handle, output_handle):
         """
         """
         for line in input_handle:
+            logging.debug("Line: '%s'", line)
             segment = line.strip()
             preprocessed_segment = self._preprocess_segment(segment)
             output_handle.write(preprocessed_segment)
@@ -422,13 +425,19 @@ class TranslationEngineNematus(TranslationEngineBase):
         Translates a whole file given input and output handles.
         """
         tempdir = tempfile.mkdtemp()
-        preprocessed_path = tempfile.NamedTemporaryFile(prefix="preprocessed", dir=tempdir)
-        translated_path = tempfile.NamedTemporaryFile(prefix="translated", dir=tempdir)
+        preprocessed_handle = tempfile.NamedTemporaryFile(prefix="preprocessed.", dir=tempdir, mode="w", encoding="utf-8", delete=False)
+        translated_handle = tempfile.NamedTemporaryFile(prefix="translated.", dir=tempdir, mode="w", delete=False)
 
-        preprocessed_handle = open(preprocessed_path, "w")
+        preprocessed_path = preprocessed_handle.name
+        translated_path = translated_handle.name
+
+        logging.debug("tempdir=%s, preprocessed_path=%s, translated_path=%s", tempdir, preprocessed_path, translated_path)
 
         # takes the overall input handle because first step
         self._preprocess_file(input_handle=input_handle, output_handle=preprocessed_handle)
+
+        preprocessed_handle.close()
+        translated_handle.close()
 
         self._engine.translate_file(input_path=preprocessed_path,
                                     output_path=translated_path)
@@ -438,10 +447,10 @@ class TranslationEngineNematus(TranslationEngineBase):
         # takes the overall output handle because last step
         self._postprocess_file(input_handle=translated_handle, output_handle=output_handle)
 
-        # only close handles opened by this method
-        preprocessed_handle.close()
+        # only close remaining handles if opened by this method
         translated_handle.close()
 
-        os.remove(preprocessed_path)
-        os.remove(translated_path)
-        os.rmdir(tempdir)
+        if not self._keep_temp_files:
+            os.remove(preprocessed_path)
+            os.remove(translated_path)
+            os.rmdir(tempdir)

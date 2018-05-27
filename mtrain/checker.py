@@ -38,7 +38,7 @@ def check_environment(args):
         check_environment_variable(C.SUBWORD_NMT_HOME, 'SUBWORD_NMT_HOME', 'subword-nmt')
 
     try:
-        if args.eval:
+        if args.eval and args.eval_tool == C.MULTEVAL_TOOL:
             check_environment_variable(C.MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
     except AttributeError:
         # args.eval does not even exist, ignore

@@ -145,6 +145,7 @@ def main():
             preallocate_train=args.preallocate_train,
             device_validate=args.device_validate,
             preallocate_validate=args.preallocate_validate,
+            num_threads=args.threads,
             validation_frequency=args.validation_freq,
             save_frequency=args.save_freq,
             external_validation_script=args.external_validation_script,
@@ -156,7 +157,7 @@ def main():
 
         logging.info("Performing automatic evaluation.")
         evaluator = Evaluator(basepath=args.output_dir)
-        evaluator.evaluate(eval_tool=C.MULTEVAL_TOOL)
+        evaluator.evaluate(eval_tool=args.eval_tool)
 
 
 if __name__ == '__main__':

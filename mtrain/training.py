@@ -955,6 +955,7 @@ class TrainingNematus(TrainingBase):
                      preallocate_train=None,
                      device_validate=None,
                      preallocate_validate=None,
+                     num_threads=1,
                      validation_frequency=None,
                      save_frequency=None,
                      external_validation_script=None,
@@ -967,6 +968,7 @@ class TrainingNematus(TrainingBase):
         @param preallocate_train defines the percentage of memory to be preallocated for training
         @param device_validate defines the device (cpu, gpuN or cudaN) for validation
         @param preallocate_validate defines the percentage of memory to be preallocated for validation
+        @param num_threads number of threads for CPU operations
         @param validation_frequency number of updates after which external validation is initiated
         @param external_validation_script path to own external validation script if provided
         @param max_epochs maximum number of epochs
@@ -991,7 +993,7 @@ class TrainingNematus(TrainingBase):
         # prepare and execute nematus training
         self._prepare_validation(device_validate, preallocate_validate)
         self._prepare_valid_postprocessing()
-        self._train_nematus_engine(device_train, preallocate_train, validation_frequency, save_frequency, max_epochs, max_updates)
+        self._train_nematus_engine(device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates)
 
     def _prepare_validation(self, device_validate, preallocate_validate):
         """
@@ -1044,7 +1046,7 @@ fi"""
             script_content = script_blueprint.format(
                 nematus=C.NEMATUS_TRANSLATE,
                 moses=C.MOSES_MULTI_BLEU,
-                dev=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_TRUECASED, C.BPE], self._src_lang),
+                dev=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._src_lang),
                 ref=self._get_path_corpus(C.BASENAME_TUNING_CORPUS, self._trg_lang),
                 device=device_validate,
                 preallocate=preallocate_validate,
@@ -1099,12 +1101,13 @@ $moses_detruecaser"""
             # chmod script to make executable
             os.chmod(file_location, 0o755)
 
-    def _train_nematus_engine(self, device_train, preallocate_train, validation_frequency, save_frequency, max_epochs, max_updates):
+    def _train_nematus_engine(self, device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates):
         """
         Trains the nematus engine.
 
         @param device_train defines the processor (cpu, gpuN or cudaN) for training
         @param preallocate_train defines the percentage of memory to be preallocated for training
+        @param num_threads number of threads for CPU operations
         @param validation_frequency validate model after that many updates
         @param save_frequency save a model checkpoint after that many updates
         @param max_epochs maximum number of epochs
@@ -1119,7 +1122,10 @@ $moses_detruecaser"""
             # user must provide path including filename
             script_path_full = self._path_ext_val
 
-        # setting up training and validation command for nematus engine (postprocessing is managed by external validation script)
+        if "cpu" in device_train:
+            omp_flag = "OMP_NUM_THREADS={num_threads}".format(num_threads=num_threads)
+        else:
+            omp_flag = ""
 
         # theano flags
         theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} python2'.format(
@@ -1127,28 +1133,26 @@ $moses_detruecaser"""
             preallocate=preallocate_train
         )
         # nematus files
+
+        train_final_bpe_path_src = self._get_path_corpus([C.BASENAME_TRAINING_CORPUS,
+                                                          C.SUFFIX_FINAL,
+                                                          C.BPE],
+                                                          self._src_lang)
+
+        train_final_bpe_path_trg = self._get_path_corpus([C.BASENAME_TRAINING_CORPUS,
+                                                          C.SUFFIX_FINAL,
+                                                          C.BPE],
+                                                          self._trg_lang)
+
         nematus_train_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries}'.format(
             script=C.NEMATUS_NMT,
             model_path=self._base_dir_model,
-            datasets=self._get_path_corpus([C.BASENAME_TRAINING_CORPUS,
-                                            C.SUFFIX_FINAL,
-                                            C.BPE],
-                                            self._src_lang) + ' ' + \
-                     self._get_path_corpus([C.BASENAME_TRAINING_CORPUS,
-                                            C.SUFFIX_FINAL,
-                                            C.BPE],
-                                            self._trg_lang),
-                     # truecased and byte-pair encoded training sets
-                     # e.g. 'train.truecased.bpe.ro train.truecased.bpe.en' split by a space
-            valid_datasets=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_TRUECASED, C.BPE], self._src_lang) + ' ' + \
-                           self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_TRUECASED, C.BPE], self._trg_lang),
-                           # truecased and byte-pair encoded tuning sets
-                           # e.g. 'tune.truecased.bpe.ro tune.truecased.bpe.en' split by a space
-            dictionaries=self._get_path_corpus([C.BASENAME_TRAINING_CORPUS, C.SUFFIX_TRUECASED, C.BPE], self._src_lang) + '.json ' + \
-                         self._get_path_corpus([C.BASENAME_TRAINING_CORPUS, C.SUFFIX_TRUECASED, C.BPE], self._trg_lang) + '.json',
-                         # path to dictionaries (json files)
-                         # e.g. 'train.truecased.bpe.ro.json train.truecased.bpe.en.json' split by a space
+            datasets=" ".join([train_final_bpe_path_src, train_final_bpe_path_trg]),
+            valid_datasets=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._src_lang) + ' ' + \
+                           self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._trg_lang),
+            dictionaries=" ".join([path + ".json" for path in [train_final_bpe_path_src, train_final_bpe_path_trg]])
         )
+
         # nematus options for training
         options_dict = C.NEMATUS_OPTIONS
 
@@ -1177,6 +1181,6 @@ $moses_detruecaser"""
         logging.info("Start training, observe progress in logfile: %s", logfile)
 
         # train nematus engine
-        commander.run(" ".join([theano_train_flags, nematus_train_files, nematus_train_options, external_validation, log_to_file]),
+        commander.run(" ".join([omp_flag, theano_train_flags, nematus_train_files, nematus_train_options, external_validation, log_to_file]),
             "Training Nematus engine: device %s" % device_train
         )

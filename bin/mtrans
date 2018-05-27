@@ -7,6 +7,7 @@ Command line interface for translation.
 import sys
 import os
 import tempfile
+import logging
 
 from mtrain.translation import TranslationEngineMoses, TranslationEngineNematus
 from mtrain import constants as C
@@ -64,35 +65,39 @@ def main():
         engine = TranslationEngineNematus(args.basepath,
                                           training_config=None,
                                           device=args.device,
-                                          preallocate=args.preallocate)
+                                          preallocate=args.preallocate,
+                                          keep_temp_files=args.keep_temp_files)
 
         # Note: MM:
         # Text must be translated as a whole, even from STDIN, because
         # the Nematus script translate.py does not process line-by-line
         tempdir = tempfile.mkdtemp()
-        input_path = tempfile.NamedTemporaryFile(prefix="input", dir=tempdir)
-        input_handle = open(input_path, "w")
+        input_handle = tempfile.NamedTemporaryFile(prefix="input.", dir=tempdir, mode="w", encoding="utf-8", delete=False)
+        input_path = input_handle.name
+        output_handle = tempfile.NamedTemporaryFile(prefix="output.", dir=tempdir, mode="w", encoding="utf-8", delete=False)
+        output_path = output_handle.name
+
+        logging.debug("tempdir=%s, input_path=%s, output_path=%s", tempdir, input_path, output_path)
 
         for line in sys.stdin:
             input_handle.write(line)
 
-        input_handle.close()
         input_handle = open(input_path, "r")
-
-        output_path = tempfile.NamedTemporaryFile(prefix="input", dir=tempdir)
-        output_handle = open(output_path, "w")
 
         engine.translate_file(input_handle=input_handle, output_handle=output_handle)
 
-        output_handle.close()
         output_handle = open(output_path, "r")
 
         for line in output_handle:
             sys.stdout.write(line)
 
-        os.remove(input_path)
-        os.remove(output_path)
-        os.rmdir(tempdir)
+        input_handle.close()
+        output_handle.close()
+
+        if not args.keep_temp_files:
+            os.remove(input_path)
+            os.remove(output_path)
+            os.rmdir(tempdir)
 
 
 if __name__ == '__main__':

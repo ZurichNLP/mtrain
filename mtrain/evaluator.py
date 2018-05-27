@@ -25,7 +25,7 @@ class Evaluator(object):
         @param basepath a directory containing a trained engine
         """
         assert inspector.is_mtrain_engine(basepath)
-        self._training_args = utils.load_config(basepath)
+        self._training_args = utils.load_config_from_basepath(basepath)
 
         # file paths and tool
         self._basepath = basepath
@@ -72,13 +72,13 @@ class Evaluator(object):
         @param eval_tool an external tool used for evaluation
         @param eval_corpus_path path to the evaluation corpus
         """
-        if eval_corpus is None:
-            self._eval_corpus_path = self._get_path('corpus')
+        if eval_corpus_path is None:
+            self._eval_corpus_path = self._get_path('corpus') + os.sep + C.BASENAME_EVALUATION_CORPUS
         else:
             self._eval_corpus_path = eval_corpus_path
-        self._create_eval_directories()
 
         self._eval_tool = eval_tool
+        self._create_eval_directories()
 
         # file that needs to be translated, source lang
         input_path = self._get_path_eval(self._src_lang)
@@ -147,7 +147,7 @@ class Evaluator(object):
 
         multeval_command = '{script} eval --verbosity 0 --bleu.verbosity 0 --threads "{num_threads}" {meteor_argument} --refs "{reference_path}" --hyps-baseline "{hypothesis}" > "{output_path}"'.format(
             script=C.MULTEVAL,
-            num_threads=self._training_args.num_threads,
+            num_threads=self._training_args.threads,
             meteor_argument=meteor_argument,
             reference_path=reference_path,
             hypothesis=hypothesis_path,

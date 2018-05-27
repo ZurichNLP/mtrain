@@ -35,7 +35,8 @@ def set_up_logging(args, mode="train"):
     logging.basicConfig(
         filename=dir_ + os.sep + filename,
         level=logging.DEBUG,
-        format='%(asctime)s - mtrain - %(levelname)s - %(message)s'
+        format='%(asctime)s - mtrain - %(levelname)s - %(message)s',
+        filemode="w"
     )
     # log WARNING and above (or as specified by user) to stdout
     console = logging.StreamHandler()
@@ -62,7 +63,7 @@ def write_config(args):
     with open(filepath, 'w') as fp:
         json.dump(args_dict, fp)
 
-def load_config(translation_args):
+def load_config_from_args(translation_args):
     """
     Loads arguments from file. Intended use: only during translation.
     """
@@ -73,11 +74,22 @@ def load_config(translation_args):
 
     return argparse.Namespace(**args_dict)
 
+def load_config_from_basepath(basepath):
+    """
+    Loads arguments from file, given a basepath.
+    """
+    filepath = basepath + os.sep + C.CONFIG
+
+    with open(filepath) as f:
+        args_dict = json.load(f)
+
+    return argparse.Namespace(**args_dict)
+
 def infer_backend(translation_args):
     """
     Read backend argument from saved training arguments.
     """
-    training_args = load_config(translation_args)
+    training_args = load_config_from_args(translation_args)
 
     return training_args.backend
 
