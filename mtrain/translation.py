@@ -412,10 +412,9 @@ class TranslationEngineNematus(TranslationEngineBase):
         """
         """
         for line in input_handle:
-            logging.debug("Line: '%s'", line)
             segment = line.strip()
             preprocessed_segment = self._preprocess_segment(segment)
-            output_handle.write(preprocessed_segment)
+            output_handle.write(preprocessed_segment + "\n")
 
     def translate_segment(self, segment):
         """

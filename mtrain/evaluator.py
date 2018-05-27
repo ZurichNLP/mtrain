@@ -63,7 +63,8 @@ class Evaluator(object):
                                                   training_config=self._training_args,
                                                   device=self._training_args.device_train,
                                                   preallocate=0.2,
-                                                  beam_size=12)
+                                                  beam_size=12,
+                                                  keep_temp_files=False)
         else:
             raise NotImplementedError
 
