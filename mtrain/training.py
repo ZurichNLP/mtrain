@@ -960,7 +960,9 @@ class TrainingNematus(TrainingBase):
                      save_frequency=None,
                      external_validation_script=None,
                      max_epochs=None,
-                     max_updates=None):
+                     max_updates=None,
+                     hidden_size=None,
+                     embedding_size=None):
         """
         Prepares and executes the training of the nematus engine.
 
@@ -973,6 +975,8 @@ class TrainingNematus(TrainingBase):
         @param external_validation_script path to own external validation script if provided
         @param max_epochs maximum number of epochs
         @param max_updates maximum number of updates
+        @param hidden_size size of hidden layers
+        @param embedding_size size of embedding layers
         """
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
@@ -993,7 +997,7 @@ class TrainingNematus(TrainingBase):
         # prepare and execute nematus training
         self._prepare_validation(device_validate, preallocate_validate)
         self._prepare_valid_postprocessing()
-        self._train_nematus_engine(device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates)
+        self._train_nematus_engine(device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates, hidden_size, embedding_size)
 
     def _prepare_validation(self, device_validate, preallocate_validate):
         """
