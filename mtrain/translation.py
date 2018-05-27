@@ -348,7 +348,9 @@ class TranslationEngineNematus(TranslationEngineBase):
             C.BPE
         ])
         model = os.sep.join([bpe_model_path, "%s-%s.bpe" % (self._src_lang, self._trg_lang)])
-        self._bpe_encoder = BytePairEncoderSegment(model)
+        vocab_source_path = os.sep.join([bpe_model_path, "vocab.%s" % self._src_lang])
+
+        self._bpe_encoder = BytePairEncoderSegment(model, vocab_source_path)
 
         self._components.append(self._bpe_encoder)
 
