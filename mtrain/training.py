@@ -2,30 +2,33 @@
 
 import logging
 import random
-import shutil
-import errno
-import sys
 import os
 import re
+import abc
 
-from mtrain.corpus import ParallelCorpus
-from mtrain.constants import *
-from mtrain.preprocessing.masking import Masker, write_masking_patterns
-from mtrain.preprocessing.xmlprocessor import XmlProcessor
-from mtrain.preprocessing.tokenizer import Tokenizer
-from mtrain.preprocessing import lowercaser, cleaner, reinsertion
-from mtrain.translation import TranslationEngine
+from abc import ABCMeta
+from mtrain.utils import symlink
+
 from mtrain import assertions, commander
 from mtrain import evaluator
+from mtrain import constants as C
+from mtrain.corpus import ParallelCorpus
+from mtrain.preprocessing import lowercaser, reinsertion
+from mtrain.preprocessing.normalizer import Normalizer
+from mtrain.preprocessing.tokenizer import Tokenizer
+from mtrain.preprocessing.masking import Masker, write_masking_patterns
+from mtrain.preprocessing.xmlprocessor import XmlProcessor
+from mtrain.preprocessing.bpe import BytePairEncoderFile
 
-class Training(object):
-    '''
-    Models the training process of a Moses engine, including all files and
-    folders that are required and generated.
-    '''
 
-    def __init__(self, basepath, src_lang, trg_lang, casing_strategy,
-                 masking_strategy, xml_strategy, tuning, evaluation):
+class TrainingBase(object):
+    '''
+    Abstract class for training a translation engine.
+    '''
+    __metaclass__ = ABCMeta
+
+    def __init__(self, basepath, src_lang, trg_lang, casing_strategy, tuning, evaluation,
+                 masking_strategy=None, xml_strategy=None):
         '''
         Creates a new project structure at @param basepath.
 
@@ -35,10 +38,6 @@ class Training(object):
         @param src_lang the language code of the source language, e.g., `en`
         @param trg_lang the language code of the target language, e.g., `fr`
         @param casing_strategy how case should be handled in preprocessing
-        @param masking_strategy whether and how mask tokens should be
-            introduced into segments
-        @param xml_strategy whether fragments of markup in the data should be
-            passed through, removed or masked
         @param tuning the tuning set to be used. The options are
             None:   do not tune (not recommended)
             INT:    select INT random lines from the base corpus for tuning
@@ -46,6 +45,10 @@ class Training(object):
                     without language code suffixes)
         @param evaluation the evaluation set to be used. The same options as in
             @param tuning apply.
+        @param masking_strategy whether and how mask tokens should be
+            introduced into segments
+        @param xml_strategy whether fragments of markup in the data should be
+            passed through, removed or masked
 
         Note: @param src_lang, @param trg_lang must be language codes recognised
             by the built-in Moses tokenizer.
@@ -55,15 +58,13 @@ class Training(object):
         self._src_lang = src_lang
         self._trg_lang = trg_lang
         # set strategies
-        self._masking_strategy = masking_strategy
         self._casing_strategy = casing_strategy
+        self._masking_strategy = masking_strategy
         self._xml_strategy = xml_strategy
-        # load components
-        self._load_tokenizer()
-        self._load_masker()
-        self._load_xmlprocessor()
+        # set behaviour
         self._tuning = tuning
         self._evaluation = evaluation
+
         self._num_malformed_segments = 0
         # create base directory
         assertions.dir_exists(
@@ -73,22 +74,29 @@ class Training(object):
         if not assertions.dir_is_empty(self._basepath, exceptions=['training.log']):
             logging.warning("Base path %s is not empty. Existing files will be overwritten.", self._basepath)
         # create sub-directories
-        for component in PATH_COMPONENT:
+        for component in C.PATH_COMPONENT:
             subdir = self._get_path(component)
             if not os.path.exists(subdir):
                 os.mkdir(subdir)
+
+        # load components
+        self._load_masker()
+        self._load_xmlprocessor()
+        self._load_normalizer()
+        self._load_tokenizer()
 
     def _get_path(self, component):
         '''
         Returns the absolute path to the base directory of the given
         @param component.
         '''
-        assert component in PATH_COMPONENT, "Unknown component %s" % component
-        return os.path.sep.join([self._basepath, PATH_COMPONENT[component]])
+        assert component in C.PATH_COMPONENT, "Unknown component %s" % component
+        return os.path.sep.join([self._basepath, C.PATH_COMPONENT[component]])
 
     def _get_path_corpus(self, corpus, lang):
         '''
-        Returns the absolute path to a corpus related to this training.
+        Returns the absolute path to a corpus related to this training,
+        to @param corpus the file ending @param lang is appended.
         '''
         if isinstance(corpus, list):
             corpus = '.'.join(corpus)
@@ -96,51 +104,53 @@ class Training(object):
 
     def _get_path_corpus_final(self, corpus, lang):
         '''
-        Returns the absolute path to a final corpus related to this training.
+        Returns the absolute path to a final @param corpus related to this training. In addition
+        to the suffix 'final' the language stortcut @param lang is added.
         '''
-        return self._get_path_corpus([corpus, SUFFIX_FINAL], lang)
-
-
-    def _symlink(self, orig, link_name):
-        try:
-            os.symlink(orig, link_name)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                os.remove(link_name)
-                os.symlink(orig, link_name)
+        return self._get_path_corpus([corpus, C.SUFFIX_FINAL], lang)
 
     def _get_path_masking_patterns(self, overall_strategy, detailed_strategy):
         '''
         Make sure a masking directory and masking strategy subfolder exist,
-        @return the path to the masking patterns file.
+            @return the path to the masking patterns file.
         @param overall_strategy coarse-grained masking or XML strategy
         @param detailed_strategy fine-grained masking or XML strategy
         '''
         protected_patterns_dir = os.sep.join([self._get_path('engine'), overall_strategy, detailed_strategy])
         if not assertions.dir_exists(protected_patterns_dir):
             os.makedirs(protected_patterns_dir, exist_ok=True)
-        return os.sep.join([protected_patterns_dir, PROTECTED_PATTERNS_FILE_NAME])
+        return os.sep.join([protected_patterns_dir, C.PROTECTED_PATTERNS_FILE_NAME])
+
+    def _load_normalizer(self):
+        """
+        Creates normalizer. Additional preprocessing step for Nematus models.
+        """
+        self._normalizer_source = Normalizer(self._src_lang)
+        self._normalizer_target = Normalizer(self._trg_lang)
 
     def _load_tokenizer(self):
-        # create tokenizers: masking strategy has an impact on tokenizer behaviour
+        '''
+        Create tokenizers: Masking and XML masking strategies have impact on tokenizer behaviour.
+        '''
         tokenizer_protects = False
+
         if self._masking_strategy:
             tokenizer_protects = True
             protected_patterns_path = self._get_path_masking_patterns(
-                overall_strategy=MASK,
+                overall_strategy=C.XML_MASK,
                 detailed_strategy=self._masking_strategy
             )
-        elif self._xml_strategy == XML_MASK:
+        elif self._xml_strategy == C.XML_MASK:
             tokenizer_protects = True
             protected_patterns_path = self._get_path_masking_patterns(
-                overall_strategy=XML_MASK,
-                detailed_strategy=XML_STRATEGIES_DEFAULTS[XML_MASK]
+                overall_strategy=C.XML_MASK,
+                detailed_strategy=C.XML_STRATEGIES_DEFAULTS[C.XML_MASK]
             )
-        elif self._xml_strategy == XML_STRIP or self._xml_strategy == XML_STRIP_REINSERT:
-            tokenizer_protects=True
+        elif self._xml_strategy == C.XML_STRIP or self._xml_strategy == C.XML_STRIP_REINSERT:
+            tokenizer_protects = True
             protected_patterns_path = self._get_path_masking_patterns(
                 overall_strategy=self._xml_strategy,
-                detailed_strategy=XML_STRATEGIES_DEFAULTS[self._xml_strategy]
+                detailed_strategy=C.XML_STRATEGIES_DEFAULTS[self._xml_strategy]
             )
 
         if tokenizer_protects:
@@ -166,76 +176,34 @@ class Training(object):
             self._tokenizer_target = Tokenizer(self._trg_lang)
 
     def _load_masker(self):
+        '''
+        Create masker: Masking strategy impacts tokenizer behaviour.
+        '''
         if self._masking_strategy:
             self._masker = Masker(self._masking_strategy, escape=True)
 
     def _load_xmlprocessor(self):
+        '''
+        Creates XML processor: xml strategy impacts tokenizer behaviour.
+        '''
         self._xml_processor = XmlProcessor(self._xml_strategy)
-
-    def preprocess(self, base_corpus_path, min_tokens, max_tokens, mask, preprocess_external, process_xml):
-        '''
-        Preprocesses the given parallel corpus.
-
-        @param corpus_base_path the common file prefix of the training corpus'
-            source and target side
-        @param min_tokens the minimum number of tokens in a segment. Segments
-            with less tokens will be discarded
-        @param max_tokens the maximum number of tokens in a segment. Segments
-            with more tokens will be discarded
-        @param mask whether or not segments should be masked
-        @param preprocess_external whether or not external corpora (tune, eval)
-            should be preprocessed (tokenized, masked and markup processing)
-        @param process_xml whether or not the XML processing strategy should be
-            applied to segments or not
-
-        Note: The source and target side files of the parallel corpus are
-            induced from concatenating @param corpus_base_path with
-            self.src_lang and self.trg_lang, respectively. Example:
-            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
-            `/foo/corpus.fr`.
-        '''
-        logging.info("Processing parallel corpus")
-        # tokenize, clean, mask and split base corpus
-        self._preprocess_base_corpus(base_corpus_path, min_tokens, max_tokens, mask, process_xml)
-        # tokenize, clean, mask and xml-process separate tuning and training corpora (if applicable)
-        if isinstance(self._tuning, str):
-            self._preprocess_external_corpus(
-                self._tuning,
-                BASENAME_TUNING_CORPUS,
-                min_tokens,
-                max_tokens,
-                preprocess_external=preprocess_external,
-                process_xml=process_xml
-            )
-        if isinstance(self._evaluation, str):
-            self._preprocess_external_corpus(
-                self._evaluation,
-                BASENAME_EVALUATION_CORPUS,
-                min_tokens,
-                max_tokens,
-                preprocess_external=False, # never preprocess EVAL corpus
-                process_xml=process_xml
-            )
-        # lowercase as needed
-        self._lowercase()
-        # mark final files (.final symlinks)
-        self._mark_final_files()
 
     def train_truecaser(self):
         '''
         Trains a truecasing model.
         '''
         # create folder
-        basepath = os.sep.join([self._get_path('engine'), TRUECASING])
+        basepath = os.sep.join([self._get_path('engine'), C.TRUECASING])
         if not assertions.dir_exists(basepath):
             os.mkdir(basepath)
+
         # train truecaser
         def command(lang):
             return '{script} --model {basepath}/model.{lang} --corpus {corpus}'.format(
-                script=MOSES_TRAIN_TRUECASER,
+                script=C.MOSES_TRAIN_TRUECASER,
                 basepath=basepath,
                 lang=lang,
-                corpus=self._get_path_corpus(BASENAME_TRAINING_CORPUS, lang)
+                corpus=self._get_path_corpus(C.BASENAME_TRAINING_CORPUS, lang)
             )
         commands = [command(self._src_lang), command(self._trg_lang)]
         commander.run_parallel(commands, "Training truecasing models")
@@ -246,22 +214,179 @@ class Training(object):
         '''
         def command(corpus, lang):
             return '{script} --model {model} < {corpus_in} > {corpus_out}'.format(
-                script=MOSES_TRUECASER,
-                model=os.sep.join([self._get_path('engine'), 'truecasing', 'model.%s' % lang]),
+                script=C.MOSES_TRUECASER,
+                model=os.sep.join([self._get_path('engine'), C.TRUECASING, 'model.%s' % lang]),
                 corpus_in=self._get_path_corpus(corpus, lang),
-                corpus_out=self._get_path_corpus([corpus, SUFFIX_TRUECASED], lang)
+                corpus_out=self._get_path_corpus([corpus, C.SUFFIX_TRUECASED], lang)
             )
         commands = [
-            command(BASENAME_TRAINING_CORPUS, self._src_lang),
-            command(BASENAME_TRAINING_CORPUS, self._trg_lang),
+            command(C.BASENAME_TRAINING_CORPUS, self._src_lang),
+            command(C.BASENAME_TRAINING_CORPUS, self._trg_lang),
         ]
         if self._tuning:
-            commands.append(command(BASENAME_TUNING_CORPUS, self._src_lang))
-            commands.append(command(BASENAME_TUNING_CORPUS, self._trg_lang))
+            commands.append(command(C.BASENAME_TUNING_CORPUS, self._src_lang))
+            commands.append(command(C.BASENAME_TUNING_CORPUS, self._trg_lang))
         if self._evaluation:
-            commands.append(command(BASENAME_EVALUATION_CORPUS, self._src_lang))
-            commands.append(command(BASENAME_EVALUATION_CORPUS, self._trg_lang))
+            commands.append(command(C.BASENAME_EVALUATION_CORPUS, self._src_lang))
+            commands.append(command(C.BASENAME_EVALUATION_CORPUS, self._trg_lang))
         commander.run_parallel(commands, "Truecasing corpora")
+
+    def _lowercase(self):
+        '''
+        Lowercases the training and tuning corpora.
+        '''
+        files_to_be_lowercased = []
+        if self._casing_strategy == C.SELFCASING:
+            files_to_be_lowercased.append(
+                (C.BASENAME_TRAINING_CORPUS, self._src_lang)
+            )
+            if self._tuning:
+                files_to_be_lowercased.append(
+                    (C.BASENAME_TUNING_CORPUS, self._src_lang)
+                )
+        elif self._casing_strategy == C.RECASING:
+            files_to_be_lowercased.append(
+                (C.BASENAME_TRAINING_CORPUS, self._src_lang)
+            )
+            files_to_be_lowercased.append(
+                (C.BASENAME_TRAINING_CORPUS, self._trg_lang)
+            )
+            if self._tuning:
+                files_to_be_lowercased.append(
+                    (C.BASENAME_TUNING_CORPUS, self._src_lang)
+                )
+                files_to_be_lowercased.append(
+                    (C.BASENAME_TUNING_CORPUS, self._trg_lang)
+                )
+        elif self._casing_strategy == C.TRUECASING:
+            pass
+        for basename, lang in files_to_be_lowercased:
+            filepath_origin = self._get_path_corpus(basename, lang)
+            filepath_dest = self._get_path_corpus([basename, C.SUFFIX_LOWERCASED], lang)
+            lowercaser.lowercase_file(filepath_origin, filepath_dest)
+
+    def _mark_final_files(self):
+        '''
+        Creates a symlink to the final training, tuning, and evaluation files.
+        '''
+        fp = {
+            'train': {
+                'src': self._get_path_corpus(C.BASENAME_TRAINING_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(C.BASENAME_TRAINING_CORPUS, self._trg_lang)
+            },
+            'tune': {
+                'src': self._get_path_corpus(C.BASENAME_TUNING_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(C.BASENAME_TUNING_CORPUS, self._trg_lang)
+            },
+            'test': {
+                'src': self._get_path_corpus(C.BASENAME_EVALUATION_CORPUS, self._src_lang),
+                'trg': self._get_path_corpus(C.BASENAME_EVALUATION_CORPUS, self._trg_lang)
+            }
+        }
+
+        def add_suffix(corpus, lang, suffix):
+            path = fp[corpus][lang].split('.')
+            path.insert(-1, suffix)
+            fp[corpus][lang] = '.'.join(path)
+        if self._casing_strategy == C.SELFCASING:
+            # lowercased input side, unmodified output side
+            add_suffix('train', 'src', C.SUFFIX_LOWERCASED)
+            add_suffix('tune', 'src', C.SUFFIX_LOWERCASED)
+        elif self._casing_strategy == C.TRUECASING:
+            # truecased input side, truecased output side
+            add_suffix('train', 'src', C.SUFFIX_TRUECASED)
+            add_suffix('train', 'trg', C.SUFFIX_TRUECASED)
+            add_suffix('tune', 'src', C.SUFFIX_TRUECASED)
+            add_suffix('tune', 'trg', C.SUFFIX_TRUECASED)
+        elif self._casing_strategy == C.RECASING:
+            # truecased input side, truecased output side
+            add_suffix('train', 'src', C.SUFFIX_LOWERCASED)
+            add_suffix('train', 'trg', C.SUFFIX_LOWERCASED)
+            add_suffix('tune', 'src', C.SUFFIX_LOWERCASED)
+            add_suffix('tune', 'trg', C.SUFFIX_LOWERCASED)
+
+        # create symlinks
+        def symlink_path(basename, lang):
+            return self._get_path_corpus([basename, C.SUFFIX_FINAL], lang)
+        symlink(
+            fp['train']['src'],
+            symlink_path(C.BASENAME_TRAINING_CORPUS, self._src_lang)
+        )
+        symlink(
+            fp['train']['trg'],
+            symlink_path(C.BASENAME_TRAINING_CORPUS, self._trg_lang)
+        )
+        if self._tuning:
+            symlink(
+                fp['tune']['src'],
+                symlink_path(C.BASENAME_TUNING_CORPUS, self._src_lang)
+            )
+            symlink(
+                fp['tune']['trg'],
+                symlink_path(C.BASENAME_TUNING_CORPUS, self._trg_lang)
+            )
+        if self._evaluation:
+            symlink(
+                fp['test']['src'],
+                symlink_path(C.BASENAME_EVALUATION_CORPUS, self._src_lang)
+            )
+            symlink(
+                fp['test']['trg'],
+                symlink_path(C.BASENAME_EVALUATION_CORPUS, self._trg_lang)
+            )
+
+    def preprocess(self, corpus_base_path, min_tokens, max_tokens, preprocess_external, mask=None, process_xml=None):
+        '''
+        Preprocesses the given parallel corpus.
+
+        @param corpus_base_path the common file prefix of the training corpus'
+            source and target side
+        @param min_tokens the minimum number of tokens in a segment. Segments
+            with less tokens will be discarded
+        @param max_tokens the maximum number of tokens in a segment. Segments
+            with more tokens will be discarded
+        @param preprocess_external whether or not external corpora (tune, eval)
+            should be preprocessed (tokenized, masked and markup processing)
+        @param mask whether or not segments should be masked
+        @param process_xml whether or not the XML processing strategy should be
+            applied to segments or not
+
+        Note: The source and target side files of the parallel corpus are
+            induced from concatenating @param corpus_base_path with
+            self.src_lang and self.trg_lang, respectively. Example:
+            `/foo/corpus`, `en` and `fr` result in `/foo/corpus.en` and
+            `/foo/corpus.fr`.
+        '''
+
+        # logging info for preprocessing
+        logging.info("Processing parallel corpus: %s-%s", self._src_lang, self._trg_lang)
+
+        # tokenize, clean, mask and split base corpus
+        self._preprocess_base_corpus(corpus_base_path, min_tokens, max_tokens, mask, process_xml)
+        # tokenize, clean, mask and xml-process separate tuning and training corpora (if applicable)
+        if isinstance(self._tuning, str):
+            self._preprocess_external_corpus(
+                self._tuning,
+                C.BASENAME_TUNING_CORPUS,
+                min_tokens,
+                max_tokens,
+                preprocess_external=preprocess_external,
+                process_xml=process_xml
+            )
+        if isinstance(self._evaluation, str):
+            self._preprocess_external_corpus(
+                self._evaluation,
+                C.BASENAME_EVALUATION_CORPUS,
+                min_tokens,
+                max_tokens,
+                preprocess_external=False, # never preprocess EVAL corpus
+                process_xml=process_xml
+            )
+        # lowercase as needed
+        self._lowercase()
+        # mark final files (.final symlinks)
+        self._mark_final_files()
+
 
     def train_recaser(self, num_threads, path_temp_files, keep_uncompressed=False):
         '''
@@ -273,23 +398,23 @@ class Training(object):
             phrase table should be kept
         '''
         # create target directory
-        base_dir_recaser = self._get_path('engine') + os.sep + RECASING
+        base_dir_recaser = self._get_path('engine') + os.sep + C.RECASING
         if not assertions.dir_exists(base_dir_recaser):
             os.mkdir(base_dir_recaser)
         # train model
         commander.run(
             '{script} --corpus "{training_corpus}" --dir "{base_dir_recaser}" --train-script "{training_script}"'.format(
-                script=MOSES_TRAIN_RECASER,
-                training_corpus=self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
+                script=C.MOSES_TRAIN_RECASER,
+                training_corpus=self._get_path_corpus(C.BASENAME_TRAINING_CORPUS, self._trg_lang),
                 base_dir_recaser=base_dir_recaser,
-                training_script=MOSES_TRAIN_MODEL
+                training_script=C.MOSES_TRAIN_MODEL
             ),
             "Training recasing model"
         )
         # binarize language model
         commander.run(
             '{script} "{base_dir_recaser}/cased.kenlm.gz" "{base_dir_recaser}/cased.kenlm.bin"'.format(
-                script=KENLM_BUILD_BINARY,
+                script=C.KENLM_BUILD_BINARY,
                 base_dir_recaser=base_dir_recaser,
             ),
             "Binarizing the recaser's language model"
@@ -297,7 +422,7 @@ class Training(object):
         # compress phrase table
         commander.run(
             '{script} -in "{base_dir_recaser}/phrase-table.gz" -out "{base_dir_recaser}/phrase-table" -threads {num_threads} -T "{path_temp_files}"'.format(
-                script=MOSES_COMPRESS_PHRASE_TABLE,
+                script=C.MOSES_COMPRESS_PHRASE_TABLE,
                 base_dir_recaser=base_dir_recaser,
                 num_threads=num_threads,
                 path_temp_files=path_temp_files
@@ -319,71 +444,18 @@ class Training(object):
             os.remove("%s/cased.kenlm.gz" % base_dir_recaser)
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
 
-    def train_engine(self, n=5, alignment='grow-diag-final-and',
-              max_phrase_length=7, reordering='msd-bidirectional-fe',
-              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
-        '''
-        Trains the language, translation, and reordering models.
-
-        @param n the order of the n-gram language model
-        @param alignment the word alignment symmetrisation heuristic
-        @param max_phrase_length the maximum numbers of tokens per phrase
-        @param reordering the reordering paradigm
-        @param num_threads the number of threads available for training
-        @param path_temp_files the directory where temporary training files can
-            be stored
-        @param keep_uncompressed whether or not uncompressed model files should
-            be kept after binarization
-        '''
-        self._train_language_model(n, path_temp_files, keep_uncompressed)
-        self._word_alignment(alignment, num_threads)
-        self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
-
-    def tune(self, num_threads=1):
-        '''
-        Maximises the engine's performance on the tuning corpus
-        '''
-        self._MERT(num_threads)
-
-    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
-                 strip_markup_eval=False, extended=False):
-        '''
-        Evaluates the engine by translating and scoring an evaluation set.
-        @param num_threads the maximum number of threads to be used
-        @param lowercase_eval whether to lowercase all segments before evaluation
-        @param detokenize_eval whether to detokenize all segments before evaluation
-        @param strip_markup_eval whether all markup should be removed before evaluation
-        @param extended perform multiple evaluations that vary processing steps applied
-            to the test files: lowercased or not, detokenized or not, with markup or without
-        '''
-        self._evaluator = evaluator.Evaluator(
-            basepath=self._basepath,
-            eval_corpus_path=self._get_path('corpus'),
-            src_lang=self._src_lang,
-            trg_lang=self._trg_lang,
-            xml_strategy=self._xml_strategy,
-            num_threads=num_threads,
-            eval_tool=MULTEVAL_TOOL,
-            tokenizer_trg=self._tokenizer_target,
-            xml_processor=self._xml_processor,
-            extended_eval=extended
-        )
-        self._evaluator.evaluate(
-            lowercase=lowercase_eval,
-            detokenize=detokenize_eval,
-            strip_markup=strip_markup_eval
-        )
-
     def _check_segment_length(self, segment, min_tokens, max_tokens, tokenizer,
-            accurate=False):
+                              accurate=False):
         '''
         Checks the length of segments (in tokens). An accurate check strips,
-            tokenizes the segment and XML element tags count as single tokens.
+        tokenizes the segment and XML element tags count as single tokens.
+
         @param segment the segment the length of which should be determined
-        @param min_tokens minimal number of tokens
-        @param max_tokens maximal number of tokens
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
         @param tokenizer the right tokenizer depending on the language
-        @param whether the counting should be naive (faster) or accurate (slower)
+        @param accurate whether the counting should be naive (faster) or accurate (slower)
+
         @return the input segment. None means that the segment should be
             discarded.
         '''
@@ -408,12 +480,20 @@ class Training(object):
             # None means segment should be discarded
             return None
 
-        return original_segment        
+        return original_segment
 
-    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask, process_xml):
+
+
+    def _preprocess_base_corpus(self, corpus_base_path, min_tokens, max_tokens, mask=None, process_xml=None):
         '''
         Splits @param corpus_base_path into training, tuning, and evaluation
         sections (as applicable). Outputs are stored in /corpus.
+
+        @param min_tokens minimal number of tokens in a segment
+        @param max_tokens maximal number of tokens in a segment
+        @param mask whether or not masking is applied
+        @param process_xml whether or not the XML processing strategy should be
+            applied to the segments in base corpus
         '''
         # determine number of segments for tuning and evaluation, if any
         num_tune = 0 if not isinstance(self._tuning, int) else self._tuning
@@ -421,10 +501,11 @@ class Training(object):
         # open parallel input corpus for reading
         corpus_source = open(corpus_base_path + "." + self._src_lang, 'r')
         corpus_target = open(corpus_base_path + "." + self._trg_lang, 'r')
+
         # create parallel output corpora
         corpus_train = ParallelCorpus(
-            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
-            self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang),
+            self._get_path_corpus(C.BASENAME_TRAINING_CORPUS, self._src_lang),
+            self._get_path_corpus(C.BASENAME_TRAINING_CORPUS, self._trg_lang),
             max_size=None,
             preprocess=True,
             tokenize=True,
@@ -436,8 +517,8 @@ class Training(object):
             xml_processor=self._xml_processor if self._xml_strategy else None
         )
         corpus_tune = ParallelCorpus(
-            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
-            self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang),
+            self._get_path_corpus(C.BASENAME_TUNING_CORPUS, self._src_lang),
+            self._get_path_corpus(C.BASENAME_TUNING_CORPUS, self._trg_lang),
             max_size=num_tune,
             preprocess=True,
             tokenize=True,
@@ -449,20 +530,26 @@ class Training(object):
             xml_processor=self._xml_processor if self._xml_strategy else None
         )
         corpus_eval = ParallelCorpus(
-            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
-            self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang),
+            self._get_path_corpus(C.BASENAME_EVALUATION_CORPUS, self._src_lang),
+            self._get_path_corpus(C.BASENAME_EVALUATION_CORPUS, self._trg_lang),
             max_size=num_eval,
             preprocess=False
         )
         # distribute segments from input corpus to output corpora
         for i, (segment_source, segment_target) in enumerate(zip(corpus_source, corpus_target)):
             # check lengths of segments
-            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_source, accurate=True)
-            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_target, accurate=True)
+            segment_source = self._check_segment_length(segment_source,
+                                                        min_tokens,
+                                                        max_tokens,
+                                                        tokenizer=self._tokenizer_source,
+                                                        accurate=True)
+            segment_target = self._check_segment_length(segment_target,
+                                                        min_tokens,
+                                                        max_tokens,
+                                                        tokenizer=self._tokenizer_target,
+                                                        accurate=True)
             if None in [segment_source, segment_target]:
-                continue # discard segments with too few or too many tokens
+                continue  # discard segments with too few or too many tokens
             # reservoir sampling (Algorithm R)
             elif corpus_tune.get_size() < num_tune:
                 corpus_tune.insert(segment_source, segment_target)
@@ -496,16 +583,16 @@ class Training(object):
 
     def _preprocess_external_corpus(self, basepath_external_corpus, basename,
                                     min_tokens, max_tokens, preprocess_external,
-                                    process_xml):
+                                    process_xml=None):
         '''
-        Pre-processes an external corpus into /corpus.
+        Preprocesses an external corpus into /corpus.
 
         @param basepath_external_corpus the basepath where the external corpus
             is located, without language code suffixes. Example: `/foo/bar/eval`
             will be expanded into `/foo/bar/eval.en` and `/foo/bar/eval.fr` in
             an EN to FR training
         @param basename the basename of the external corpus in the context of this
-            training, e.g., `test`
+            training, e.g., `tune`
         @param min_tokens minimal number of tokens in a segment
         @param max_tokens maximal number of tokens in a segment
         @param preprocess_external whether the segments should be preprocessed
@@ -517,7 +604,7 @@ class Training(object):
             self._get_path_corpus(basename, self._trg_lang),
             max_size=None,
             preprocess=preprocess_external,
-            tokenize=True, # todo: maybe do not hardcode this
+            tokenize=True if preprocess_external else False,
             tokenizer_src=self._tokenizer_source,
             tokenizer_trg=self._tokenizer_target,
             mask=bool(self._masking_strategy),
@@ -530,129 +617,112 @@ class Training(object):
         corpus_target = open(basepath_external_corpus + "." + self._trg_lang, 'r')
         for segment_source, segment_target in zip(corpus_source, corpus_target):
             # tokenize, clean and mask segments (most importantly, remove trailing \n)
-            segment_source = self._check_segment_length(segment_source, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_source, accurate=True)
-            segment_target = self._check_segment_length(segment_target, min_tokens, max_tokens,
-                tokenizer=self._tokenizer_target, accurate=True)
+            segment_source = self._check_segment_length(segment_source,
+                                                        min_tokens,
+                                                        max_tokens,
+                                                        tokenizer=self._tokenizer_source,
+                                                        accurate=True)
+            segment_target = self._check_segment_length(segment_target,
+                                                        min_tokens,
+                                                        max_tokens,
+                                                        tokenizer=self._tokenizer_target,
+                                                        accurate=True)
             if None in [segment_source, segment_target]:
-                continue # discard segments with too few or too many tokens
+                continue  # discard segments with too few or too many tokens
             else:
                 corpus.insert(segment_source, segment_target)
         corpus.close()
         corpus_source.close()
         corpus_target.close()
         # logging
-        if basename == BASENAME_TUNING_CORPUS:
+        if basename == C.BASENAME_TUNING_CORPUS:
             logging.info("Tuning corpus: %s segments", corpus.get_size())
-        elif basename == BASENAME_EVALUATION_CORPUS:
+        elif basename == C.BASENAME_EVALUATION_CORPUS:
             logging.info("Evaluation corpus: %s segments", corpus.get_size())
 
-    def _lowercase(self):
-        '''
-        Lowercases the training and tuning corpora.
-        '''
-        files_to_be_lowercased = []
-        if self._casing_strategy == SELFCASING:
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._src_lang)
-            )
-            if self._tuning:
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._src_lang)
-                )
-        elif self._casing_strategy == RECASING:
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._src_lang)
-            )
-            files_to_be_lowercased.append(
-                (BASENAME_TRAINING_CORPUS, self._trg_lang)
-            )
-            if self._tuning:
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._src_lang)
-                )
-                files_to_be_lowercased.append(
-                    (BASENAME_TUNING_CORPUS, self._trg_lang)
-                )
-        elif self._casing_strategy == TRUECASING:
-            pass
-        for basename, lang in files_to_be_lowercased:
-            filepath_origin = self._get_path_corpus(basename, lang)
-            filepath_dest = self._get_path_corpus([basename, SUFFIX_LOWERCASED], lang)
-            lowercaser.lowercase_file(filepath_origin, filepath_dest)
+    # abstract methods that need to be implemented by subclasses
 
-    def _mark_final_files(self):
+    @abc.abstractmethod
+    def train_engine(self):
+        pass
+
+    @abc.abstractmethod
+    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
+                 strip_markup_eval=False, extended=False):
+        pass
+
+
+class TrainingMoses(TrainingBase):
+    """
+    Models the training process of a Moses engine, including all files
+    that are required and generated.
+    """
+    def train_engine(self, n=5, alignment='grow-diag-final-and',
+                     max_phrase_length=7, reordering='msd-bidirectional-fe',
+                     num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
         '''
-        Creates a symlink to the final training, tuning, and evaluation files.
+        Trains the language, translation, and reordering models.
+
+        @param n the order of the n-gram language model
+        @param alignment the word alignment symmetrisation heuristic
+        @param max_phrase_length the maximum numbers of tokens per phrase
+        @param reordering the reordering paradigm
+        @param num_threads the number of threads available for training
+        @param path_temp_files the directory where temporary training files can
+            be stored
+        @param keep_uncompressed whether or not uncompressed model files should
+            be kept after binarization
         '''
-        fp = {
-            'train': {
-                'src': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._src_lang),
-                'trg': self._get_path_corpus(BASENAME_TRAINING_CORPUS, self._trg_lang)
-            },
-            'tune': {
-                'src': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._src_lang),
-                'trg': self._get_path_corpus(BASENAME_TUNING_CORPUS, self._trg_lang)
-            },
-            'test': {
-                'src': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._src_lang),
-                'trg': self._get_path_corpus(BASENAME_EVALUATION_CORPUS, self._trg_lang)
-            }
-        }
-        def add_suffix(corpus, lang, suffix):
-            path = fp[corpus][lang].split('.')
-            path.insert(-1, suffix)
-            fp[corpus][lang] = '.'.join(path)
-        if self._casing_strategy == SELFCASING:
-            # lowercased input side, unmodified output side
-            add_suffix('train', 'src', SUFFIX_LOWERCASED)
-            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
-        elif self._casing_strategy == TRUECASING:
-            # truecased input side, truecased output side
-            add_suffix('train', 'src', SUFFIX_TRUECASED)
-            add_suffix('train', 'trg', SUFFIX_TRUECASED)
-            add_suffix('tune', 'src', SUFFIX_TRUECASED)
-            add_suffix('tune', 'trg', SUFFIX_TRUECASED)
-        elif self._casing_strategy == RECASING:
-            # truecased input side, truecased output side
-            add_suffix('train', 'src', SUFFIX_LOWERCASED)
-            add_suffix('train', 'trg', SUFFIX_LOWERCASED)
-            add_suffix('tune', 'src', SUFFIX_LOWERCASED)
-            add_suffix('tune', 'trg', SUFFIX_LOWERCASED)
-        # create symlinks
-        def symlink_path(basename, lang):
-            return self._get_path_corpus([basename, SUFFIX_FINAL], lang)
-        self._symlink(
-            fp['train']['src'],
-            symlink_path(BASENAME_TRAINING_CORPUS, self._src_lang)
+        self._train_language_model(n, path_temp_files, keep_uncompressed)
+        self._word_alignment(alignment, num_threads)
+        self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
+
+    def tune(self, num_threads=1):
+        '''
+        Maximises the engine's performance on the tuning corpus.
+
+        @param num_threads the maximum number of threads to be used
+        '''
+        self._MERT(num_threads)
+
+    def evaluate(self, num_threads, lowercase_eval=False, detokenize_eval=True,
+                 strip_markup_eval=False, extended=False):
+        '''
+        Evaluates the engine by translating and scoring an evaluation set.
+
+        @param num_threads the maximum number of threads to be used
+        @param lowercase_eval whether to lowercase all segments before evaluation
+        @param detokenize_eval whether to detokenize all segments before evaluation
+        @param strip_markup_eval whether all markup should be removed before evaluation
+        @param extended perform multiple evaluations that vary processing steps applied
+            to the test files: lowercased or not, detokenized or not, with markup or without
+        '''
+        self._evaluator = evaluator.Evaluator(
+            basepath=self._basepath,
+            eval_corpus_path=self._get_path('corpus'),
+            src_lang=self._src_lang,
+            trg_lang=self._trg_lang,
+            xml_strategy=self._xml_strategy,
+            num_threads=num_threads,
+            eval_tool=C.MULTEVAL_TOOL,
+            tokenizer_trg=self._tokenizer_target,
+            xml_processor=self._xml_processor,
+            extended_eval=extended
         )
-        self._symlink(
-            fp['train']['trg'],
-            symlink_path(BASENAME_TRAINING_CORPUS, self._trg_lang)
+        self._evaluator.evaluate(
+            lowercase=lowercase_eval,
+            detokenize=detokenize_eval,
+            strip_markup=strip_markup_eval
         )
-        if self._tuning:
-            self._symlink(
-                fp['tune']['src'],
-                symlink_path(BASENAME_TUNING_CORPUS, self._src_lang)
-            )
-            self._symlink(
-                fp['tune']['trg'],
-                symlink_path(BASENAME_TUNING_CORPUS, self._trg_lang)
-            )
-        if self._evaluation:
-            self._symlink(
-                fp['test']['src'],
-                symlink_path(BASENAME_EVALUATION_CORPUS, self._src_lang)
-            )
-            self._symlink(
-                fp['test']['trg'],
-                symlink_path(BASENAME_EVALUATION_CORPUS, self._trg_lang)
-            )
 
     def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
         '''
         Trains an n-gram language model with modified Kneser-Ney smoothing of
         order @param n.
+
+        @param n n-gram order of language models
+        @param path_temp_files where temp files are stored
+        @param keep_uncompressed if True keep uncompressed models
         '''
         # create target directory
         base_dir_lm = self._get_path('engine') + os.sep + 'lm'
@@ -661,10 +731,10 @@ class Training(object):
         # train language model
         commander.run(
             '{script} -o {n} -S 30% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
-                script=KENLM_TRAIN_MODEL,
+                script=C.KENLM_TRAIN_MODEL,
                 n=n,
                 path_temp_files=path_temp_files,
-                training_corpus=self._get_path_corpus_final(BASENAME_TRAINING_CORPUS, self._trg_lang),
+                training_corpus=self._get_path_corpus_final(C.BASENAME_TRAINING_CORPUS, self._trg_lang),
                 base_dir_lm=base_dir_lm,
                 trg_lang=self._trg_lang
             ),
@@ -673,7 +743,7 @@ class Training(object):
         # binarize language model
         commander.run(
             '{script} "{base_dir_lm}/{n}-grams.{trg_lang}.arpa" "{base_dir_lm}/{n}-grams.{trg_lang}.bin"'.format(
-                script=KENLM_BUILD_BINARY,
+                script=C.KENLM_BUILD_BINARY,
                 base_dir_lm=base_dir_lm,
                 n=n,
                 trg_lang=self._trg_lang
@@ -693,6 +763,8 @@ class Training(object):
     def _word_alignment(self, symmetrization_heuristic, num_threads=1):
         '''
         Performs word alignment using fast_align
+
+        @param #todo add desc
         '''
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
@@ -702,9 +774,9 @@ class Training(object):
         if not assertions.dir_exists(base_dir_model):
             os.mkdir(base_dir_model)
         # join source and target corpus for use with fast_align
-        corpus_source = open(self._get_path_corpus_final(BASENAME_TRAINING_CORPUS, self._src_lang), 'r')
-        corpus_target = open(self._get_path_corpus_final(BASENAME_TRAINING_CORPUS, self._trg_lang), 'r')
-        path_joined_corpus = base_dir_model + os.sep + BASENAME_TRAINING_CORPUS + '.%s-%s' % (self._src_lang, self._trg_lang)
+        corpus_source = open(self._get_path_corpus_final(C.BASENAME_TRAINING_CORPUS, self._src_lang), 'r')
+        corpus_target = open(self._get_path_corpus_final(C.BASENAME_TRAINING_CORPUS, self._trg_lang), 'r')
+        path_joined_corpus = base_dir_model + os.sep + C.BASENAME_TRAINING_CORPUS + '.%s-%s' % (self._src_lang, self._trg_lang)
         with open(path_joined_corpus, 'w') as joined_corpus:
             for segment_source, segment_target in zip(corpus_source, corpus_target):
                 segment_source = segment_source.strip()
@@ -713,12 +785,12 @@ class Training(object):
         # create source-target and target-source alignments in parallel
         command_forward = '{threads_environment}{script} -i {corpus} -d -o -v > {corpus}.forward'.format(
             threads_environment=('OMP_NUM_THREADS=%d ' % num_threads) if num_threads else '',
-            script=FAST_ALIGN,
+            script=C.FAST_ALIGN,
             corpus=path_joined_corpus
         )
         command_backward = '{threads_environment}{script} -i {corpus} -d -o -v -r > {corpus}.backward'.format(
             threads_environment=('OMP_NUM_THREADS=%d ' % num_threads) if num_threads else '',
-            script=FAST_ALIGN,
+            script=C.FAST_ALIGN,
             corpus=path_joined_corpus
         )
         commander.run_parallel(
@@ -731,7 +803,7 @@ class Training(object):
         # symmetrize forward and backward alignments
         commander.run(
             '{script} -i {corpus}.forward -j {corpus}.backward -c {heuristic} > {base_dir_model}/aligned.{heuristic}'.format(
-                script=ATOOLS,
+                script=C.ATOOLS,
                 base_dir_model=base_dir_model,
                 corpus=path_joined_corpus,
                 heuristic=symmetrization_heuristic
@@ -754,10 +826,10 @@ class Training(object):
             os.mkdir(base_dir_model)
         # train Moses engine
         training_command = '{script} -root-dir "{base_dir}" -corpus "{basepath_training_corpus}" -f {src} -e {trg} -alignment {alignment} -reordering {reordering} -lm "0:{n}:{path_lm}:8" -temp-dir "{temp_dir}" -cores {num_threads_half} -parallel -alignment-file "{base_dir_model}/aligned" -first-step 4 -max-phrase-length {max_phrase_length}'.format(
-            script=MOSES_TRAIN_MODEL,
+            script=C.MOSES_TRAIN_MODEL,
             base_dir=base_dir_tm,
             base_dir_model=base_dir_model,
-            basepath_training_corpus=self._get_path('corpus') + os.sep + BASENAME_TRAINING_CORPUS + '.' + SUFFIX_FINAL,
+            basepath_training_corpus=self._get_path('corpus') + os.sep + C.BASENAME_TRAINING_CORPUS + '.' + C.SUFFIX_FINAL,
             src=self._src_lang,
             trg=self._trg_lang,
             alignment=alignment,
@@ -766,7 +838,7 @@ class Training(object):
             reordering=reordering,
             max_phrase_length=max_phrase_length,
             temp_dir=path_temp_files,
-            num_threads_half=int(num_threads/2)
+            num_threads_half=int(num_threads / 2)
         )
         commander.run(training_command, "Training Moses engine")
         # compress translation and reordering models
@@ -774,14 +846,14 @@ class Training(object):
         if not assertions.dir_exists(base_dir_compressed):
             os.mkdir(base_dir_compressed)
         pt_command = '{script} -in "{base_dir_model}/phrase-table.gz" -out "{base_dir_compressed}/phrase-table" -threads {num_threads} -T "{temp_dir}"'.format(
-            script=MOSES_COMPRESS_PHRASE_TABLE,
+            script=C.MOSES_COMPRESS_PHRASE_TABLE,
             base_dir_model=base_dir_model,
             base_dir_compressed=base_dir_compressed,
             num_threads=num_threads,
             temp_dir=path_temp_files
         )
         rt_command = '{script} -in "{base_dir_model}/reordering-table.wbe-{reordering}.gz" -out "{base_dir_compressed}/reordering-table" -threads {num_threads} -T "{temp_dir}"'.format(
-            script=MOSES_COMPRESS_REORDERING_TABLE,
+            script=C.MOSES_COMPRESS_REORDERING_TABLE,
             base_dir_model=base_dir_model,
             base_dir_compressed=base_dir_compressed,
             reordering=reordering,
@@ -810,9 +882,9 @@ class Training(object):
             # todo: also remove other files related to training (word alignment, ...)
 
     def _MERT(self, num_threads):
-        '''
-        Tunes the system through Minimum Error Rate Trainign (MERT)
-        '''
+        """
+        Tunes the system parameters through Minimum Error Rate Training (MERT).
+        """
         # create target directory
         base_dir_tm = self._get_path('engine') + os.sep + 'tm'
         if not assertions.dir_exists(base_dir_tm):
@@ -822,24 +894,305 @@ class Training(object):
             os.mkdir(base_dir_mert)
         # tune
         mert_command = '{script} "{corpus_tuning_src}" "{corpus_tuning_trg}" "{moses_bin}" "{moses_ini}" --mertdir "{moses_bin_dir}" --working-dir "{base_dir_mert}/" --decoder-flags "-threads {num_threads} -minphr-memory -minlexr-memory" --no-filter-phrase-table'.format(
-            script=MOSES_MERT,
-            corpus_tuning_src=self._get_path_corpus_final(BASENAME_TUNING_CORPUS, self._src_lang),
-            corpus_tuning_trg=self._get_path_corpus_final(BASENAME_TUNING_CORPUS, self._trg_lang),
-            moses_bin=MOSES,
+            script=C.MOSES_MERT,
+            corpus_tuning_src=self._get_path_corpus_final(C.BASENAME_TUNING_CORPUS, self._src_lang),
+            corpus_tuning_trg=self._get_path_corpus_final(C.BASENAME_TUNING_CORPUS, self._trg_lang),
+            moses_bin=C.MOSES,
             moses_ini=base_dir_tm + os.sep + 'compressed' + os.sep + 'moses.ini',
-            moses_bin_dir=MOSES_BIN,
+            moses_bin_dir=C.MOSES_BIN,
             base_dir_mert=base_dir_mert,
             num_threads=num_threads
         )
         commander.run(mert_command, "Tuning engine through Minimum Error Rate Training (MERT)")
 
     def write_final_ini(self):
-        '''
+        """
         Symlinks the final moses.ini file to /engine/moses.ini
-        '''
+        """
         final_moses_ini = self._get_path('engine') + os.sep + 'moses.ini'
         if self._tuning:
             moses_ini = self._get_path('engine') + os.sep + os.sep.join(['tm', 'mert', 'moses.ini'])
         else:
             moses_ini = self._get_path('engine') + os.sep + os.sep.join(['tm', 'compressed', 'moses.ini'])
-        self._symlink(moses_ini, final_moses_ini)
+        symlink(moses_ini, final_moses_ini)
+
+
+class TrainingNematus(TrainingBase):
+    """
+    Models the training process of a Nematus engine, including all files
+    that are required and generated.
+    """
+
+    def bpe_encoding(self, bpe_operations):
+        """
+        Trains a BPE model on the training corpus and applies it to training
+        and validation data.
+
+        @param bpe_operations Create this many new symbols (each representing a character n-gram)
+        """
+        corpus_train = self._get_path('corpus') + os.sep + C.BASENAME_TRAINING_CORPUS + '.' + C.SUFFIX_FINAL
+        corpus_tune = self._get_path('corpus') + os.sep + C.BASENAME_TUNING_CORPUS + '.' + C.SUFFIX_FINAL
+
+        # create target directory for bpe model
+        bpe_model_path = os.sep.join([self._get_path('engine'), C.BPE])
+        if not assertions.dir_exists(bpe_model_path):
+            os.mkdir(bpe_model_path)
+
+        # create encoder instance
+        self._encoder = BytePairEncoderFile(corpus_train, corpus_tune, bpe_model_path, bpe_operations, self._src_lang, self._trg_lang)
+
+        # learn bpe model using cased training corpus
+        self._encoder.learn_bpe_model()
+
+        # apply bpe model to training and tuning corpora
+        self._encoder.apply_bpe_model()
+
+        # build bpe dictionary (JSON files) for truecased training corpus
+        self._encoder.build_bpe_dictionary()
+
+    def train_engine(self,
+                     device_train=None,
+                     preallocate_train=None,
+                     device_validate=None,
+                     preallocate_validate=None,
+                     num_threads=1,
+                     validation_frequency=None,
+                     save_frequency=None,
+                     external_validation_script=None,
+                     max_epochs=None,
+                     max_updates=None,
+                     hidden_size=None,
+                     embedding_size=None):
+        """
+        Prepares and executes the training of the nematus engine.
+
+        @param device_train CPU or GPU device for training
+        @param preallocate_train defines the percentage of memory to be preallocated for training
+        @param device_validate defines the device (cpu, gpuN or cudaN) for validation
+        @param preallocate_validate defines the percentage of memory to be preallocated for validation
+        @param num_threads number of threads for CPU operations
+        @param validation_frequency number of updates after which external validation is initiated
+        @param external_validation_script path to own external validation script if provided
+        @param max_epochs maximum number of epochs
+        @param max_updates maximum number of updates
+        @param hidden_size size of hidden layers
+        @param embedding_size size of embedding layers
+        """
+        # create target directory
+        base_dir_tm = self._get_path('engine') + os.sep + 'tm'
+        if not assertions.dir_exists(base_dir_tm):
+            os.mkdir(base_dir_tm)
+        self._base_dir_model = base_dir_tm + os.sep + 'model'
+        if not assertions.dir_exists(self._base_dir_model):
+            os.mkdir(self._base_dir_model)
+
+        # define validation / postprocessing strategy and path for scripts
+        if isinstance(external_validation_script, str):
+            self._mtrain_managed_val = False
+            self._path_ext_val = external_validation_script # user must provide path plus script name
+        else:
+            self._mtrain_managed_val = True
+            self._path_ext_val = self._base_dir_model
+
+        # prepare and execute nematus training
+        self._prepare_validation(device_validate, preallocate_validate, num_threads)
+        self._prepare_valid_postprocessing()
+        self._train_nematus_engine(device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates, hidden_size, embedding_size)
+
+    def _prepare_validation(self, device, preallocate, num_threads):
+        """
+        Sets up external validation script that is called by Nematus during training.
+        Note: This does not execute validation, only supplies a shell script to Nematus.
+
+        @param device defines the processor (cpu, gpuN or cudaN) for validation
+        @param preallocate defines the percentage of memory to be preallocated for validation
+        @param num_threads number of threads if device is CPU
+
+        Reference for this script:
+        https://github.com/rsennrich/wmt16-scripts/blob/master/sample/validate.sh
+        """
+        # check if mtrain-managed external validation
+        if self._mtrain_managed_val:
+            # mtrain-managed:
+            # prepare blueprint for script content
+            script_blueprint = """#!/bin/sh
+
+# This script was generated by mtrain according to the example:
+# https://github.com/rsennrich/wmt16-scripts/blob/master/sample/validate.sh
+
+nematus_translate={nematus}
+moses_multi_bleu={moses}
+
+dev={dev}
+ref={ref}
+
+{omp_flag}THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} {python_exec} $nematus_translate \\
+    -m {prefix}.dev.npz \\
+    -i $dev \\
+    -o $dev.output.dev \\
+    -k 12 -n -p 1
+
+sh {script_path}/postprocess-dev.sh < $dev.output.dev > $dev.output.postprocessed.dev
+
+BEST=`cat {prefix}_best_bleu || echo 0`
+$moses_multi_bleu $ref < $dev.output.postprocessed.dev >> {prefix}_bleu_scores
+BLEU=`$moses_multi_bleu $ref < $dev.output.postprocessed.dev | cut -f 3 -d ' ' | cut -f 1 -d ','`
+BETTER=`echo "$BLEU > $BEST" | bc`
+
+echo "BLEU = $BLEU"
+
+if [ "$BETTER" = "1" ]; then
+    echo "new best; saving"
+    echo $BLEU > {prefix}_best_bleu
+    cp {prefix}.dev.npz {prefix}.npz.best_bleu
+fi"""
+
+            # format blueprint as script content
+            script_content = script_blueprint.format(
+                omp_flag="OMP_NUM_THREADS=%d " % num_threads if "cpu" in device else "",
+                python_exec=C.PYTHON2,
+                nematus=C.NEMATUS_TRANSLATE,
+                moses=C.MOSES_MULTI_BLEU,
+                dev=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._src_lang),
+                ref=self._get_path_corpus(C.BASENAME_TUNING_CORPUS, self._trg_lang),
+                device=device,
+                preallocate=preallocate,
+                prefix=self._base_dir_model + '/model.npz',
+                # `script_path`: absolute path to where postprocessing script is stored,
+                # otherwise not found if mtrain executed in other directory
+                script_path=self._path_ext_val
+            )
+            # write script content to external validation script
+            file_location = self._path_ext_val + os.sep + 'validate.sh'
+            with open(file_location, 'w') as f:
+                f.write(script_content)
+
+            # close script
+            f.close()
+            # chmod script to make executable
+            os.chmod(file_location, 0o755)
+
+    def _prepare_valid_postprocessing(self):
+        """
+        Sets up postprocessing script that is called by external validation script during
+        Nematus training. This function does not execute postprocessing, but supplies an
+        executable script.
+
+        Reference for this script:
+        https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-dev.sh
+        """
+        # check if mtrain-managed postprocessing
+        if self._mtrain_managed_val:
+            # if mtrain_managed, prepare blueprint for script content
+            script_blueprint = """#!/bin/sh
+
+# This script was generated by mtrain according to the example:
+# https://github.com/rsennrich/wmt16-scripts/blob/master/sample/postprocess-dev.sh
+
+moses_detruecaser={detruecaser}
+
+sed 's/\@\@ //g' | \\
+$moses_detruecaser"""
+
+            # format blueprint as script content
+            script_content = script_blueprint.format(
+                detruecaser=C.MOSES_DETRUECASER
+            )
+            # write script content to external validation script
+            file_location = self._path_ext_val + os.sep + 'postprocess-dev.sh'
+            with open(file_location, 'w') as f:
+                f.write(script_content)
+
+            # close script
+            f.close()
+            # chmod script to make executable
+            os.chmod(file_location, 0o755)
+
+    def _train_nematus_engine(self, device_train, preallocate_train, num_threads, validation_frequency, save_frequency, max_epochs, max_updates, hidden_size, embedding_size):
+        """
+        Trains the nematus engine.
+
+        @param device_train defines the processor (cpu, gpuN or cudaN) for training
+        @param preallocate_train defines the percentage of memory to be preallocated for training
+        @param num_threads number of threads for CPU operations
+        @param validation_frequency validate model after that many updates
+        @param save_frequency save a model checkpoint after that many updates
+        @param max_epochs maximum number of epochs
+        @param max_updates maximum number of updates
+        @param hidden_size size of hidden states
+        @param embedding_size size of embedding vectors
+
+        Reference: https://github.com/rsennrich/wmt16-scripts.
+        """
+        # distinguish mtrain-managed from user-defined external validation
+        if self._mtrain_managed_val:
+            script_path_full = self._path_ext_val + os.sep + 'validate.sh'
+        else:
+            # user must provide path including filename
+            script_path_full = self._path_ext_val
+
+        if "cpu" in device_train:
+            omp_flag = "OMP_NUM_THREADS={num_threads}".format(num_threads=num_threads)
+        else:
+            omp_flag = ""
+
+        # theano flags
+        theano_train_flags = 'THEANO_FLAGS=mode=FAST_RUN,floatX=float32,device={device},on_unused_input=warn,gpuarray.preallocate={preallocate} {python_exec}'.format(
+            device=device_train,
+            preallocate=preallocate_train,
+            python_exec=C.PYTHON2
+        )
+        # nematus files
+
+        train_final_bpe_path_src = self._get_path_corpus([C.BASENAME_TRAINING_CORPUS,
+                                                          C.SUFFIX_FINAL,
+                                                          C.BPE],
+                                                          self._src_lang)
+
+        train_final_bpe_path_trg = self._get_path_corpus([C.BASENAME_TRAINING_CORPUS,
+                                                          C.SUFFIX_FINAL,
+                                                          C.BPE],
+                                                          self._trg_lang)
+
+        nematus_train_files = '{script} --model {model_path}/model.npz --datasets {datasets} --valid_datasets {valid_datasets} --dictionaries {dictionaries}'.format(
+            script=C.NEMATUS_NMT,
+            model_path=self._base_dir_model,
+            datasets=" ".join([train_final_bpe_path_src, train_final_bpe_path_trg]),
+            valid_datasets=self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._src_lang) + ' ' + \
+                           self._get_path_corpus([C.BASENAME_TUNING_CORPUS, C.SUFFIX_FINAL, C.BPE], self._trg_lang),
+            dictionaries=" ".join([path + ".json" for path in [train_final_bpe_path_src, train_final_bpe_path_trg]])
+        )
+
+        # nematus options for training
+        options_dict = C.NEMATUS_OPTIONS
+
+        # override with cmd arguments
+        options_dict["--saveFreq"] = save_frequency
+        options_dict["--validFreq"] = validation_frequency
+        options_dict["--max_epochs"] = max_epochs
+        options_dict["--finish_after"] = max_updates
+        options_dict["--dim"] = hidden_size
+        options_dict["--dim_word"] = embedding_size
+
+        nematus_train_options = " ".join(["%s %s" % (k, v) if v != "" else k for k, v in options_dict.items()])
+        # external validation script:
+        external_validation = '--external_validation_script={script}'.format(
+            script=script_path_full
+        )
+
+        # Workaround for: https://gitlab.cl.uzh.ch/mt/mtrain/issues/40
+        # append debug log explicitly to training.log in basepath of mtrain,
+        # includes output of external validation script. Expect training output to
+        # be logged to training.log AGAIN if training terminates due to an error.
+        logfile = self._basepath + '/training.log'
+        log_to_file = '>> {log} 2>&1'.format(
+            log=logfile
+        )
+
+        # inform user to observe logfile, as debug log is never printed to terminal during training due to length
+        logging.info("Start training, observe progress in logfile: %s", logfile)
+
+        # train nematus engine
+        commander.run(" ".join([omp_flag, theano_train_flags, nematus_train_files, nematus_train_options, external_validation, log_to_file]),
+            "Training Nematus engine: device %s" % device_train
+        )

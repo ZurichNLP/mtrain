@@ -6,14 +6,24 @@ Stores the constants needed to execute commands.
 
 import logging
 import os
-import re
 from collections import OrderedDict
 
+
+##################################
+# Paths to software
+##################################
+
+
 # Paths to 3rd party packages
-MOSES_HOME = os.environ.get('MOSES_HOME') if os.environ.get('MOSES_HOME') else '' # Moses base directory
+MOSES_HOME = os.environ.get('MOSES_HOME') if os.environ.get('MOSES_HOME') else ''  # Moses base directory
 MOSES_BIN = MOSES_HOME + os.sep + 'bin'
-FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else '' # directory storing the fast_align binaries (fast_align, atools)
-MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else '' # MultEval base directory
+FASTALIGN_HOME = os.environ.get('FASTALIGN_HOME') if os.environ.get('FASTALIGN_HOME') else ''  # directory storing the fast_align binaries (fast_align, atools)
+MULTEVAL_HOME = os.environ.get('MULTEVAL_HOME') if os.environ.get('MULTEVAL_HOME') else ''  # MultEval base directory
+# Paths to 3rd party packages for nematus backend implementation
+# Cf. https://github.com/rsennrich/subword-nmt
+SUBWORD_NMT_HOME = os.environ.get('SUBWORD_NMT_HOME') if os.environ.get('SUBWORD_NMT_HOME') else ''  # Subword NMT base directory
+# Cf. https://github.com/EdinburghNLP/nematus
+NEMATUS_HOME = os.environ.get('NEMATUS_HOME') if os.environ.get('NEMATUS_HOME') else ''  # Nematus base directory
 
 # Paths to Moses files/scripts
 MOSES = MOSES_HOME + os.sep + 'bin/moses'
@@ -27,17 +37,35 @@ MOSES_TRAIN_RECASER = MOSES_HOME + os.sep + 'scripts/recaser/train-recaser.perl'
 MOSES_MERT = MOSES_HOME + os.sep + 'scripts/training/mert-moses.pl'
 MOSES_COMPRESS_PHRASE_TABLE = MOSES_HOME + os.sep + 'bin/processPhraseTableMin'
 MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTableMin'
+MOSES_NORMALIZER = MOSES_HOME + os.sep + 'scripts/tokenizer/normalize-punctuation.perl'
+MOSES_DETRUECASER = MOSES_HOME + os.sep + 'scripts/recaser/detruecase.perl'
+MOSES_MULTI_BLEU = MOSES_HOME + os.sep + 'scripts/generic/multi-bleu.perl'
 
 # Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
-KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
+KENLM_BUILD_BINARY = MOSES_HOME + os.sep + 'bin/build_binary'
 
 # Paths to fast_align files/scripts
 FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'
 ATOOLS = FASTALIGN_HOME + os.sep + 'atools'
-
 # Path to multeval script
 MULTEVAL = MULTEVAL_HOME + os.sep + 'multeval.sh'
+
+# Paths to Subword NMT files/scripts
+SUBWORD_NMT_LEARN = SUBWORD_NMT_HOME + os.sep + 'learn_bpe.py'
+SUBWORD_NMT_APPLY = SUBWORD_NMT_HOME + os.sep + 'apply_bpe.py'
+SUBWORD_NMT_JOINT = SUBWORD_NMT_HOME + os.sep + 'learn_joint_bpe_and_vocab.py'
+
+# Paths to Nematus files/scripts
+NEMATUS_BUILD_DICT = NEMATUS_HOME + os.sep + 'data/build_dictionary.py'
+NEMATUS_NMT = NEMATUS_HOME + os.sep + 'nematus/nmt.py'
+NEMATUS_TRANSLATE = NEMATUS_HOME + os.sep + 'nematus/translate.py'
+
+
+######################################
+# Constants related to preprocessing
+# and default names of files
+######################################
 
 # Characters with special meanings in Moses
 # Replacement is ordered: First char listed here is replaced first, etc.
@@ -65,16 +93,20 @@ PATH_COMPONENT = {
     # Maps components to their base directory name
     "corpus": "corpus",
     "engine": "engine",
-    "evaluation": "evaluation",
-    "logs": "logs"
+    "evaluation": "evaluation"
 }
+
+CONFIG = "config.json"
+
+# Subfolder for bpe model and file suffix when byte-pair encoded in nematus
+BPE = 'bpe'
 
 # Default file names and affixes
 BASENAME_TRAINING_CORPUS = 'train'
 BASENAME_TUNING_CORPUS = 'tune'
-BASENAME_EVALUATION_CORPUS = 'test'
+BASENAME_EVALUATION_CORPUS = 'eval' #@MM: changed value from 'test'
 SUFFIX_TOKENIZED = 'tokenized'
-SUFFIX_DETOKENIZED= 'detokenized'
+SUFFIX_DETOKENIZED = 'detokenized'
 SUFFIX_MASKED = 'masked'
 SUFFIX_UNMASKED = 'unmasked'
 SUFFIX_CLEANED = 'cleaned'
@@ -141,10 +173,23 @@ RECASING = "recasing"
 CASING_STRATEGIES = {
     SELFCASING: "the decoder is trained on lowercased input and cased output",
     TRUECASING: "the decoder is trained on truecased input and output " +
-        "(trains a separate truecasing model)",
-    RECASING: "the decoder is trained on lowercased input and output " +
-        "(trains a separate recasing model)"
+                "(trains a separate truecasing model)",
+    RECASING: "default, the decoder is trained on lowercased input and output " +
+              "(trains a separate recasing model)"
 }
+
+
+# BPE encoding defaults
+BPE_NUM_SINGLE_OPERATIONS = 89500
+BPE_NUM_JOINT_OPERATIONS = 50000  # joint vocabulary
+
+BPE_VOCAB_THRESHOLD = 50
+
+
+######################################
+# Constants related to XML processing
+######################################
+
 
 # Masking
 MASKING = "masking"
@@ -153,13 +198,13 @@ MASKING_ALIGNMENT = 'alignment'
 MASKING_IDENTITY = "identity"
 MASKING_STRATEGIES = {
     MASKING_ALIGNMENT: "mask tokens are not unique, content is restored based on " +
-        "the source segment and word alignment",
+                       "the source segment and word alignment",
     MASKING_IDENTITY: "all mask tokens in a segment have unique IDs, content " +
-        "is restored based solely on mapping information",
+                      "is restored based solely on mapping information",
 }
 # More fine-grained defaults for masking
-FORCE_MASK_TRANSLATION = False # constraint decoding for the mask token
-REMOVE_ALL_MASKS = True # whether superfluous mask tokens should be removed
+FORCE_MASK_TRANSLATION = False  # constraint decoding for the mask token
+REMOVE_ALL_MASKS = True  # whether superfluous mask tokens should be removed
 
 # Markup reinsertion
 REINSERTION = 'reinsertion'
@@ -169,32 +214,32 @@ REINSERTION_SEGMENTATION = 'segmentation'
 REINSERTION_ALIGNMENT = 'alignment'
 REINSERTION_STRATEGIES = {
     REINSERTION_FULL: "reinsert markup with a hybrid method that uses both " +
-        "phrase segmentation and alignment information",
+                      "phrase segmentation and alignment information",
     REINSERTION_SEGMENTATION: "reinsert markup based solely on information " +
-        "about phrase segmentation",
+                      "about phrase segmentation",
     REINSERTION_ALIGNMENT: "reinsert markup based solely on information " +
-        "about word alignments"
+                           "about word alignments"
 }
 # More fine-grained defaults for reinsertion and masking
-FORCE_REINSERT_ALL = True # whether unplaceable markup should be inserted anyway
+FORCE_REINSERT_ALL = True  # whether unplaceable markup should be inserted anyway
 
 # XML processing
 XML_PASS_THROUGH = 'pass-through'
-XML_STRIP = 'strip' # for training
-XML_STRIP_REINSERT = 'strip-reinsert' # for translation
+XML_STRIP = 'strip'  # for training
+XML_STRIP_REINSERT = 'strip-reinsert'  # for translation
 XML_MASK = 'mask'
 # Valid strategies for training
 XML_STRATEGIES = {
     XML_PASS_THROUGH: "do nothing, except for properly escaping special " +
-        "characters before training the models (not recommended if your " +
-        "input contains markup)",
+                      "characters before training the models (not recommended if your " +
+                      "input contains markup)",
     XML_STRIP: "remove markup from all segments before training, and do " +
-        "not store the markup anywhere",
+               "not store the markup anywhere",
     XML_STRIP_REINSERT: "remove markup from all segments before translation " +
-        "and reinsert into the translated segment afterwards",
+                        "and reinsert into the translated segment afterwards",
     XML_MASK: "replace stretches of markup with mask tokens before " +
-        "training. Then train the models with segments that contain " +
-        "mask tokens"
+              "training. Then train the models with segments that contain " +
+              "mask tokens"
 }
 # More fine-grained defaults for XML processing
 XML_STRATEGIES_DEFAULTS = {
@@ -204,10 +249,13 @@ XML_STRATEGIES_DEFAULTS = {
 }
 
 # Evaluation
-MULTEVAL_TOOL = 'MultEval'
+MULTEVAL_TOOL = 'multeval'
+MULTIBLEU_DETOK_TOOL = 'multibleu'
 EVALUATION_TOOLS = {
     MULTEVAL_TOOL: "evaluate with MultEval, computes BLEU, TER and " +
-        "METEOR scores (the latter only if target language is supported)"
+                   "METEOR scores (the latter only if target language is supported)",
+    MULTIBLEU_DETOK_TOOL: "evaluate with multibleu-detok.perl from Moses, "
+                          "performs internal tokenization."
 }
 
 # Python logging levels
@@ -218,3 +266,76 @@ LOGGING_LEVELS = {
     "ERROR": logging.ERROR,
     "CRITICAL": logging.CRITICAL,
 }
+
+# Backend choices
+BACKEND_MOSES = 'moses'
+BACKEND_NEMATUS = 'nematus'
+# Valid backend choices
+BACKEND_CHOICES = {
+    BACKEND_MOSES: "Trains a phrase-based, statistical machine translation system based on Moses (default)",
+    BACKEND_NEMATUS: "Trains a neural machine translation system based on Nematus"
+}
+
+
+########################################
+# Constants specific to Nematus backend
+########################################
+
+TRAIN_DEVICE = 'cuda0'
+VALIDATE_DEVICE = 'cuda1'
+TRANS_DEVICE = TRAIN_DEVICE
+
+TRAIN_PREALLOCATE = 0.8
+VALIDATE_PREALLOCATE = 0.2
+TRANS_PREALLOCATE = 0.1
+
+VALIDATION_FREQ = 10000
+MAX_EPOCHS = 5000
+MAX_UPDATES = 10000000
+
+NEMATUS_SIZE_HIDDEN = 512
+NEMATUS_SIZE_EMB = 1024
+
+TRANS_BEAM_SIZE = 12
+
+
+NEMATUS_OPTIONS = {
+    # training progress
+    "--reload": "",  # will reload progress
+    "--max_epochs": MAX_EPOCHS,
+    "--finish_after": MAX_UPDATES,
+    # intervals
+    "--dispFreq": 100,
+    "--validFreq": VALIDATION_FREQ,
+    "--saveFreq": 30000,
+    "--sampleFreq": 10000,
+    # model
+    "--dim": NEMATUS_SIZE_HIDDEN,
+    "--dim_word": NEMATUS_SIZE_EMB,
+    "--enc_depth": 1,
+    "--dec_depth": 1,
+    "--dropout_embedding": 0.2,
+    "--dropout_hidden": 0.2,
+    "--dropout_source": 0.1,
+    "--dropout_target": 0.1,
+    "--layer_normalisation": "",  # will use layer normalization
+    "--tie_decoder_embeddings": "",  # will tie decoder embeddings
+    # training procedure
+    "--maxlen": 50,
+    "--batch_size": 80,
+    "--valid_batch_size": 80,
+    "--decay_c": 0.,
+    "--clip_c": 1.,
+    "--lrate": 0.0001,
+    "--optimizer": "adam"
+}
+
+
+##################################
+# Python versions
+##################################
+
+# Assumes that `python` points to a Python 3 exectuable. If not, set explicitly as
+# environment variable.
+PYTHON2 = os.environ.get('PYTHON2') if os.environ.get('PYTHON2') else 'python2' # Python 2 base directory
+PYTHON3 = os.environ.get('PYTHON3') if os.environ.get('PYTHON3') else 'python' # Python 3 base directory

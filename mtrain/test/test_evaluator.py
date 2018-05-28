@@ -3,11 +3,14 @@
 import logging
 from mtrain.evaluator import Evaluator
 from mtrain.constants import *
-from mtrain.training import Training
+from mtrain.training import TrainingMoses
 
 from mtrain.test.test_case_with_cleanup import TestCaseWithCleanup
 
 class TestEvaluation(TestCaseWithCleanup):
+    '''
+    todo: maybe remove methods that are already provided in test_case_with_cleanup.py's TestCaseHelper()
+    '''
     @staticmethod
     def count_lines(filename):
         with open(filename) as f:

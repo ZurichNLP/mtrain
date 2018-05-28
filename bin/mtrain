@@ -1,248 +1,170 @@
 #!/usr/bin/env python3
 
+"""
+Command line interface for training.
+"""
+
 import logging
-import argparse
-import sys
-import os
 
-from mtrain.training import Training
-from mtrain.constants import *
+from mtrain.training import TrainingMoses, TrainingNematus
+from mtrain import constants as C
 from mtrain import checker
+from mtrain.arguments import get_training_parser, check_train_arguments
+from mtrain.utils import set_up_logging, write_config
+from mtrain.evaluator import Evaluator
 
-LOGGING_LEVELS = {
-    "DEBUG": logging.DEBUG,
-    "INFO": logging.INFO,
-    "WARNING": logging.WARNING,
-    "ERROR": logging.ERROR,
-    "CRITICAL": logging.CRITICAL,
-}
 
-def get_argument_parser():
-    parser = argparse.ArgumentParser()
-    parser.description = "Trains a Moses-based machine translation system."
-    parser.add_argument(
-        "basepath",
-        type=str,
-        help="common path/file prefix of the training corpus' source and " +
-        "target side, e.g., `/foo/bar/training_corpus`"
-    )
-    parser.add_argument(
-        "src_lang",
-        type=str,
-        help="source language code: valid choices are `" +
-            "`, `".join([lang for lang in sorted(MOSES_TOKENIZER_LANG_CODES.keys())]) +
-            "`",
-        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='src_lang' #overrides ugly double-listing of available choices in --help
-    )
-    parser.add_argument(
-        "trg_lang",
-        type=str,
-        help="target language code: same valid choices as in src_lang",
-        choices=MOSES_TOKENIZER_LANG_CODES.keys(),
-        metavar='trg_lang' #overrides ugly double-listing of available choices in --help
-    )
-    parser.add_argument(
-        "-o", "--output_dir",
-        type=str,
-        help="target directory for all output. The curent working directory " +
-            "($PWD) is used by default.",
-        default=os.getcwd()
-    )
-    parser.add_argument(
-        "-c", "--caser",
-        type=str,
-        help="casing strategy: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in CASING_STRATEGIES.items()]),
-        choices=CASING_STRATEGIES.keys(),
-        default="recasing"
-    )
-    parser.add_argument(
-        "-t", "--tune",
-        help="enable tuning. If an integer is provided, the given number of " +
-            "segments will be randomly taken from the training corpus " +
-            "(basepath). Alternatively, the basepath to a separate tuning " +
-            "corpus can be provided. Examples: `2000`, `/foo/bar/tuning_corpus`"
-    )
-    parser.add_argument(
-        "-e", "--eval",
-        help="enable evaluation. If an integer is provided, the given number " +
-            "of segments will be randomly taken from the training corpus " +
-            "(basepath). Alternatively, the basepath to a separate evaluation " +
-            "corpus can be provided. Examples: `2000`, `/foo/bar/eval_corpus`"
-    )
-    parser.add_argument(
-        "--eval_lowercase",
-        help="lowercase reference and translation before evaluation. Otherwise," +
-            "evaluation uses the engine's casing strategy.",
-        default=False,
-        action='store_true'
-    )
-    parser.add_argument(
-        "--preprocess_external_tune",
-        help="preprocess external tuning corpus. Don't use if " +
-            "the external files provided in --tune are already preprocessed.",
-        default=False,
-        action='store_true'
-    )
-    parser.add_argument(
-        "--masking",
-        help="enable masking. Valid strategies are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in MASKING_STRATEGIES.items()]),
-        choices=MASKING_STRATEGIES.keys(),
-        default=None
-    )
-    parser.add_argument(
-        "-n", "--n_gram_order",
-        help="the language model's n-gram order",
-        type=int,
-        default=5
-    )
-    parser.add_argument(
-        "--min_tokens",
-        help="the minimum number of tokens per segments; segments with less " +
-            "tokens will be discarded",
-        type=int,
-        default=1
-    )
-    parser.add_argument(
-        "--max_tokens",
-        help="the maximum number of tokens per segments; segments with more " +
-            "tokens will be discarded",
-        type=int,
-        default=80
-    )
-    parser.add_argument(
-        "--threads",
-        help="the number of threads to be used at most",
-        type=int,
-        default=8
-    )
-    parser.add_argument(
-        "--temp_dir",
-        help="directory for temporary files created during trainig",
-        default="/tmp"
-    )
-    parser.add_argument(
-        "--keep_uncompressed_models",
-        help="do not delete uncompressed models created during training",
-        action='store_true'
-    )
-    parser.add_argument(
-        "--logging",
-        help="logging level in STDERR",
-        choices=LOGGING_LEVELS.keys(),
-        default="INFO"
-    )
-    parser.add_argument(
-        "--xml_input",
-        type=str,
-        help="decide how XML fragments in the input segments should " +
-            "be dealt with. Valid choices are: " +
-            "; ".join(["`%s`: %s" % (name, descr) for name, descr in XML_STRATEGIES.items()]),
-        choices=XML_STRATEGIES.keys(),
-        default=None
-    )
-    parser.add_argument(
-        "--extended_eval",
-        action="store_true",
-        help="perform multiple evaluations that vary the appearance of the test files: " +
-            "lowercased or not, detokenized or not, with markup or without.",
-        default=False
-    )
-    return parser
+def perform_checks(args):
+    """
+    Check python version, environment, arguments.
+    """
+    # abort if Python version is not supported
+    checker.check_python_version()
+    # abort if environment variables are not set
+    checker.check_environment(args)
+    # abort if arguments are incompatible
+    check_train_arguments(args)
+
 
 def main():
-    parser = get_argument_parser()
+    """
+    Training interface.
+    """
+    parser = get_training_parser()
     args = parser.parse_args()
-    # parse arguments
+
+    perform_checks(args)
+    set_up_logging(args)
+
+    write_config(args)
+
+    logging.info("Configured backend: %s", args.backend)
+
     if args.tune:
         try:
             args.tune = int(args.tune)
         except ValueError:
-            pass # string is fine; means path to external tuning corpus was provided
+            pass  # string is fine; means path to external tuning corpus was provided
+    elif args.backend == C.BACKEND_NEMATUS:
+        # validation data is mandatory for Nematus models
+        logging.warning("No tuning corpus was provided with -t/--tune, taking 2000 segments" +
+                        " from the training corpus at random.")
+        args.tune = 2000
+
     if args.eval:
         try:
             args.eval = int(args.eval)
         except ValueError:
-            pass # string is fine; means path to external evalution corpus was provided
-    # initialize logging
-    # log all events to file
-    logging.basicConfig(
-        filename=args.output_dir + os.sep + 'training.log',
-        level=logging.DEBUG,
-        format='%(asctime)s - mtrain - %(levelname)s - %(message)s'
-    )
-    # log WARNING and above (or as specified by user) to stdout
-    console = logging.StreamHandler()
-    console.setLevel(LOGGING_LEVELS[args.logging])
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger("").addHandler(console)
+            pass  # string is fine; means path to external evalution corpus was provided
 
-    # generic masking and XML masking currently not possible at the same time
-    if args.masking and args.xml_input == XML_MASK:
-        logging.critical("Invalid command line options. Choose either '--masking' or " +
-            "'--xml_input mask', but not both. See '-h'/'--help' for more information.")
-        sys.exit()
+    if args.backend == C.BACKEND_MOSES:
 
-    # make instance of Training class
-    training = Training(
-        basepath=args.output_dir,
-        src_lang=args.src_lang,
-        trg_lang=args.trg_lang,
-        casing_strategy=args.caser,
-        masking_strategy=args.masking,
-        xml_strategy=args.xml_input,
-        tuning=args.tune,
-        evaluation=args.eval
-    )
-    training.preprocess(
-        base_corpus_path=args.basepath,
-        min_tokens=args.min_tokens,
-        max_tokens=args.max_tokens,
-        mask=bool(args.masking),
-        preprocess_external=args.preprocess_external_tune,
-        process_xml=bool(args.xml_input)
-    )
-    if args.caser == TRUECASING:
-        training.train_truecaser()
-        training.truecase()
-    elif args.caser == RECASING:
-        training.train_recaser(
-            args.threads,
-            args.temp_dir,
-            args.keep_uncompressed_models
+        training = TrainingMoses(
+            basepath=args.output_dir,
+            src_lang=args.src_lang,
+            trg_lang=args.trg_lang,
+            casing_strategy=args.caser,
+            tuning=args.tune,
+            evaluation=args.eval,
+            masking_strategy=args.masking,
+            xml_strategy=args.xml_input
         )
-    training.train_engine(
-        n=args.n_gram_order,
-        alignment='grow-diag-final-and', # todo: make changeable
-        max_phrase_length=7, # todo: make changeable
-        reordering='msd-bidirectional-fe', # todo: make changeable
-        num_threads=args.threads,
-        path_temp_files=args.temp_dir,
-        keep_uncompressed=args.keep_uncompressed_models
-    )
-    if args.tune:
-        training.tune(args.threads)
-    training.write_final_ini()
 
-    if args.eval:
-        # abort if MULTEVAL_HOME environment variable is not set
-        checker.check_environment_variable(MULTEVAL_HOME, 'MULTEVAL_HOME', 'multeval.sh')
-        training.evaluate(
-            num_threads=args.threads,
-            lowercase_eval=False,
-            detokenize_eval=True,
-            strip_markup_eval=False,
-            extended=args.extended_eval
+        logging.info("Start preprocessing.")
+        training.preprocess(
+            corpus_base_path=args.basepath,
+            min_tokens=args.min_tokens,
+            max_tokens=args.max_tokens,
+            preprocess_external=args.preprocess_external_tune,
+            mask=bool(args.masking),
+            process_xml=bool(args.xml_input)
         )
+        # continue preprocessing: apply casing strategy
+        if args.caser == C.TRUECASING:
+            training.train_truecaser()
+            training.truecase()
+        elif args.caser == C.RECASING:
+            training.train_recaser(
+                args.threads,
+                args.temp_dir,
+                args.keep_uncompressed_models
+            )
+
+        if not args.dry_run:
+            # initiate training
+            training.train_engine(
+                n=args.n_gram_order,
+                alignment='grow-diag-final-and',  # todo: make changeable
+                max_phrase_length=7,  # todo: make changeable
+                reordering='msd-bidirectional-fe',  # todo: make changeable
+                num_threads=args.threads,
+                path_temp_files=args.temp_dir,
+                keep_uncompressed=args.keep_uncompressed_models
+            )
+
+            # initiate tuning
+            if args.tune:
+                training.tune(args.threads)
+
+            # symlink to final 'moses.ini'
+            training.write_final_ini()
+
+    elif args.backend == C.BACKEND_NEMATUS:
+
+        training = TrainingNematus(
+            basepath=args.output_dir,
+            src_lang=args.src_lang,
+            trg_lang=args.trg_lang,
+            casing_strategy=args.caser,
+            tuning=args.tune,
+            evaluation=args.eval
+        )
+
+        logging.info("Start preprocessing.")
+        training.preprocess(
+            corpus_base_path=args.basepath,
+            min_tokens=args.min_tokens,
+            max_tokens=args.max_tokens,
+            preprocess_external=args.preprocess_external_tune
+        )
+
+        if args.caser == C.TRUECASING:
+            training.train_truecaser()
+            training.truecase()
+        elif args.caser == C.RECASING:
+            training.train_recaser(
+                args.threads,
+                args.temp_dir,
+                args.keep_uncompressed_models
+            )
+
+        training.bpe_encoding(bpe_operations=args.bpe_ops)
+
+        if not args.dry_run:
+            # initiate training
+            training.train_engine(
+                device_train=args.device_train,
+                preallocate_train=args.preallocate_train,
+                device_validate=args.device_validate,
+                preallocate_validate=args.preallocate_validate,
+                num_threads=args.threads,
+                validation_frequency=args.validation_freq,
+                save_frequency=args.save_freq,
+                external_validation_script=args.external_validation_script,
+                max_epochs=args.max_epochs,
+                max_updates=args.max_updates,
+                hidden_size=args.hidden_size,
+                embedding_size=args.embedding_size
+            )
+
+    if args.eval and not args.dry_run:
+
+        logging.info("Performing automatic evaluation.")
+        evaluator = Evaluator(basepath=args.output_dir)
+        evaluator.evaluate(eval_tool=args.eval_tool)
+
 
 if __name__ == '__main__':
-    # abort if Python version is not supported
-    checker.check_python_version()
-    # abort if environment variables are not set
-    checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
-    checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
+
     # run main routine
     main()
