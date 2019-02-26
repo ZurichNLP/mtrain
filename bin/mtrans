@@ -78,6 +78,8 @@ def main():
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger("").addHandler(console)
+
+    logging.debug(args)
     # translation
     engine = TranslationEngine(args.basepath, args.src_lang, args.trg_lang, xml_strategy=args.xml_input)
     for line in sys.stdin: # read stdin
