@@ -58,7 +58,7 @@ def main():
                 # uppercase translation's first letter if first letter in source_segment is uppercased
                 if not args.lowercase and source_segment[0].isupper():
                     translation = translation[0].upper() + translation[1:]
-                    sys.stdout.write(translation + '\n')
+                sys.stdout.write(translation + '\n')
 
     elif args.backend == C.BACKEND_NEMATUS:
 
