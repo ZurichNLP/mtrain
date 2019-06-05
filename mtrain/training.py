@@ -729,10 +729,13 @@ class TrainingMoses(TrainingBase):
         if not assertions.dir_exists(base_dir_lm):
             os.mkdir(base_dir_lm)
         # train language model
+        dmsize = str(1)
+        print(dmsize)
         commander.run(
-            '{script} -o {n} -S 30% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
+            '{script} -o {n} -S {dm_size}% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
                 script=C.KENLM_TRAIN_MODEL,
                 n=n,
+                dm_size = dmsize,
                 path_temp_files=path_temp_files,
                 training_corpus=self._get_path_corpus_final(C.BASENAME_TRAINING_CORPUS, self._trg_lang),
                 base_dir_lm=base_dir_lm,

@@ -104,6 +104,8 @@ class Evaluator(object):
             self._multeval(output_path, hypothesis_path, reference_path)
         elif self._eval_tool == C.MULTIBLEU_DETOK_TOOL:
             self._multibleu(output_path, hypothesis_path, reference_path)
+        elif self._eval_tool == C.SACREBLEU_TOOL:
+            self._sacrebleu(output_path, hypothesis_path, reference_path)
         else:
             raise NotImplementedError
 
@@ -176,3 +178,22 @@ class Evaluator(object):
             multibleu_command,
             "Evaluating with multi-bleu-detok.perl."
         )
+
+    def _sacrebleu(self, output_path, hypothesis_path, reference_path):
+         """
+         Scores existing translations with SacreBLEU
+
+         @param output_path path to file where results should be stored
+         @param hypothesis_path path to machine translated segments
+         @param reference_path path to target side of reference corpus
+         """
+         sacrebleu_command = '{script} {reference_path} < {hypothesis} > {output_path}'.format(
+             script=C.SACREBLEU_TOOL,
+             reference_path=reference_path,
+             hypothesis=hypothesis_path,
+             output_path=output_path
+         )
+         commander.run(
+             sacrebleu_command,
+             "Evaluating with SacreBLEU."
+         )
