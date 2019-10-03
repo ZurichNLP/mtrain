@@ -109,6 +109,7 @@ MOSES_TOKENIZER_LANG_CODES = {
     "sl": "Slovenian",
     "sv": "Swedish",
     "ta": "Tamil",
+    "rm": "Rumansh"
 }
 
 # Valid language codes for METEOR 1.4 (used by MultEval)
