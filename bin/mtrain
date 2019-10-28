@@ -182,8 +182,6 @@ def main():
         format='%(asctime)s - mtrain - %(levelname)s - %(message)s'
     )
 
-    exit()
-
     # log WARNING and above (or as specified by user) to stdout
     console = logging.StreamHandler()
     console.setLevel(LOGGING_LEVELS[args.logging])
@@ -252,9 +250,9 @@ def main():
 
 if __name__ == '__main__':
     # abort if Python version is not supported
-    # checker.check_python_version()
+    checker.check_python_version()
     # abort if environment variables are not set
-    # checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
-    # checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
+    checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
+    checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
     # run main routine
     main()
