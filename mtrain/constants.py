@@ -31,6 +31,7 @@ MOSES_COMPRESS_REORDERING_TABLE = MOSES_HOME + os.sep + 'bin/processLexicalTable
 # Paths to KenLM files/scripts (included in Moses)
 KENLM_TRAIN_MODEL = MOSES_HOME + os.sep + 'bin/lmplz'
 KENLM_BUILD_BINARY = MOSES_HOME + os.sep + '/bin/build_binary'
+KENLM_MAX_MEMORY = "30" # maximum amount of RAM to be used for training (in percent (%))
 
 # Paths to fast_align files/scripts
 FAST_ALIGN = FASTALIGN_HOME + os.sep + 'fast_align'

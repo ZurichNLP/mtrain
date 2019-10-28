@@ -320,8 +320,8 @@ class Training(object):
             os.remove("%s/phrase-table.gz" % base_dir_recaser)
 
     def train_engine(self, n=5, alignment='grow-diag-final-and',
-              max_phrase_length=7, reordering='msd-bidirectional-fe',
-              num_threads=1, path_temp_files='/tmp', keep_uncompressed=False):
+              max_phrase_length=7, reordering='msd-bidirectional-fe', num_threads=1,
+              path_temp_files='/tmp', keep_uncompressed=False, max_memory=KENLM_MAX_MEMORY):
         '''
         Trains the language, translation, and reordering models.
 
@@ -334,8 +334,10 @@ class Training(object):
             be stored
         @param keep_uncompressed whether or not uncompressed model files should
             be kept after binarization
+        @param max_memory the maximum amount of RAM to be used during training
+            as a percentage of the total available RAM
         '''
-        self._train_language_model(n, path_temp_files, keep_uncompressed)
+        self._train_language_model(n, path_temp_files, keep_uncompressed, max_memory)
         self._word_alignment(alignment, num_threads)
         self._train_moses_engine(n, max_phrase_length, alignment, reordering, num_threads, path_temp_files, keep_uncompressed)
 
@@ -649,7 +651,7 @@ class Training(object):
                 symlink_path(BASENAME_EVALUATION_CORPUS, self._trg_lang)
             )
 
-    def _train_language_model(self, n, path_temp_files, keep_uncompressed=False):
+    def _train_language_model(self, n, path_temp_files, keep_uncompressed=False, max_memory=KENLM_MAX_MEMORY):
         '''
         Trains an n-gram language model with modified Kneser-Ney smoothing of
         order @param n.
@@ -660,13 +662,14 @@ class Training(object):
             os.mkdir(base_dir_lm)
         # train language model
         commander.run(
-            '{script} -o {n} -S 30% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
+            '{script} -o {n} -S {max_memory}% -T "{path_temp_files}" < "{training_corpus}" > "{base_dir_lm}/{n}-grams.{trg_lang}.arpa"'.format(
                 script=KENLM_TRAIN_MODEL,
                 n=n,
                 path_temp_files=path_temp_files,
                 training_corpus=self._get_path_corpus_final(BASENAME_TRAINING_CORPUS, self._trg_lang),
                 base_dir_lm=base_dir_lm,
-                trg_lang=self._trg_lang
+                trg_lang=self._trg_lang,
+                max_memory=max_memory
             ),
             "Training %s language model" % self._trg_lang
         )

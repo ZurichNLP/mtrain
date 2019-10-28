@@ -8,6 +8,7 @@ import os
 from mtrain.training import Training
 from mtrain.constants import *
 from mtrain import checker
+from mtrain.argparse.maxMemoryAction import MaxMemoryAction
 
 LOGGING_LEVELS = {
     "DEBUG": logging.DEBUG,
@@ -147,8 +148,15 @@ def get_argument_parser():
         "--extended_eval",
         action="store_true",
         help="perform multiple evaluations that vary the appearance of the test files: " +
-            "lowercased or not, detokenized or not, with markup or without.",
+             "lowercased or not, detokenized or not, with markup or without.",
         default=False
+    )
+    parser.add_argument(
+        "--max_memory",
+        help="the maximum amount of RAM to be used by the training process as a " +
+             "percentage of the total available RAM.",
+        action=MaxMemoryAction,
+        default="30"
     )
     return parser
 
@@ -173,6 +181,9 @@ def main():
         level=logging.DEBUG,
         format='%(asctime)s - mtrain - %(levelname)s - %(message)s'
     )
+
+    exit()
+
     # log WARNING and above (or as specified by user) to stdout
     console = logging.StreamHandler()
     console.setLevel(LOGGING_LEVELS[args.logging])
@@ -221,7 +232,8 @@ def main():
         reordering='msd-bidirectional-fe', # todo: make changeable
         num_threads=args.threads,
         path_temp_files=args.temp_dir,
-        keep_uncompressed=args.keep_uncompressed_models
+        keep_uncompressed=args.keep_uncompressed_models,
+        max_memory=args.max_memory
     )
     if args.tune:
         training.tune(args.threads)
@@ -240,9 +252,9 @@ def main():
 
 if __name__ == '__main__':
     # abort if Python version is not supported
-    checker.check_python_version()
+    # checker.check_python_version()
     # abort if environment variables are not set
-    checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
-    checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
+    # checker.check_environment_variable(MOSES_HOME, 'MOSES_HOME', 'moses')
+    # checker.check_environment_variable(FASTALIGN_HOME, 'FASTALIGN_HOME', 'fast_align')
     # run main routine
     main()
