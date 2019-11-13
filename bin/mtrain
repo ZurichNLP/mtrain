@@ -8,7 +8,7 @@ import os
 from mtrain.training import Training
 from mtrain.constants import *
 from mtrain import checker
-from mtrain.argparse.maxMemoryAction import MaxMemoryAction
+from mtrain.args import MaxMemoryAction
 
 LOGGING_LEVELS = {
     "DEBUG": logging.DEBUG,
